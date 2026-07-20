@@ -200,6 +200,12 @@
   a.btn:focus-visible, button.btn:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
   button.btn-zip { background: var(--zip-bg); margin-top: 10px; }
   button.btn-zip:hover { background: var(--zip-hover); }
+  button.btn-cancel {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    padding: 4px 12px; border-radius: 8px; font-size: .82rem; cursor: pointer;
+    margin-top: 8px;
+  }
+  button.btn-cancel:hover { border-color: var(--err); color: var(--err); }
   details { margin-top: 20px; }
   details summary { cursor: pointer; font-weight: 600; color: var(--accent-text); font-size: .92rem; }
   details .panel { margin-top: 10px; font-size: .9rem; line-height: 1.6; color: var(--muted); }
@@ -276,7 +282,7 @@
   </details>
 </main>
 
-<footer class="app">LOTEP — Loteria do Estado da Paraíba<br>Processamento 100% no navegador · Seus PDFs nunca são enviados a nenhum servidor</footer>
+<footer class="app">LOTEP — Loteria do Estado da Paraíba<br>Processamento 100% no navegador · Seus PDFs nunca são enviados a nenhum servidor · v1.3 (20/07/2026)</footer>
 
 <script>
 /**
@@ -385,8 +391,9 @@ window.__results = []; // depuração/testes
 
 // Visualizador hospedado do claude.ai: o sandbox do iframe bloqueia downloads
 // (sem allow-downloads), popups e o seletor de arquivos — avisamos o usuário.
+const VERSAO = '1.3 — 20/07/2026';
 const HOSTED = typeof window.claude !== 'undefined';
-console.log('[compacta-pdf] hospedado=' + HOSTED);
+console.log('[compacta-pdf] v' + VERSAO + ' · hospedado=' + HOSTED + ' · OffscreenCanvas=' + (typeof OffscreenCanvas !== 'undefined'));
 if (HOSTED) {
   const aviso = document.createElement('div');
   aviso.className = 'panel';
@@ -405,6 +412,23 @@ function hostedHint(container) {
 // yield via MessageChannel: macrotask que NÃO é limitada pelo Chrome em abas de fundo
 function uiBreath() {
   return new Promise(r => { const mc = new MessageChannel(); mc.port1.onmessage = () => r(); mc.port2.postMessage(0); });
+}
+
+// OffscreenCanvas não sofre o estrangulamento de abas em segundo plano;
+// canvas comum fica como reserva para navegadores antigos
+function criarCanvas(w, h) {
+  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(w, h);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  return c;
+}
+
+async function canvasParaJpegBytes(canvas, q) {
+  let blob;
+  if (canvas.convertToBlob) blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: q });
+  else blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', q));
+  if (!blob) throw new Error('Falha ao converter a página em imagem.');
+  return new Uint8Array(await blob.arrayBuffer());
 }
 function fmt(bytes) {
   if (bytes < 100 * 1000) return (bytes / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' KB';
@@ -505,19 +529,23 @@ async function ocrDaPagina(doc, pageNum, card) {
   const maxSide = Math.max(vp1.width, vp1.height);
   if (maxSide * scale > 2400) scale = 2400 / maxSide;
   const vp = page.getViewport({ scale });
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(vp.width));
-  canvas.height = Math.max(1, Math.round(vp.height));
+  const canvas = criarCanvas(Math.max(1, Math.round(vp.width)), Math.max(1, Math.round(vp.height)));
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   // intent 'print' evita requestAnimationFrame, que congela em abas em segundo plano
   await page.render({ canvasContext: ctx, viewport: vp, intent: 'print' }).promise;
   page.cleanup();
+  card.checar();
+  // o tesseract.js aceita Blob; convertToBlob (OffscreenCanvas) é imune à aba oculta
+  let ocrBlob;
+  if (canvas.convertToBlob) ocrBlob = await canvas.convertToBlob({ type: 'image/png' });
+  else ocrBlob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+  if (!ocrBlob) throw new Error('Falha ao preparar a imagem para OCR.');
   window.__ocrLog = pct => card.status(`OCR na página ${pageNum}: ${pct}%`);
   card.status(`OCR na página ${pageNum}...`);
   try {
-    const r = await worker.recognize(canvas);
+    const r = await worker.recognize(ocrBlob);
     return (r && r.data && r.data.text) || '';
   } finally {
     window.__ocrLog = null;
@@ -525,9 +553,8 @@ async function ocrDaPagina(doc, pageNum, card) {
   }
 }
 
-async function extrairNomeBase(origBytes, card) {
+async function extrairNomeBase(doc, card) {
   card.status('Lendo o documento para identificar processo/protocolo/título...');
-  const doc = await pdfjsLib.getDocument({ data: origBytes.slice() }).promise;
   let texto = '';
   try {
     const n = Math.min(2, doc.numPages);
@@ -552,6 +579,7 @@ async function extrairNomeBase(origBytes, card) {
     try {
       const nPag = Math.min(2, doc.numPages);
       for (let p = 1; p <= nPag && !achado; p++) {
+        card.checar();
         // timeout de segurança: se o OCR travar, o arquivo segue sem ele
         const t = await Promise.race([
           ocrDaPagina(doc, p, card),
@@ -563,10 +591,10 @@ async function extrairNomeBase(origBytes, card) {
         }
       }
     } catch (e) {
+      if (e && e.cancelado) throw e;
       card.status('OCR indisponível neste ambiente — seguindo sem OCR.');
     }
   }
-  doc.destroy();
   if (achado) return achado;
 
   // título dos metadados do PDF
@@ -592,22 +620,39 @@ function makeCard(name, size) {
       <span class="fname"></span>
       <span class="fsize">${fmt(size)}</span>
     </div>
-    <div class="status"></div>
+    <div class="status" aria-live="polite"></div>
     <div class="bar"><div class="fill"></div></div>
     <div class="result"></div>`;
   el.querySelector('.fname').textContent = name;
+  const btnCancel = document.createElement('button');
+  btnCancel.className = 'btn-cancel';
+  btnCancel.type = 'button';
+  btnCancel.textContent = '✕ Cancelar';
+  el.insertBefore(btnCancel, el.querySelector('.result'));
   $('#results').prepend(el);
   el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  return {
+  const api = {
     el,
+    cancelado: false,
     status(t) { el.querySelector('.status').textContent = t; },
     progress(f) { el.querySelector('.fill').style.width = Math.round(f * 100) + '%'; },
+    // lança se o usuário cancelou — chamado nos pontos de verificação dos loops
+    checar() {
+      if (api.cancelado) {
+        const e = new Error('Cancelado pelo usuário.');
+        e.cancelado = true;
+        throw e;
+      }
+    },
     done() {
       el.querySelector('.bar').style.display = 'none';
       el.querySelector('.status').style.display = 'none';
+      btnCancel.remove();
     },
     result() { return el.querySelector('.result'); },
   };
+  btnCancel.onclick = () => { api.cancelado = true; api.status('Cancelando...'); };
+  return api;
 }
 
 function addDownloadRow(container, name, bytes, extra, warn, sufixo) {
@@ -696,8 +741,7 @@ function addRenamePanel(out, valorInicial, origem) {
 
 /* ---------- Compactação: rasteriza páginas em JPEG ---------- */
 function toGray(canvas) {
-  const c2 = document.createElement('canvas');
-  c2.width = canvas.width; c2.height = canvas.height;
+  const c2 = criarCanvas(canvas.width, canvas.height);
   const ctx = c2.getContext('2d');
   ctx.filter = 'grayscale(1)';
   ctx.drawImage(canvas, 0, 0);
@@ -723,24 +767,21 @@ async function compressLadder(pdfjsDoc, limit, gray, card, title) {
     let jpegs = [];
     let total = 0, aborted = false;
     for (let i = 1; i <= n; i++) {
+      card.checar();
       const page = await pdfjsDoc.getPage(i);
       const vp1 = page.getViewport({ scale: 1 });
       let scale = step.dpi / 72;
       const maxSide = Math.max(vp1.width, vp1.height);
       if (maxSide * scale > 2600) scale = 2600 / maxSide;
       const vp = page.getViewport({ scale });
-      let canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(vp.width));
-      canvas.height = Math.max(1, Math.round(vp.height));
+      let canvas = criarCanvas(Math.max(1, Math.round(vp.width)), Math.max(1, Math.round(vp.height)));
       const ctx = canvas.getContext('2d');
       ctx.fillStyle = '#FFFFFF';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       // intent 'print' evita requestAnimationFrame, que congela em abas em segundo plano
       await page.render({ canvasContext: ctx, viewport: vp, intent: 'print' }).promise;
       if (gray) canvas = toGray(canvas);
-      const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', step.q));
-      if (!blob) throw new Error('Falha ao converter a página ' + i + ' em imagem.');
-      const buf = new Uint8Array(await blob.arrayBuffer());
+      const buf = await canvasParaJpegBytes(canvas, step.q);
       jpegs.push({ buf, w: vp1.width, h: vp1.height });
       total += buf.length;
       canvas.width = canvas.height = 0;
@@ -779,6 +820,7 @@ async function splitPdf(origBytes, limit, card) {
     let failCount = maxCount + 1;
     let k = Math.min(Math.max(guess, 1), maxCount);
     for (let iter = 0; iter < 25; iter++) {
+      card.checar();
       card.status(`Calculando divisão: testando ${k} página(s) a partir da pág. ${start + 1}...`);
       const b = await buildRange(start, k);
       if (b.length <= limit) {
@@ -798,6 +840,7 @@ async function splitPdf(origBytes, limit, card) {
   const parts = [];
   let start = 0;
   while (start < n) {
+    card.checar();
     const remaining = n - start;
     const guess = Math.max(1, Math.min(remaining, Math.floor(limit / avg * 0.9)));
     const res = await largestFit(start, remaining, guess);
@@ -815,18 +858,31 @@ async function splitPdf(origBytes, limit, card) {
 }
 
 /* ---------- Pipeline principal ---------- */
-async function processBytes(origBytes, fileName) {
+async function processBytes(origBytes, fileName, cardPronto) {
   const limit = getLimitBytes();
   const mode = getMode();
   const gray = $('#opt-gray').checked;
   const base = baseName(fileName);
-  const card = makeCard(fileName, origBytes.length);
+  const card = cardPronto || makeCard(fileName, origBytes.length);
   const out = card.result();
+  let pdfDoc = null;
+  let temSenha = false;
 
   try {
+    card.checar();
+    // o documento é aberto uma única vez e reaproveitado (identificação + compactação)
+    try {
+      pdfDoc = await pdfjsLib.getDocument({ data: origBytes.slice() }).promise;
+    } catch (e) {
+      if (e && e.name === 'PasswordException') temSenha = true;
+      pdfDoc = null;
+    }
     // identificação automática (protocolo/processo/título) para nomear os resultados
     let ident = { nome: null, origem: null };
-    try { ident = await extrairNomeBase(origBytes, card); } catch (e) { }
+    if (pdfDoc) {
+      try { ident = await extrairNomeBase(pdfDoc, card); }
+      catch (e) { if (e && e.cancelado) throw e; }
+    }
 
     if (origBytes.length <= limit) {
       card.done();
@@ -869,11 +925,8 @@ async function processBytes(origBytes, fileName) {
     } catch (e) { /* segue para a compactação com rasterização */ }
 
     // 2) rasterização em níveis decrescentes de qualidade
-    let pdfjsDoc;
-    try {
-      pdfjsDoc = await pdfjsLib.getDocument({ data: origBytes.slice() }).promise;
-    } catch (e) {
-      if (e && e.name === 'PasswordException') {
+    if (!pdfDoc) {
+      if (temSenha) {
         throw new Error('Este PDF é protegido por senha. Remova a senha e tente novamente.');
       }
       if (mode === 'auto') {
@@ -882,11 +935,10 @@ async function processBytes(origBytes, fileName) {
           'O PDF não pôde ser compactado, então foi dividido em volumes sem perda de qualidade.', ident);
         return;
       }
-      throw e;
+      throw new Error('Não foi possível ler o PDF — o arquivo pode estar corrompido.');
     }
 
-    const compressed = await compressLadder(pdfjsDoc, limit, gray, card, base);
-    pdfjsDoc.destroy();
+    const compressed = await compressLadder(pdfDoc, limit, gray, card, base);
 
     if (compressed) {
       card.done();
@@ -922,8 +974,20 @@ async function processBytes(origBytes, fileName) {
   } catch (err) {
     console.error(err);
     card.done();
-    out.innerHTML = `<div class="msg-err">✖ Erro ao processar: ${err.message || err}</div>`;
-    window.__results.push({ file: fileName, action: 'error', error: String(err.message || err) });
+    let msg = (err && err.message) || String(err);
+    if (err && err.cancelado) {
+      msg = 'Cancelado pelo usuário.';
+    } else if (/InvalidPDF|Invalid PDF|corrupt|trailer|startxref|No PDF header/i.test(msg)) {
+      msg = 'O arquivo parece corrompido ou não é um PDF válido.';
+    } else if (/password|encrypt/i.test(msg) && !/senha/i.test(msg)) {
+      msg = 'Este PDF é protegido por senha. Remova a senha e tente novamente.';
+    }
+    out.innerHTML = err && err.cancelado
+      ? `<div class="msg-warn" style="margin-top:0">✕ ${msg}</div>`
+      : `<div class="msg-err">✖ Erro ao processar: ${msg}</div>`;
+    window.__results.push({ file: fileName, action: err && err.cancelado ? 'cancelado' : 'error', error: msg });
+  } finally {
+    if (pdfDoc) { try { pdfDoc.destroy(); } catch (e) { } }
   }
 }
 
@@ -952,6 +1016,13 @@ async function doSplit(origBytes, limit, card, out, base, fileName, okText, iden
     const sufixo = ` - Vol ${i + 1} de ${parts.length}`;
     addDownloadRow(out, nomeIni + sufixo + '.pdf', p.bytes, `págs. ${p.from}–${p.to}`, p.warn, sufixo);
   });
+  const somaPag = parts.reduce((s, p) => s + (p.to - p.from + 1), 0);
+  if (somaPag !== totalPages) {
+    const w = document.createElement('div');
+    w.className = 'msg-warn';
+    w.textContent = `⚠ Verificação interna: os volumes somam ${somaPag} páginas, mas o documento tem ${totalPages}. Confira os arquivos gerados.`;
+    out.appendChild(w);
+  }
   addZipButton(out, painel.base);
   window.__results.push({ file: fileName, action: 'split', volumes: parts.map(p => p.bytes.length), nome: nomeIni });
 }
@@ -960,20 +1031,29 @@ async function doSplit(origBytes, limit, card, out, base, fileName, okText, iden
 async function enqueueFiles(fileList) {
   for (const f of fileList) {
     if (!/\.pdf$/i.test(f.name) && f.type !== 'application/pdf') {
-      makeCard(f.name, f.size).done();
-      const last = $('#results').firstElementChild;
-      last.querySelector('.result').innerHTML = '<div class="msg-err">✖ Não é um arquivo PDF.</div>';
+      const c = makeCard(f.name, f.size);
+      c.done();
+      c.result().innerHTML = '<div class="msg-err">✖ Não é um arquivo PDF.</div>';
       continue;
     }
-    queue.push(f);
+    const card = makeCard(f.name, f.size);
+    card.status('Na fila...');
+    queue.push({ f, card });
   }
   if (busy) return;
   busy = true;
   try {
     while (queue.length) {
-      const f = queue.shift();
-      const bytes = new Uint8Array(await f.arrayBuffer());
-      await processBytes(bytes, f.name);
+      const { f, card } = queue.shift();
+      let bytes = null;
+      try {
+        bytes = new Uint8Array(await f.arrayBuffer());
+      } catch (e) {
+        card.done();
+        card.result().innerHTML = '<div class="msg-err">✖ Não foi possível ler o arquivo do disco.</div>';
+        continue;
+      }
+      await processBytes(bytes, f.name, card);
     }
   } finally {
     busy = false;
