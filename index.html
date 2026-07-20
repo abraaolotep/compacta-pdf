@@ -256,6 +256,7 @@
     text-align: left; color: var(--faint); font-size: .77rem;
     padding: 0 20px 32px; line-height: 1.7;
   }
+  footer.app a { color: var(--accent-text); }
   @media (prefers-reduced-motion: reduce) {
     .dropzone, .bar .fill { transition: none; }
   }
@@ -452,7 +453,8 @@
   </details>
 </main>
 
-<footer class="app">LOTEP — Loteria do Estado da Paraíba · Processamento 100% no navegador · Seus PDFs nunca são enviados a nenhum servidor · v2.1.1 (20/07/2026)</footer>
+<footer class="app">LOTEP — Loteria do Estado da Paraíba · Processamento 100% no navegador · Seus PDFs nunca são enviados a nenhum servidor · v2.1.1 (20/07/2026)<br>
+<a id="link-instalador" href="Instalador-CompactaPDF.exe">Baixar o instalador para Windows</a> — cria o atalho na Área de Trabalho e funciona sem internet</footer>
 
 <script>
 /**
@@ -569,6 +571,9 @@ if (HOSTED) {
   aviso.innerHTML = '<div class="msg-warn" style="margin-top:0"><strong>Limitação desta página hospedada:</strong> o visualizador do claude.ai bloqueia, por segurança, o salvamento dos arquivos gerados. Você pode testar a compactação aqui, mas para baixar os resultados use a <strong>versão para computador</strong> (arquivo único, funciona sem internet — peça a quem lhe enviou este link).</div>';
   const dz = document.getElementById('dropzone');
   dz.parentNode.insertBefore(aviso, dz.nextSibling);
+  // o download do instalador não funciona no visualizador hospedado
+  const li = document.getElementById('link-instalador');
+  if (li && li.parentNode) li.parentNode.style.display = 'none';
 }
 function hostedHint(container) {
   if (!HOSTED || container.querySelector('.hosted-hint')) return;
