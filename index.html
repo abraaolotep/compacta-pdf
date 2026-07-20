@@ -248,6 +248,11 @@
         <label for="opt-gray">Converter para tons de cinza
           <small>Reduz ainda mais o tamanho na compactação</small></label>
       </div>
+      <div class="opt-row">
+        <input type="checkbox" id="opt-ocr" checked>
+        <label for="opt-ocr">Usar OCR em documentos digitalizados
+          <small>Lê PDFs escaneados (sem texto selecionável) para identificar protocolo/processo no nome — baixa um componente de leitura (~6 MB) na 1ª vez; o documento continua sem sair do seu computador</small></label>
+      </div>
       <div class="limit-row">
         <span class="opt-title" style="margin:0">Limite por arquivo:</span>
         <input type="number" id="limit-mb" value="9.9" min="0.5" max="500" step="0.1"> MB
@@ -265,6 +270,7 @@
       <p><strong>2. Compactação:</strong> se necessário, as páginas são convertidas em imagens JPEG, testando níveis de qualidade decrescentes (de 150 DPI / 80% até 96 DPI / 35%) até caber no limite. O documento continua legível e imprimível, mas o texto deixa de ser pesquisável/selecionável.</p>
       <p><strong>3. Divisão em volumes:</strong> se nem a qualidade mínima for suficiente (ou no modo "somente dividir"), o arquivo <em>original</em> é dividido em volumes de até 9,9 MB, preservando 100% da qualidade e do texto.</p>
       <p><strong>4. Identificação automática:</strong> o sistema lê o início do documento e procura, nesta ordem, nº de processo (CNJ), nº SEI, nº de protocolo ou o título do PDF — e usa o que encontrar para nomear o arquivo e os volumes (ex.: "Protocolo 202612345 - Vol 1 de 3.pdf"). O nome sugerido pode ser editado antes de baixar; se nada for encontrado, o nome original é mantido.</p>
+      <p><strong>5. OCR para digitalizados:</strong> se o PDF for escaneado (sem texto selecionável), o sistema aplica OCR em português nas primeiras páginas para ler o protocolo/processo. O reconhecimento acontece no seu navegador — o documento não é enviado a lugar nenhum; apenas o componente de leitura (~6 MB) é baixado na primeira vez.</p>
       <p><strong>Privacidade:</strong> esta página é hospedada, mas todo o processamento acontece no navegador de quem a usa. Nenhum documento é enviado para servidor algum — a página sequer tem permissão de rede para isso.</p>
     </div>
   </details>
@@ -416,6 +422,109 @@ function sanitizarNome(s) {
     .replace(/[. ]+$/, '');
 }
 
+function casarPadroes(texto) {
+  // 1) nº de processo no padrão CNJ: 0000000-00.0000.0.00.0000
+  let m = texto.match(/\b(\d{7})[-.]?(\d{2})\.?(\d{4})\.?(\d)\.?(\d{2})\.?(\d{4})\b/);
+  if (m) return { nome: sanitizarNome(`Processo ${m[1]}-${m[2]}.${m[3]}.${m[4]}.${m[5]}.${m[6]}`), origem: 'nº de processo (CNJ) encontrado no documento' };
+  // 2) nº de processo SEI/NUP: 00000.000000/0000-00
+  m = texto.match(/\b\d{5}\.\d{6}\/\d{4}-\d{2}\b/);
+  if (m) return { nome: sanitizarNome('Processo ' + m[0]), origem: 'nº de processo (SEI) encontrado no documento' };
+  // 3) nº de protocolo
+  m = texto.match(/protocolo\s*(?:de\s+atendimento\s*)?(?:n[º°o.:\s]*)?\s*([A-Z]{0,4}[-\s]?\d[\d./-]{3,24}\d)/i);
+  if (m) return { nome: sanitizarNome('Protocolo ' + m[1]), origem: 'nº de protocolo encontrado no documento' };
+  // 4) "processo nº ..." genérico
+  m = texto.match(/processo\s*(?:administrativo\s*)?(?:sancionador\s*)?n[º°o.:\s]+\s*([A-Z]{0,4}[-\s]?\d[\d./-]{3,24}\d)/i);
+  if (m) return { nome: sanitizarNome('Processo ' + m[1]), origem: 'nº de processo encontrado no documento' };
+  return null;
+}
+
+/* ---------- OCR (Tesseract.js — reconhecimento 100% no navegador) ---------- */
+let __ocrCfg = null, __ocrWorkerPromise = null;
+
+function __carregaScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = res;
+    s.onerror = () => rej(new Error('falha ao carregar ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+async function __carregarTesseract() {
+  if (window.Tesseract && __ocrCfg) return;
+  const abs = p => new URL(p, location.href).href;
+  const tentativas = [];
+  // 1ª opção: arquivos hospedados junto com a página (pasta ocr/)
+  if (location.protocol !== 'file:') {
+    tentativas.push({
+      script: 'ocr/tesseract.min.js',
+      workerPath: abs('ocr/worker.min.js'),
+      corePath: abs('ocr/tesseract-core-simd-lstm.wasm.js'),
+      langPath: abs('ocr/').replace(/\/$/, ''),
+    });
+  }
+  // 2ª opção: CDN (para a versão de arquivo único com internet)
+  tentativas.push({
+    script: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
+    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+    corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core-simd-lstm.wasm.js',
+    langPath: 'https://tessdata.projectnaptha.com/4.0.0_fast',
+  });
+  let erro = null;
+  for (const t of tentativas) {
+    try { await __carregaScript(t.script); __ocrCfg = t; return; } catch (e) { erro = e; }
+  }
+  throw erro || new Error('OCR indisponível');
+}
+
+function getOcrWorker() {
+  if (!__ocrWorkerPromise) {
+    __ocrWorkerPromise = (async () => {
+      await __carregarTesseract();
+      return await Tesseract.createWorker('por', 1, {
+        workerPath: __ocrCfg.workerPath,
+        corePath: __ocrCfg.corePath,
+        langPath: __ocrCfg.langPath,
+        logger: m => {
+          if (window.__ocrLog && m && m.status === 'recognizing text') window.__ocrLog(Math.round((m.progress || 0) * 100));
+        },
+      });
+    })();
+    __ocrWorkerPromise.catch(() => { __ocrWorkerPromise = null; });
+  }
+  return __ocrWorkerPromise;
+}
+
+async function ocrDaPagina(doc, pageNum, card) {
+  card.status('Preparando OCR (na 1ª vez baixa o componente de leitura, ~6 MB)...');
+  const worker = await getOcrWorker();
+  const page = await doc.getPage(pageNum);
+  const vp1 = page.getViewport({ scale: 1 });
+  let scale = 200 / 72;
+  const maxSide = Math.max(vp1.width, vp1.height);
+  if (maxSide * scale > 2400) scale = 2400 / maxSide;
+  const vp = page.getViewport({ scale });
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(vp.width));
+  canvas.height = Math.max(1, Math.round(vp.height));
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // intent 'print' evita requestAnimationFrame, que congela em abas em segundo plano
+  await page.render({ canvasContext: ctx, viewport: vp, intent: 'print' }).promise;
+  page.cleanup();
+  window.__ocrLog = pct => card.status(`OCR na página ${pageNum}: ${pct}%`);
+  card.status(`OCR na página ${pageNum}...`);
+  try {
+    const r = await worker.recognize(canvas);
+    return (r && r.data && r.data.text) || '';
+  } finally {
+    window.__ocrLog = null;
+    canvas.width = canvas.height = 0;
+  }
+}
+
 async function extrairNomeBase(origBytes, card) {
   card.status('Lendo o documento para identificar processo/protocolo/título...');
   const doc = await pdfjsLib.getDocument({ data: origBytes.slice() }).promise;
@@ -434,21 +543,33 @@ async function extrairNomeBase(origBytes, card) {
     const meta = await doc.getMetadata();
     if (meta && meta.info && typeof meta.info.Title === 'string') metaTitulo = meta.info.Title.trim();
   } catch (e) { }
-  doc.destroy();
 
-  // 1) nº de processo no padrão CNJ: 0000000-00.0000.0.00.0000
-  let m = texto.match(/\b(\d{7})[-.]?(\d{2})\.?(\d{4})\.?(\d)\.?(\d{2})\.?(\d{4})\b/);
-  if (m) return { nome: sanitizarNome(`Processo ${m[1]}-${m[2]}.${m[3]}.${m[4]}.${m[5]}.${m[6]}`), origem: 'nº de processo (CNJ) encontrado no documento' };
-  // 2) nº de processo SEI/NUP: 00000.000000/0000-00
-  m = texto.match(/\b\d{5}\.\d{6}\/\d{4}-\d{2}\b/);
-  if (m) return { nome: sanitizarNome('Processo ' + m[0]), origem: 'nº de processo (SEI) encontrado no documento' };
-  // 3) nº de protocolo
-  m = texto.match(/protocolo\s*(?:de\s+atendimento\s*)?(?:n[º°o.:\s]*)?\s*([A-Z]{0,4}[-\s]?\d[\d./-]{3,24}\d)/i);
-  if (m) return { nome: sanitizarNome('Protocolo ' + m[1]), origem: 'nº de protocolo encontrado no documento' };
-  // 4) "processo nº ..." genérico
-  m = texto.match(/processo\s*(?:administrativo\s*)?(?:sancionador\s*)?n[º°o.:\s]+\s*([A-Z]{0,4}[-\s]?\d[\d./-]{3,24}\d)/i);
-  if (m) return { nome: sanitizarNome('Processo ' + m[1]), origem: 'nº de processo encontrado no documento' };
-  // 5) título dos metadados do PDF
+  let achado = null;
+  try { achado = casarPadroes(texto); } catch (e) { }
+
+  // documento digitalizado (quase sem texto)? tenta OCR nas 2 primeiras páginas
+  if (!achado && $('#opt-ocr').checked && texto.replace(/\s+/g, '').length < 50) {
+    try {
+      const nPag = Math.min(2, doc.numPages);
+      for (let p = 1; p <= nPag && !achado; p++) {
+        // timeout de segurança: se o OCR travar, o arquivo segue sem ele
+        const t = await Promise.race([
+          ocrDaPagina(doc, p, card),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('OCR excedeu o tempo limite')), 120000)),
+        ]);
+        if (t) {
+          achado = casarPadroes(t);
+          if (achado) achado.origem += ', lido por OCR';
+        }
+      }
+    } catch (e) {
+      card.status('OCR indisponível neste ambiente — seguindo sem OCR.');
+    }
+  }
+  doc.destroy();
+  if (achado) return achado;
+
+  // título dos metadados do PDF
   if (metaTitulo && metaTitulo.length >= 6 && metaTitulo.length <= 90 &&
       !/^(untitled|documento|sem\s*t[ií]tulo|microsoft word|apresenta)/i.test(metaTitulo) &&
       !/\.(docx?|xlsx?|pptx?|pdf|odt|tmp)$/i.test(metaTitulo)) {
