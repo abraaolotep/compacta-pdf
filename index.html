@@ -164,6 +164,21 @@
   .bar { height: 6px; background: var(--bar-track); border-radius: 999px; margin-top: 8px; overflow: hidden; }
   .bar .fill { height: 100%; width: 0%; background: var(--btn-bg); border-radius: 999px; transition: width .2s; }
   .result { margin-top: 12px; }
+  .rename-row {
+    display: flex; flex-direction: column; gap: 6px; margin-top: 10px;
+    padding: 10px 14px; background: var(--accent-soft);
+    border: 1px solid var(--row-border); border-radius: 10px;
+  }
+  .rename-row label {
+    font-size: .88rem; font-weight: 600;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .rename-row input {
+    flex: 1; min-width: 220px; padding: 6px 10px;
+    border: 1px solid var(--border); border-radius: 8px;
+    font-size: .92rem; background: var(--panel); color: var(--text);
+  }
+  .rename-row .note { margin-top: 0; }
   .msg-ok { color: var(--ok); font-weight: 600; font-size: .95rem; }
   .msg-warn { color: var(--warn); font-size: .88rem; margin-top: 6px; }
   .msg-err { color: var(--err); font-weight: 600; font-size: .93rem; }
@@ -249,6 +264,7 @@
       <p><strong>1. Otimização sem perdas:</strong> o PDF é reestruturado internamente. Às vezes isso já basta.</p>
       <p><strong>2. Compactação:</strong> se necessário, as páginas são convertidas em imagens JPEG, testando níveis de qualidade decrescentes (de 150 DPI / 80% até 96 DPI / 35%) até caber no limite. O documento continua legível e imprimível, mas o texto deixa de ser pesquisável/selecionável.</p>
       <p><strong>3. Divisão em volumes:</strong> se nem a qualidade mínima for suficiente (ou no modo "somente dividir"), o arquivo <em>original</em> é dividido em volumes de até 9,9 MB, preservando 100% da qualidade e do texto.</p>
+      <p><strong>4. Identificação automática:</strong> o sistema lê o início do documento e procura, nesta ordem, nº de processo (CNJ), nº SEI, nº de protocolo ou o título do PDF — e usa o que encontrar para nomear o arquivo e os volumes (ex.: "Protocolo 202612345 - Vol 1 de 3.pdf"). O nome sugerido pode ser editado antes de baixar; se nada for encontrado, o nome original é mantido.</p>
       <p><strong>Privacidade:</strong> esta página é hospedada, mas todo o processamento acontece no navegador de quem a usa. Nenhum documento é enviado para servidor algum — a página sequer tem permissão de rede para isso.</p>
     </div>
   </details>
@@ -389,6 +405,57 @@ function fmt(bytes) {
   return (bytes / MB).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' MB';
 }
 function baseName(name) { return name.replace(/\.pdf$/i, ''); }
+
+/* ---------- Identificação automática: extrai protocolo/processo/título ---------- */
+function sanitizarNome(s) {
+  return String(s || '')
+    .replace(/[\\/:*?"<>|\r\n\t]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .slice(0, 80)
+    .replace(/[. ]+$/, '');
+}
+
+async function extrairNomeBase(origBytes, card) {
+  card.status('Lendo o documento para identificar processo/protocolo/título...');
+  const doc = await pdfjsLib.getDocument({ data: origBytes.slice() }).promise;
+  let texto = '';
+  try {
+    const n = Math.min(2, doc.numPages);
+    for (let i = 1; i <= n; i++) {
+      const pg = await doc.getPage(i);
+      const tc = await pg.getTextContent();
+      texto += tc.items.map(it => it.str).join(' ') + '\n';
+      pg.cleanup();
+    }
+  } catch (e) { /* segue só com metadados */ }
+  let metaTitulo = '';
+  try {
+    const meta = await doc.getMetadata();
+    if (meta && meta.info && typeof meta.info.Title === 'string') metaTitulo = meta.info.Title.trim();
+  } catch (e) { }
+  doc.destroy();
+
+  // 1) nº de processo no padrão CNJ: 0000000-00.0000.0.00.0000
+  let m = texto.match(/\b(\d{7})[-.]?(\d{2})\.?(\d{4})\.?(\d)\.?(\d{2})\.?(\d{4})\b/);
+  if (m) return { nome: sanitizarNome(`Processo ${m[1]}-${m[2]}.${m[3]}.${m[4]}.${m[5]}.${m[6]}`), origem: 'nº de processo (CNJ) encontrado no documento' };
+  // 2) nº de processo SEI/NUP: 00000.000000/0000-00
+  m = texto.match(/\b\d{5}\.\d{6}\/\d{4}-\d{2}\b/);
+  if (m) return { nome: sanitizarNome('Processo ' + m[0]), origem: 'nº de processo (SEI) encontrado no documento' };
+  // 3) nº de protocolo
+  m = texto.match(/protocolo\s*(?:de\s+atendimento\s*)?(?:n[º°o.:\s]*)?\s*([A-Z]{0,4}[-\s]?\d[\d./-]{3,24}\d)/i);
+  if (m) return { nome: sanitizarNome('Protocolo ' + m[1]), origem: 'nº de protocolo encontrado no documento' };
+  // 4) "processo nº ..." genérico
+  m = texto.match(/processo\s*(?:administrativo\s*)?(?:sancionador\s*)?n[º°o.:\s]+\s*([A-Z]{0,4}[-\s]?\d[\d./-]{3,24}\d)/i);
+  if (m) return { nome: sanitizarNome('Processo ' + m[1]), origem: 'nº de processo encontrado no documento' };
+  // 5) título dos metadados do PDF
+  if (metaTitulo && metaTitulo.length >= 6 && metaTitulo.length <= 90 &&
+      !/^(untitled|documento|sem\s*t[ií]tulo|microsoft word|apresenta)/i.test(metaTitulo) &&
+      !/\.(docx?|xlsx?|pptx?|pdf|odt|tmp)$/i.test(metaTitulo)) {
+    return { nome: sanitizarNome(metaTitulo), origem: 'título registrado nos metadados do PDF' };
+  }
+  return { nome: null, origem: null };
+}
 function getLimitBytes() {
   const v = parseFloat($('#limit-mb').value.replace(',', '.'));
   return Math.floor((isFinite(v) && v > 0 ? v : 9.9) * MB);
@@ -422,10 +489,11 @@ function makeCard(name, size) {
   };
 }
 
-function addDownloadRow(container, name, bytes, extra, warn) {
+function addDownloadRow(container, name, bytes, extra, warn, sufixo) {
   const blob = new Blob([bytes], { type: 'application/pdf' });
   const row = document.createElement('div');
   row.className = 'dl-row';
+  row.__blob = blob;
   const info = document.createElement('div');
   info.className = 'dl-info';
   info.innerHTML = `<strong></strong><span class="dl-size">${fmt(bytes.length)}</span>` +
@@ -436,6 +504,7 @@ function addDownloadRow(container, name, bytes, extra, warn) {
   a.textContent = '⬇ Baixar';
   a.href = URL.createObjectURL(blob);
   a.download = name;
+  a.dataset.sufixo = sufixo || '';
   a.addEventListener('click', () => hostedHint(container));
   row.append(info, a);
   container.appendChild(row);
@@ -448,7 +517,7 @@ function addDownloadRow(container, name, bytes, extra, warn) {
   return { name, blob };
 }
 
-function addZipButton(container, files, zipName) {
+function addZipButton(container, zipBaseFn) {
   const btn = document.createElement('button');
   btn.className = 'btn btn-zip';
   btn.textContent = '📦 Baixar todos (.zip)';
@@ -456,11 +525,14 @@ function addZipButton(container, files, zipName) {
     btn.disabled = true; btn.textContent = 'Gerando ZIP...';
     try {
       const zip = new JSZip();
-      for (const f of files) zip.file(f.name, f.blob);
+      container.querySelectorAll('.dl-row').forEach(row => {
+        const a = row.querySelector('a.btn');
+        if (a && row.__blob) zip.file(a.download, row.__blob);
+      });
       const blob = await zip.generateAsync({ type: 'blob' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = zipName;
+      a.download = zipBaseFn() + ' - volumes.zip';
       a.click();
       hostedHint(container);
     } finally {
@@ -468,6 +540,37 @@ function addZipButton(container, files, zipName) {
     }
   };
   container.appendChild(btn);
+}
+
+function addRenamePanel(out, valorInicial, origem) {
+  const wrap = document.createElement('div');
+  wrap.className = 'rename-row';
+  const label = document.createElement('label');
+  label.textContent = '✏️ Nome dos arquivos:';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = valorInicial;
+  label.appendChild(input);
+  const note = document.createElement('div');
+  note.className = 'note';
+  note.textContent = origem
+    ? 'Detectado automaticamente: ' + origem + '. Edite se preferir outro nome.'
+    : 'Não encontrei nº de processo, protocolo nem título no documento — mantive o nome original. Edite se preferir.';
+  wrap.append(label, note);
+  out.appendChild(wrap);
+  const aplicar = () => {
+    const base = sanitizarNome(input.value) || sanitizarNome(valorInicial);
+    out.querySelectorAll('.dl-row').forEach(row => {
+      const a = row.querySelector('a.btn');
+      if (!a) return;
+      const novo = base + (a.dataset.sufixo || '') + '.pdf';
+      a.download = novo;
+      const s = row.querySelector('strong');
+      if (s) s.textContent = novo;
+    });
+  };
+  input.addEventListener('input', aplicar);
+  return { input, aplicar, base: () => sanitizarNome(input.value) || sanitizarNome(valorInicial) };
 }
 
 /* ---------- Compactação: rasteriza páginas em JPEG ---------- */
@@ -600,16 +703,27 @@ async function processBytes(origBytes, fileName) {
   const out = card.result();
 
   try {
+    // identificação automática (protocolo/processo/título) para nomear os resultados
+    let ident = { nome: null, origem: null };
+    try { ident = await extrairNomeBase(origBytes, card); } catch (e) { }
+
     if (origBytes.length <= limit) {
       card.done();
-      out.innerHTML = `<div class="msg-ok">✅ Este arquivo já está dentro do limite (${fmt(origBytes.length)} ≤ ${fmt(limit)}). Nenhuma ação necessária.</div>`;
-      window.__results.push({ file: fileName, action: 'none' });
+      const ok = document.createElement('div');
+      ok.className = 'msg-ok';
+      ok.textContent = `✅ Este arquivo já está dentro do limite (${fmt(origBytes.length)} ≤ ${fmt(limit)}). Nenhuma compactação necessária.`;
+      out.appendChild(ok);
+      if (ident.nome) {
+        addRenamePanel(out, ident.nome, ident.origem);
+        addDownloadRow(out, ident.nome + '.pdf', origBytes, 'original renomeado', false, '');
+      }
+      window.__results.push({ file: fileName, action: 'none', nome: ident.nome });
       return;
     }
 
     /* --- modo somente dividir --- */
     if (mode === 'split') {
-      await doSplit(origBytes, limit, card, out, base, fileName, 'Volumes gerados sem nenhuma perda de qualidade.');
+      await doSplit(origBytes, limit, card, out, base, fileName, 'Volumes gerados sem nenhuma perda de qualidade.', ident);
       return;
     }
 
@@ -621,12 +735,14 @@ async function processBytes(origBytes, fileName) {
       const resaved = await doc.save({ useObjectStreams: true, objectsPerTick: Infinity });
       if (resaved.length <= limit) {
         card.done();
-        addDownloadRow(out, `${base}_compactado.pdf`, resaved);
+        const nomeIni = ident.nome || `${base}_compactado`;
         const ok = document.createElement('div');
         ok.className = 'msg-ok';
         ok.textContent = `✅ Reduzido de ${fmt(origBytes.length)} para ${fmt(resaved.length)} sem nenhuma perda de qualidade.`;
-        out.prepend(ok);
-        window.__results.push({ file: fileName, action: 'lossless', size: resaved.length });
+        out.appendChild(ok);
+        addRenamePanel(out, nomeIni, ident.origem);
+        addDownloadRow(out, nomeIni + '.pdf', resaved, '', false, '');
+        window.__results.push({ file: fileName, action: 'lossless', size: resaved.length, nome: nomeIni });
         return;
       }
     } catch (e) { /* segue para a compactação com rasterização */ }
@@ -642,7 +758,7 @@ async function processBytes(origBytes, fileName) {
       if (mode === 'auto') {
         card.status('Não foi possível ler o PDF para compactar — dividindo em volumes...');
         await doSplit(origBytes, limit, card, out, base, fileName,
-          'O PDF não pôde ser compactado, então foi dividido em volumes sem perda de qualidade.');
+          'O PDF não pôde ser compactado, então foi dividido em volumes sem perda de qualidade.', ident);
         return;
       }
       throw e;
@@ -654,16 +770,18 @@ async function processBytes(origBytes, fileName) {
     if (compressed) {
       card.done();
       const pct = Math.round((1 - compressed.bytes.length / origBytes.length) * 100);
-      addDownloadRow(out, `${base}_compactado.pdf`, compressed.bytes);
+      const nomeIni = ident.nome || `${base}_compactado`;
       const ok = document.createElement('div');
       ok.className = 'msg-ok';
       ok.textContent = `✅ Reduzido de ${fmt(origBytes.length)} para ${fmt(compressed.bytes.length)} (−${pct}%) — ${compressed.desc}.`;
-      out.prepend(ok);
+      out.appendChild(ok);
+      addRenamePanel(out, nomeIni, ident.origem);
+      addDownloadRow(out, nomeIni + '.pdf', compressed.bytes, '', false, '');
       const note = document.createElement('div');
       note.className = 'msg-warn';
       note.textContent = '⚠ As páginas foram convertidas em imagem: o texto continua legível e imprimível, mas deixa de ser pesquisável/selecionável.';
       out.appendChild(note);
-      window.__results.push({ file: fileName, action: 'compressed', size: compressed.bytes.length, desc: compressed.desc });
+      window.__results.push({ file: fileName, action: 'compressed', size: compressed.bytes.length, desc: compressed.desc, nome: nomeIni });
       return;
     }
 
@@ -678,7 +796,7 @@ async function processBytes(origBytes, fileName) {
 
     card.status('Compactação insuficiente — dividindo o arquivo original em volumes...');
     await doSplit(origBytes, limit, card, out, base, fileName,
-      'Nem a qualidade mínima de compactação foi suficiente, então o arquivo original foi dividido em volumes — 100% da qualidade preservada.');
+      'Nem a qualidade mínima de compactação foi suficiente, então o arquivo original foi dividido em volumes — 100% da qualidade preservada.', ident);
 
   } catch (err) {
     console.error(err);
@@ -688,29 +806,33 @@ async function processBytes(origBytes, fileName) {
   }
 }
 
-async function doSplit(origBytes, limit, card, out, base, fileName, okText) {
+async function doSplit(origBytes, limit, card, out, base, fileName, okText, ident) {
   const { parts, totalPages } = await splitPdf(origBytes, limit, card);
   card.done();
+  const temIdent = ident && ident.nome;
   if (parts.length === 1 && !parts[0].warn) {
-    addDownloadRow(out, `${base}_compactado.pdf`, parts[0].bytes);
+    const nomeIni = temIdent ? ident.nome : `${base}_compactado`;
     const ok = document.createElement('div');
     ok.className = 'msg-ok';
     ok.textContent = `✅ Reestruturado para ${fmt(parts[0].bytes.length)} — dentro do limite, em arquivo único.`;
-    out.prepend(ok);
-    window.__results.push({ file: fileName, action: 'split', volumes: [parts[0].bytes.length] });
+    out.appendChild(ok);
+    addRenamePanel(out, nomeIni, temIdent ? ident.origem : null);
+    addDownloadRow(out, nomeIni + '.pdf', parts[0].bytes, '', false, '');
+    window.__results.push({ file: fileName, action: 'split', volumes: [parts[0].bytes.length], nome: nomeIni });
     return;
   }
+  const nomeIni = temIdent ? ident.nome : base;
   const ok = document.createElement('div');
   ok.className = 'msg-ok';
   ok.textContent = `✅ Dividido em ${parts.length} volumes (${totalPages} páginas). ${okText}`;
   out.appendChild(ok);
-  const files = [];
+  const painel = addRenamePanel(out, nomeIni, temIdent ? ident.origem : null);
   parts.forEach((p, i) => {
-    const name = `${base} - Vol ${i + 1} de ${parts.length}.pdf`;
-    files.push(addDownloadRow(out, name, p.bytes, `págs. ${p.from}–${p.to}`, p.warn));
+    const sufixo = ` - Vol ${i + 1} de ${parts.length}`;
+    addDownloadRow(out, nomeIni + sufixo + '.pdf', p.bytes, `págs. ${p.from}–${p.to}`, p.warn, sufixo);
   });
-  addZipButton(out, files, `${base} - volumes.zip`);
-  window.__results.push({ file: fileName, action: 'split', volumes: parts.map(p => p.bytes.length) });
+  addZipButton(out, painel.base);
+  window.__results.push({ file: fileName, action: 'split', volumes: parts.map(p => p.bytes.length), nome: nomeIni });
 }
 
 /* ---------- Fila e eventos ---------- */
