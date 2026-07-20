@@ -1,0 +1,14 @@
+{
+  "name": "Compacta PDF — LOTEP",
+  "short_name": "Compacta PDF",
+  "description": "Compacta, divide, junta, converte e edita PDFs — 100% no navegador.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fdfcfc",
+  "theme_color": "#9c2129",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
