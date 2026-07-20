@@ -452,7 +452,7 @@
   </details>
 </main>
 
-<footer class="app">LOTEP — Loteria do Estado da Paraíba · Processamento 100% no navegador · Seus PDFs nunca são enviados a nenhum servidor · v2.1 (20/07/2026)</footer>
+<footer class="app">LOTEP — Loteria do Estado da Paraíba · Processamento 100% no navegador · Seus PDFs nunca são enviados a nenhum servidor · v2.1.1 (20/07/2026)</footer>
 
 <script>
 /**
@@ -560,7 +560,7 @@ window.__results = []; // depuração/testes
 
 // Visualizador hospedado do claude.ai: o sandbox do iframe bloqueia downloads
 // (sem allow-downloads), popups e o seletor de arquivos — avisamos o usuário.
-const VERSAO = '2.1 — 20/07/2026';
+const VERSAO = '2.1.1 — 20/07/2026';
 const HOSTED = typeof window.claude !== 'undefined';
 console.log('[compacta-pdf] v' + VERSAO + ' · hospedado=' + HOSTED + ' · OffscreenCanvas=' + (typeof OffscreenCanvas !== 'undefined'));
 if (HOSTED) {
@@ -617,7 +617,8 @@ function sanitizarNome(s) {
 
 function casarPadroes(texto) {
   // 1) nº de processo no padrão CNJ: 0000000-00.0000.0.00.0000
-  let m = texto.match(/\b(\d{7})[-.]?(\d{2})\.?(\d{4})\.?(\d)\.?(\d{2})\.?(\d{4})\b/);
+  // A pontuação é exigida: 16 dígitos corridos aparecem em boletos/comprovantes e não são processo.
+  let m = texto.match(/\b(\d{7})-(\d{2})\.(\d{4})\.(\d)\.(\d{2})\.(\d{4})\b/);
   if (m) return { nome: sanitizarNome(`Processo ${m[1]}-${m[2]}.${m[3]}.${m[4]}.${m[5]}.${m[6]}`), origem: 'nº de processo (CNJ) encontrado no documento' };
   // 2) nº de processo SEI/NUP: 00000.000000/0000-00
   m = texto.match(/\b\d{5}\.\d{6}\/\d{4}-\d{2}\b/);
@@ -715,6 +716,7 @@ async function ocrComTimeout(doc, pageNum, card) {
 
 // OCR direto de um Blob de imagem (fotos), com timeout e descarte do worker se travar
 async function reconhecerBlob(blob, card, rotulo) {
+  card.status(rotulo + ' — preparando OCR (na 1ª vez baixa ~6 MB)...');
   const worker = await getOcrWorker();
   card.checar();
   window.__ocrLog = pct => card.status(rotulo + ': ' + pct + '%');
@@ -1124,7 +1126,9 @@ async function splitPdf(origBytes, limit, card) {
 /* ---------- Pipeline principal ---------- */
 async function processBytes(origBytes, fileName, cardPronto, sempreBaixar) {
   const limit = getLimitBytes();
-  const mode = getMode();
+  // saídas de ferramentas (juntar/converter/editar) sempre usam o modo automático,
+  // para nunca rasterizar ou dividir por causa de um modo marcado em outra aba
+  const mode = sempreBaixar ? 'auto' : getMode();
   const gray = $('#opt-gray').checked;
   const base = baseName(fileName);
   const card = cardPronto || makeCard(fileName, origBytes.length);
@@ -1364,7 +1368,7 @@ function ligarDropzone(dzSel, inputSel, onFiles) {
 }
 
 ligarDropzone('#dropzone', '#file-input', enqueueFiles);
-window.addEventListener('beforeunload', e => { if (busy) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (busy || organizarEstado) { e.preventDefault(); e.returnValue = ''; } });
 
 /* ---------- Abas ---------- */
 document.querySelectorAll('.tab').forEach(tab => {
@@ -1466,6 +1470,7 @@ async function extrairTextoCompleto(doc, card, usarOcr) {
   const paginas = [];
   const n = doc.numPages;
   const maxOcr = 20;
+  let ocrPulados = 0;
   for (let i = 1; i <= n; i++) {
     card.checar();
     card.status(`Extraindo texto: página ${i}/${n}...`);
@@ -1477,13 +1482,18 @@ async function extrairTextoCompleto(doc, card, usarOcr) {
       t = tc.items.map(it => it.str).join(' ');
       pg.cleanup();
     } catch (e) { }
-    if (usarOcr && t.replace(/\s+/g, '').length < 20 && i <= maxOcr) {
-      try {
-        t = (await ocrComTimeout(doc, i, card)) || t;
-      } catch (e) { if (e && e.cancelado) throw e; }
+    if (usarOcr && t.replace(/\s+/g, '').length < 20) {
+      if (i <= maxOcr) {
+        try {
+          t = (await ocrComTimeout(doc, i, card)) || t;
+        } catch (e) { if (e && e.cancelado) throw e; }
+      } else {
+        ocrPulados++;
+      }
     }
     paginas.push(String(t || '').trim());
   }
+  paginas.ocrPulados = ocrPulados;
   return paginas;
 }
 
@@ -1527,6 +1537,11 @@ async function pdfParaWord(f) {
     const nota = document.createElement('div'); nota.className = 'note';
     nota.textContent = 'Conversão de texto com formatação básica — tabelas e posicionamento visual não são reproduzidos.';
     card.result().appendChild(nota);
+    if (paginas.ocrPulados) {
+      const n2 = document.createElement('div'); n2.className = 'msg-warn';
+      n2.textContent = `O OCR é aplicado só às 20 primeiras páginas digitalizadas — ${paginas.ocrPulados} página(s) ficaram sem texto reconhecido.`;
+      card.result().appendChild(n2);
+    }
     addReciboLink(card.result(), f.name, f.size);
     window.__results.push({ file: f.name, action: 'word', paginas: paginas.length, nome: nomeBase });
   } catch (err) { falhaCard(card, err); }
@@ -1548,6 +1563,11 @@ async function pdfParaTexto(f) {
     card.result().appendChild(ok);
     const bytesTxt = new TextEncoder().encode('﻿' + texto);
     addDownloadRow(card.result(), nomeBase + '.txt', bytesTxt, paginas.length + ' págs.', false, '', 'text/plain;charset=utf-8');
+    if (paginas.ocrPulados) {
+      const n2 = document.createElement('div'); n2.className = 'msg-warn';
+      n2.textContent = `O OCR é aplicado só às 20 primeiras páginas digitalizadas — ${paginas.ocrPulados} página(s) ficaram sem texto reconhecido.`;
+      card.result().appendChild(n2);
+    }
     addReciboLink(card.result(), f.name, f.size);
     window.__results.push({ file: f.name, action: 'txt', chars: texto.length, nome: nomeBase });
   } catch (err) { falhaCard(card, err); }
@@ -1755,8 +1775,10 @@ function atualizarEditarUi() {
 
 /* ---------- Organizar páginas (miniaturas: sequência, remoção, inserção) ---------- */
 let organizarEstado = null; // { fontes: [{nome, bytes}], itens: [{fonte, pagina, thumbUrl}] }
+let organizarSessao = 0;    // invalida gerações de miniatura em andamento ao limpar/trocar de operação
 
 function limparOrganizacao() {
+  organizarSessao++;
   const painel = $('#organizar-painel');
   if (organizarEstado) {
     organizarEstado.itens.forEach(it => { if (it.thumbUrl) URL.revokeObjectURL(it.thumbUrl); });
@@ -1845,7 +1867,7 @@ function renderOrganizar() {
     const nomeBase = baseName(fontes[0].nome);
     limparOrganizacao();
     enfileirar(async () => {
-      const card = makeCard(nomeBase + ' — organizar páginas', 0);
+      const card = makeCard(nomeBase + ' — organizar páginas', fontes.reduce((s, f) => s + f.bytes.length, 0));
       try {
         card.status('Montando o PDF na nova ordem...');
         const saida = await montarPdfOrganizado(fontes, itens);
@@ -1894,18 +1916,24 @@ async function montarPdfOrganizado(fontes, itens) {
 
 async function iniciarOrganizacao(f) {
   limparOrganizacao();
+  const sessao = organizarSessao;
   const painel = $('#organizar-painel');
   painel.classList.remove('oculto');
   painel.innerHTML = '<div class="note">Gerando miniaturas de "' + f.name + '"...</div>';
   try {
     const bytes = new Uint8Array(await f.arrayBuffer());
     const { itens, truncado } = await miniaturasDe(bytes, 0, (i, total) => {
-      painel.firstChild.textContent = `Gerando miniaturas de "${f.name}": ${i}/${total}...`;
+      if (sessao === organizarSessao && painel.firstChild) {
+        painel.firstChild.textContent = `Gerando miniaturas de "${f.name}": ${i}/${total}...`;
+      }
     });
+    // se o usuário trocou de operação/descartou durante a geração, não ressuscita o painel
+    if (sessao !== organizarSessao) { itens.forEach(it => URL.revokeObjectURL(it.thumbUrl)); return; }
     organizarEstado = { fontes: [{ nome: f.name, bytes }], itens };
     if (truncado) organizarEstado.avisoTruncado = `Mostrando as 100 primeiras páginas (o PDF tem mais ${truncado}). Para reorganizar além disso, use "Extrair páginas" em partes.`;
     renderOrganizar();
   } catch (e) {
+    if (sessao !== organizarSessao) return;
     painel.innerHTML = '<div class="msg-err">Não foi possível ler o PDF: ' + ((e && e.message) || e) + '</div>';
   }
 }
@@ -1914,20 +1942,24 @@ $('#input-organizar-extra').addEventListener('change', async () => {
   const f = [...$('#input-organizar-extra').files][0];
   $('#input-organizar-extra').value = '';
   if (!f || !organizarEstado) return;
+  const sessao = organizarSessao;
   const painel = $('#organizar-painel');
   try {
     const bytes = new Uint8Array(await f.arrayBuffer());
+    if (sessao !== organizarSessao || !organizarEstado) return;
     const fonteIdx = organizarEstado.fontes.length;
     const aviso = document.createElement('div');
     aviso.className = 'note';
     painel.appendChild(aviso);
     const { itens } = await miniaturasDe(bytes, fonteIdx, (i, total) => {
-      aviso.textContent = `Lendo "${f.name}": ${i}/${total}...`;
+      if (sessao === organizarSessao) aviso.textContent = `Lendo "${f.name}": ${i}/${total}...`;
     });
+    if (sessao !== organizarSessao || !organizarEstado) { itens.forEach(it => URL.revokeObjectURL(it.thumbUrl)); return; }
     organizarEstado.fontes.push({ nome: f.name, bytes });
     organizarEstado.itens.push(...itens);
     renderOrganizar();
   } catch (e) {
+    if (sessao !== organizarSessao) return;
     alert('Não foi possível ler o PDF: ' + ((e && e.message) || e));
   }
 });
