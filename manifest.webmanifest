@@ -1,7 +1,7 @@
 {
-  "name": "Compacta PDF — LOTEP",
-  "short_name": "Compacta PDF",
-  "description": "Compacta, divide, junta, converte e edita PDFs — 100% no navegador.",
+  "name": "GTFISC — Ferramenta (LOTEP)",
+  "short_name": "GTFISC",
+  "description": "Ferramentas de trabalho do GTFISC — compacta, divide, junta, converte e edita PDFs, 100% no navegador.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
