@@ -655,6 +655,10 @@
           <label for="senha-valor">Senha:</label>
           <input type="password" id="senha-valor" size="24" maxlength="64" autocomplete="off">
         </div>
+        <div class="mini-form" id="senha-confirma-row">
+          <label for="senha-confirma">Confirmar senha:</label>
+          <input type="password" id="senha-confirma" size="24" maxlength="64" autocomplete="off">
+        </div>
         <div class="note">A senha é usada apenas dentro do seu navegador — não é gravada nem enviada a lugar algum. O componente de criptografia (~1,3 MB) é baixado na primeira vez.</div>
       </fieldset>
     </div>
@@ -692,7 +696,7 @@
   </details>
 </main>
 
-<footer class="app">LOTEP — Loteria do Estado da Paraíba · Processamento 100% no navegador · Seus PDFs nunca são enviados a nenhum servidor · v2.5 (20/07/2026)<br>
+<footer class="app">LOTEP — Loteria do Estado da Paraíba · Processamento 100% no navegador · Seus PDFs nunca são enviados a nenhum servidor · <span id="versao-rodape"></span><br>
 <a id="link-instalador" href="Instalador-CompactaPDF.exe">Baixar o instalador para Windows</a> — cria o atalho na Área de Trabalho e funciona sem internet</footer>
 
 <script>
@@ -801,8 +805,10 @@ window.__results = []; // depuração/testes
 
 // Visualizador hospedado do claude.ai: o sandbox do iframe bloqueia downloads
 // (sem allow-downloads), popups e o seletor de arquivos — avisamos o usuário.
-const VERSAO = '2.5 — 17/08/2026';
+const VERSAO = '2.5.1 — 17/08/2026';
 const HOSTED = typeof window.claude !== 'undefined';
+// o rodapé lê a versão daqui — fonte única, sem data duplicada no HTML
+{ const vr = document.getElementById('versao-rodape'); if (vr) vr.textContent = 'v' + VERSAO; }
 console.log('[compacta-pdf] v' + VERSAO + ' · hospedado=' + HOSTED + ' · OffscreenCanvas=' + (typeof OffscreenCanvas !== 'undefined'));
 if (HOSTED) {
   const aviso = document.createElement('div');
@@ -1144,7 +1150,12 @@ function abrirVisor(blob, titulo) {
     overlay.remove();
     URL.revokeObjectURL(url);
   };
-  const esc = e => { if (e.key === 'Escape') sair(); };
+  const esc = e => {
+    if (e.key !== 'Escape') return;
+    // com visores empilhados, o Esc fecha apenas o de cima
+    const todos = document.querySelectorAll('.visor-overlay');
+    if (todos[todos.length - 1] === overlay) sair();
+  };
   fechar.onclick = sair;
   overlay.addEventListener('click', e => { if (e.target === overlay) sair(); });
   document.addEventListener('keydown', esc);
@@ -1229,6 +1240,9 @@ function addZipButton(container, zipBaseFn) {
       a.download = zipBaseFn() + ' - volumes.zip';
       a.click();
       hostedHint(container);
+    } catch (e) {
+      console.error(e);
+      alert('Falha ao gerar o ZIP: ' + ((e && e.message) || e));
     } finally {
       btn.disabled = false; btn.textContent = 'Baixar todos (.zip)';
     }
@@ -1313,10 +1327,22 @@ function addReciboLink(container, origemNome, origemTam) {
   return a;
 }
 
+// traduz erros técnicos (pdf.js/pdf-lib em inglês) em mensagens úteis
+function mensagemAmigavel(err) {
+  const msg = (err && err.message) || String(err);
+  if (/InvalidPDF|Invalid PDF|corrupt|trailer|startxref|No PDF header/i.test(msg)) return 'O arquivo parece corrompido ou não é um PDF válido.';
+  if (/password|encrypt/i.test(msg) && !/senha/i.test(msg)) return 'Este PDF é protegido por senha. Use a ferramenta "Proteger / remover senha" para removê-la e tente novamente.';
+  return msg;
+}
+
 function falhaCard(card, err) {
   console.error(err);
   card.done();
-  card.result().innerHTML = `<div class="${err && err.cancelado ? 'msg-warn' : 'msg-err'}" style="margin-top:0">${err && err.cancelado ? 'Cancelado pelo usuário.' : 'Erro: ' + ((err && err.message) || err)}</div>`;
+  const div = document.createElement('div');
+  div.className = err && err.cancelado ? 'msg-warn' : 'msg-err';
+  div.style.marginTop = '0';
+  div.textContent = err && err.cancelado ? 'Cancelado pelo usuário.' : 'Erro: ' + mensagemAmigavel(err);
+  card.result().replaceChildren(div);
 }
 
 /* ---------- Compactação: rasteriza páginas em JPEG ---------- */
@@ -1383,7 +1409,7 @@ async function compressLadder(pdfjsDoc, limit, gray, card, title) {
 /* ---------- Divisão em volumes (sem perda) ---------- */
 async function splitPdf(origBytes, limit, card) {
   const src = await PDFLib.PDFDocument.load(origBytes, { ignoreEncryption: true, updateMetadata: false, parseSpeed: PDFLib.ParseSpeeds.Fastest });
-  if (src.isEncrypted) throw new Error('Este PDF tem proteção/criptografia; a divisão sem perdas não é possível. Use o modo "Somente compactar".');
+  if (src.isEncrypted) throw new Error('Este PDF tem proteção/criptografia; a divisão sem perdas não é possível. Remova a senha na ferramenta "Proteger / remover senha" e tente de novo.');
   const n = src.getPageCount();
   const avg = origBytes.length / n;
 
@@ -1461,7 +1487,7 @@ async function processBytes(origBytes, fileName, cardPronto, sempreBaixar) {
       pdfDoc = null;
     }
     if (temSenha) {
-      throw new Error('Este PDF é protegido por senha. Remova a senha e tente novamente.');
+      throw new Error('Este PDF é protegido por senha. Use a ferramenta "Proteger / remover senha" para removê-la e tente novamente.');
     }
     // miniatura da 1ª página no cabeçalho do cartão
     if (pdfDoc) {
@@ -1569,17 +1595,12 @@ async function processBytes(origBytes, fileName, cardPronto, sempreBaixar) {
   } catch (err) {
     console.error(err);
     card.done();
-    let msg = (err && err.message) || String(err);
-    if (err && err.cancelado) {
-      msg = 'Cancelado pelo usuário.';
-    } else if (/InvalidPDF|Invalid PDF|corrupt|trailer|startxref|No PDF header/i.test(msg)) {
-      msg = 'O arquivo parece corrompido ou não é um PDF válido.';
-    } else if (/password|encrypt/i.test(msg) && !/senha/i.test(msg)) {
-      msg = 'Este PDF é protegido por senha. Remova a senha e tente novamente.';
-    }
-    out.innerHTML = err && err.cancelado
-      ? `<div class="msg-warn" style="margin-top:0">${msg}</div>`
-      : `<div class="msg-err">Erro ao processar: ${msg}</div>`;
+    const msg = err && err.cancelado ? 'Cancelado pelo usuário.' : mensagemAmigavel(err);
+    const div = document.createElement('div');
+    div.className = err && err.cancelado ? 'msg-warn' : 'msg-err';
+    div.style.marginTop = '0';
+    div.textContent = err && err.cancelado ? msg : 'Erro ao processar: ' + msg;
+    out.replaceChildren(div);
     window.__results.push({ file: fileName, action: err && err.cancelado ? 'cancelado' : 'error', error: msg });
   } finally {
     if (pdfDoc) { try { pdfDoc.destroy(); } catch (e) { } }
@@ -1688,7 +1709,10 @@ function ligarDropzone(dzSel, inputSel, onFiles) {
 }
 
 ligarDropzone('#dropzone', '#file-input', enqueueFiles);
-window.addEventListener('beforeunload', e => { if (busy || organizarEstado) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => {
+  // também avisa quando há painel visual com trabalho não aplicado (cortes, seleção, giros)
+  if (busy || organizarEstado || separarEstado || extrairEstado || girarEstado) { e.preventDefault(); e.returnValue = ''; }
+});
 
 /* ---------- Navegação: grade de ferramentas ---------- */
 const FERRAMENTAS = {
@@ -1810,7 +1834,7 @@ async function executarJuntar(lote) {
       card.progress((i + 1) / arquivos.length);
       const bytes = new Uint8Array(await arquivos[i].arrayBuffer());
       const src = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true, parseSpeed: PDFLib.ParseSpeeds.Fastest });
-      if (src.isEncrypted) throw new Error(`O arquivo "${arquivos[i].name}" é protegido por senha — remova a senha antes de juntar.`);
+      if (src.isEncrypted) throw new Error(`O arquivo "${arquivos[i].name}" é protegido por senha — remova-a na ferramenta "Proteger / remover senha" antes de juntar.`);
       const idx = src.getPageIndices();
       const pgs = await destino.copyPages(src, idx);
       pgs.forEach(p => destino.addPage(p));
@@ -2212,8 +2236,11 @@ function renderOrganizar() {
   painel.classList.remove('oculto');
   painel.innerHTML = '';
   const cab = document.createElement('div');
-  cab.innerHTML = `<strong>Organizando:</strong> ${est.fontes.map((f, i) => String.fromCharCode(65 + i) + ' = ' + f.nome).join(' · ')} — ${est.itens.length} página(s)`;
   cab.style.fontSize = '.87rem';
+  const cabStrong = document.createElement('strong');
+  cabStrong.textContent = 'Organizando: ';
+  // textContent evita que nomes de arquivo com < > sejam interpretados como HTML
+  cab.append(cabStrong, `${est.fontes.map((f, i) => String.fromCharCode(65 + i) + ' = ' + f.nome).join(' · ')} — ${est.itens.length} página(s)`);
   painel.appendChild(cab);
   const nota = document.createElement('div');
   nota.className = 'note';
@@ -2293,7 +2320,7 @@ async function montarPdfOrganizado(fontes, itens) {
   const docs = [];
   for (const f of fontes) {
     const d = await PDFLib.PDFDocument.load(f.bytes, { ignoreEncryption: true, parseSpeed: PDFLib.ParseSpeeds.Fastest });
-    if (d.isEncrypted) throw new Error(`O arquivo "${f.nome}" é protegido por senha — remova a senha antes de organizar.`);
+    if (d.isEncrypted) throw new Error(`O arquivo "${f.nome}" é protegido por senha — remova-a na ferramenta "Proteger / remover senha" antes de organizar.`);
     docs.push(d);
   }
   const mapas = docs.map(() => new Map());
@@ -2312,7 +2339,11 @@ async function iniciarOrganizacao(f) {
   const sessao = organizarSessao;
   const painel = $('#organizar-painel');
   painel.classList.remove('oculto');
-  painel.innerHTML = '<div class="note">Gerando miniaturas de "' + f.name + '"...</div>';
+  painel.innerHTML = '';
+  const notaCarga = document.createElement('div');
+  notaCarga.className = 'note';
+  notaCarga.textContent = `Gerando miniaturas de "${f.name}"...`;
+  painel.appendChild(notaCarga);
   try {
     const bytes = new Uint8Array(await f.arrayBuffer());
     const { itens, truncado } = await miniaturasDe(bytes, 0, (i, total) => {
@@ -2327,7 +2358,11 @@ async function iniciarOrganizacao(f) {
     renderOrganizar();
   } catch (e) {
     if (sessao !== organizarSessao) return;
-    painel.innerHTML = '<div class="msg-err">Não foi possível ler o PDF: ' + ((e && e.message) || e) + '</div>';
+    painel.innerHTML = '';
+    const err = document.createElement('div');
+    err.className = 'msg-err';
+    err.textContent = 'Não foi possível ler o PDF: ' + mensagemAmigavel(e);
+    painel.appendChild(err);
   }
 }
 
@@ -2353,7 +2388,7 @@ $('#input-organizar-extra').addEventListener('change', async () => {
     renderOrganizar();
   } catch (e) {
     if (sessao !== organizarSessao) return;
-    alert('Não foi possível ler o PDF: ' + ((e && e.message) || e));
+    alert('Não foi possível ler o PDF: ' + mensagemAmigavel(e));
   }
 });
 
@@ -2396,7 +2431,7 @@ async function iniciarSeparacao(f) {
     painel.innerHTML = '';
     const err = document.createElement('div');
     err.className = 'msg-err';
-    err.textContent = 'Não foi possível ler o PDF: ' + ((e && e.message) || e);
+    err.textContent = 'Não foi possível ler o PDF: ' + mensagemAmigavel(e);
     painel.appendChild(err);
   }
 }
@@ -2487,7 +2522,7 @@ async function executarSeparacao(nome, bytes, cortes, totalMiniaturas) {
   const cardLote = makeCard(nome + ' — separar documentos', bytes.length);
   try {
     const src = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true, parseSpeed: PDFLib.ParseSpeeds.Fastest });
-    if (src.isEncrypted) throw new Error('Este PDF é protegido por senha — remova a senha antes de separar.');
+    if (src.isEncrypted) throw new Error('Este PDF é protegido por senha — remova-a na ferramenta "Proteger / remover senha" antes de separar.');
     const fimReal = src.getPageCount();
     const inicios = [0, ...cortes];
     const fins = [...cortes, fimReal]; // o último trecho vai até o fim REAL (mesmo além das 100 miniaturas)
@@ -2573,7 +2608,7 @@ async function iniciarExtracao(f) {
     painel.innerHTML = '';
     const err = document.createElement('div');
     err.className = 'msg-err';
-    err.textContent = 'Não foi possível ler o PDF: ' + ((e && e.message) || e);
+    err.textContent = 'Não foi possível ler o PDF: ' + mensagemAmigavel(e);
     painel.appendChild(err);
   }
 }
@@ -2688,7 +2723,7 @@ async function executarEdicao(f, t, params) {
   try {
     const bytes = new Uint8Array(await f.arrayBuffer());
     const src = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true, parseSpeed: PDFLib.ParseSpeeds.Fastest });
-    if (src.isEncrypted) throw new Error('Este PDF é protegido por senha — remova a senha antes de editar.');
+    if (src.isEncrypted) throw new Error('Este PDF é protegido por senha — remova-a na ferramenta "Proteger / remover senha" antes de editar.');
     let saida, nomeSaida;
     if (t === 'extrair') {
       const idx = parseIntervalo(params.intervalo, src.getPageCount());
@@ -2766,7 +2801,7 @@ function limparGiro() {
 
 async function aplicarGiro(bytes, deltas) {
   const src = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true, parseSpeed: PDFLib.ParseSpeeds.Fastest });
-  if (src.isEncrypted) throw new Error('Este PDF é protegido por senha — remova a senha antes de girar.');
+  if (src.isEncrypted) throw new Error('Este PDF é protegido por senha — remova-a na ferramenta "Proteger / remover senha" antes de girar.');
   const pgs = src.getPages();
   deltas.forEach((d, i) => {
     if (!d || !pgs[i]) return;
@@ -2800,7 +2835,7 @@ async function iniciarGiro(f) {
     painel.innerHTML = '';
     const err = document.createElement('div');
     err.className = 'msg-err';
-    err.textContent = 'Não foi possível ler o PDF: ' + ((e && e.message) || e);
+    err.textContent = 'Não foi possível ler o PDF: ' + mensagemAmigavel(e);
     painel.appendChild(err);
   }
 }
@@ -2916,7 +2951,8 @@ function carregarQpdf() {
         return base;
       } catch (e) { erro = e; }
     }
-    throw erro || new Error('Componente de criptografia indisponível.');
+    if (erro) console.error(erro);
+    throw new Error('Não foi possível carregar o componente de criptografia. Verifique a internet — no site oficial ele acompanha a página e funciona offline.');
   })();
   __qpdfPromise.catch(() => { __qpdfPromise = null; });
   return __qpdfPromise;
@@ -2971,6 +3007,14 @@ async function executarSenha(f, modo, senha) {
   } catch (err) { falhaCard(card, err); }
 }
 
+// o campo de confirmação só aparece ao proteger (não faz sentido ao remover)
+function atualizarSenhaUi() {
+  const modo = document.querySelector('input[name=senha-modo]:checked').value;
+  $('#senha-confirma-row').classList.toggle('oculto', modo !== 'proteger');
+}
+document.querySelectorAll('input[name=senha-modo]').forEach(r => r.addEventListener('change', atualizarSenhaUi));
+atualizarSenhaUi();
+
 ligarDropzone('#dz-senha', '#input-senha', files => {
   const f = files.find(x => /\.pdf$/i.test(x.name) || x.type === 'application/pdf');
   if (!f) return;
@@ -2980,6 +3024,11 @@ ligarDropzone('#dz-senha', '#input-senha', files => {
     return;
   }
   const modo = document.querySelector('input[name=senha-modo]:checked').value;
+  // um erro de digitação ao proteger tornaria o documento irrecuperável
+  if (modo === 'proteger' && senha !== $('#senha-confirma').value) {
+    alert('A confirmação não confere com a senha digitada. Confira os dois campos.');
+    return;
+  }
   enfileirar(() => executarSenha(f, modo, senha)).catch(() => { });
 });
 
@@ -3005,9 +3054,21 @@ async function contarLote(files, aoProgresso) {
       const m = casarPadroes(texto);
       protocolo = m ? m.nome : '';
       doc.destroy();
-    } catch (e) { protocolo = '(não foi possível ler)'; }
+    } catch (e) {
+      // sem contagem confiável: null vira "?" no relatório (nunca um 0 falso)
+      paginas = null;
+      protocolo = (e && e.name === 'PasswordException') ? '(protegido por senha)' : '(não foi possível ler)';
+      // alguns cifrados mais antigos ainda têm a estrutura legível pelo pdf-lib
+      try {
+        const d2 = await PDFLib.PDFDocument.load(new Uint8Array(await f.arrayBuffer()),
+          { ignoreEncryption: true, updateMetadata: false, parseSpeed: PDFLib.ParseSpeeds.Fastest });
+        const c = d2.getPageCount();
+        if (c > 0) paginas = c;
+        if (d2.isEncrypted) protocolo = '(protegido por senha)';
+      } catch (e2) { }
+    }
     linhas.push({ nome: f.name, paginas, bytes: f.size, protocolo });
-    totalPaginas += paginas;
+    totalPaginas += paginas || 0;
     totalBytes += f.size;
   }
   return { linhas, totalPaginas, totalBytes };
@@ -3033,12 +3094,15 @@ async function executarContagem(files) {
       '',
       'Arquivo'.padEnd(larg) + '  Págs.  Tamanho     Protocolo/Processo',
       '-'.repeat(larg + 44),
-      ...rel.linhas.map(l => l.nome.padEnd(larg) + '  ' + String(l.paginas).padStart(5) + '  ' + fmt(l.bytes).padStart(9) + '   ' + (l.protocolo || '—')),
+      ...rel.linhas.map(l => l.nome.padEnd(larg) + '  ' + String(l.paginas == null ? '?' : l.paginas).padStart(5) + '  ' + fmt(l.bytes).padStart(9) + '   ' + (l.protocolo || '—')),
       '-'.repeat(larg + 44),
       'TOTAL'.padEnd(larg) + '  ' + String(rel.totalPaginas).padStart(5) + '  ' + fmt(rel.totalBytes).padStart(9),
       '',
       'Detecção sem OCR (só texto embutido) — digitalizados podem aparecer sem protocolo.',
     ];
+    if (rel.linhas.some(l => l.paginas == null)) {
+      linhasTxt.push('Arquivos marcados com "?" não puderam ter as folhas contadas (senha/corrompido) e ficaram fora do total.');
+    }
     const pre = document.createElement('div');
     pre.className = 'relatorio-pre';
     pre.textContent = linhasTxt.join('\n');
@@ -3062,7 +3126,7 @@ async function pdfParaPesquisavel(f) {
     const bytes = new Uint8Array(await f.arrayBuffer());
     const doc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
     const srcLib = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true, parseSpeed: PDFLib.ParseSpeeds.Fastest });
-    if (srcLib.isEncrypted) throw new Error('Este PDF é protegido por senha — remova a senha primeiro.');
+    if (srcLib.isEncrypted) throw new Error('Este PDF é protegido por senha — remova-a na ferramenta "Proteger / remover senha" primeiro.');
     const novo = await PDFLib.PDFDocument.create();
     const font = await novo.embedFont(PDFLib.StandardFonts.Helvetica);
     const n = doc.numPages;
@@ -3433,6 +3497,19 @@ async function autoteste() {
     const dl = await pdfjsLib.getDocument({ data: limpo.slice() }).promise;
     afirmar(dl.numPages === 1, 'sem senha: nº de páginas errado');
     dl.destroy();
+    // o contador identifica o protegido e mostra "?" — nunca um zero falso
+    const relProt = await contarLote([new File([prot], 'ct-prot.pdf', { type: 'application/pdf' })]);
+    afirmar(relProt.linhas[0].protocolo === '(protegido por senha)', 'rótulo esperado "(protegido por senha)", veio: ' + relProt.linhas[0].protocolo);
+    afirmar(relProt.linhas[0].paginas === null || relProt.linhas[0].paginas === 1, 'páginas do protegido: esperava desconhecido (?) ou 1, veio ' + relProt.linhas[0].paginas);
+  });
+
+  await caso('Confirmação de senha aparece só ao proteger', async () => {
+    $('#senha-remover').checked = true;
+    $('#senha-remover').dispatchEvent(new Event('change', { bubbles: true }));
+    afirmar($('#senha-confirma-row').classList.contains('oculto'), 'confirmação deveria sumir no modo remover');
+    $('#senha-proteger').checked = true;
+    $('#senha-proteger').dispatchEvent(new Event('change', { bubbles: true }));
+    afirmar(!$('#senha-confirma-row').classList.contains('oculto'), 'confirmação deveria aparecer no modo proteger');
   });
 
   await caso('PDF digitalizado → pesquisável (etapa lenta)', async () => {
