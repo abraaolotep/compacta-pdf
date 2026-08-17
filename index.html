@@ -99,7 +99,7 @@
   }
   body::before { content: ''; display: block; height: 3px; background: var(--btn-bg); }
   header.app {
-    max-width: 720px; margin: 0 auto;
+    max-width: 780px; margin: 0 auto;
     padding: 30px 20px 6px;
     display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
   }
@@ -108,7 +108,10 @@
   header.app .logo-escuro { display: var(--logo-escuro); }
   header.app h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: .01em; }
   header.app p { color: var(--muted); font-size: .85rem; margin-top: 2px; }
-  main { max-width: 720px; margin: 0 auto; padding: 8px 20px 48px; }
+  main { max-width: 780px; margin: 0 auto; padding: 8px 20px 48px; }
+  .opts-grid { display: grid; grid-template-columns: 1fr; gap: 0 26px; }
+  @media (min-width: 640px) { .opts-grid { grid-template-columns: 1fr 1fr; } }
+  .dz-icone { color: var(--accent-text); margin-bottom: 6px; }
   .tabs { display: flex; gap: 2px; margin-top: 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
   .tab {
     background: none; border: none; cursor: pointer;
@@ -174,6 +177,7 @@
     border: 1px solid var(--row-border); border-radius: 8px;
     padding: 7px 12px; font-size: .87rem;
   }
+  .lista-juntar .item img.thumb { width: 30px; height: auto; border: 1px solid var(--border); border-radius: 3px; background: #fff; }
   .lista-juntar .item .nome { flex: 1; word-break: break-all; }
   .lista-juntar .item .tam { color: var(--faint); font-size: .8rem; white-space: nowrap; }
   .lista-juntar .item button {
@@ -198,8 +202,30 @@
   .pg-item.corte { border-color: var(--accent-text); border-width: 2px; }
   .pg-item .pg-doc { color: var(--accent-text); font-weight: 600; font-size: .72rem; margin-top: 2px; min-height: 1em; }
   .pg-item .pg-acoes button.ativo { background: var(--accent-soft); color: var(--accent-text); border-color: var(--accent-border); }
+  .pg-item.sel { border-color: var(--accent-text); border-width: 2px; background: var(--accent-soft); }
+  .pg-item.clicavel { cursor: pointer; }
+  .visor-overlay {
+    position: fixed; inset: 0; background: rgba(20, 10, 12, .55);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 50; padding: 24px;
+  }
+  .visor-caixa {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    width: min(900px, 96vw); height: min(88vh, 1100px);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .visor-topo {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+  }
+  .visor-titulo { font-size: .88rem; font-weight: 600; word-break: break-all; }
+  .visor-frame { border: 0; width: 100%; flex: 1; background: #525659; }
+  button.btn-ver { background: none; border: 1px solid var(--btn-bg); color: var(--accent-text); font-weight: 500; }
+  button.btn-ver:hover { background: var(--accent-soft); }
   .card { margin-top: 14px; }
-  .card-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+  .card-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .card-head img.card-thumb { width: 34px; height: auto; border: 1px solid var(--border); border-radius: 4px; background: #fff; }
+  .card-head .fname { flex: 1; }
   .card-head .fname { font-weight: 600; word-break: break-all; font-size: .93rem; }
   .card-head .fsize { color: var(--faint); font-size: .84rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .status { margin-top: 9px; font-size: .84rem; color: var(--muted); min-height: 1.2em; font-variant-numeric: tabular-nums; }
@@ -255,7 +281,7 @@
   details .panel { margin-top: 8px; font-size: .86rem; line-height: 1.6; color: var(--muted); }
   details .panel p + p { margin-top: 7px; }
   footer.app {
-    max-width: 720px; margin: 0 auto;
+    max-width: 780px; margin: 0 auto;
     text-align: left; color: var(--faint); font-size: .77rem;
     padding: 0 20px 32px; line-height: 1.7;
   }
@@ -285,6 +311,7 @@
   <!-- ============ COMPACTAR / DIVIDIR ============ -->
   <section id="sec-compactar" data-sec="compactar">
     <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="Selecionar arquivos PDF">
+      <svg class="dz-icone" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
       <div class="main-text">Arraste PDFs aqui ou clique para selecionar</div>
       <div class="sub-text">Pode selecionar vários arquivos de uma vez</div>
       <input type="file" id="file-input" accept="application/pdf,.pdf" multiple>
@@ -293,6 +320,8 @@
     <div class="panel">
       <fieldset>
         <legend>Opções</legend>
+        <div class="opts-grid">
+        <div>
         <div class="opt-row">
           <input type="radio" name="mode" id="mode-auto" value="auto" checked>
           <label for="mode-auto"><strong>Automático</strong>
@@ -308,6 +337,8 @@
           <label for="mode-split">Somente dividir em volumes
             <small>Partes de até 9,9 MB, sem perda de qualidade</small></label>
         </div>
+        </div>
+        <div>
         <div class="opt-row" style="margin-top:12px">
           <input type="checkbox" id="opt-gray">
           <label for="opt-gray">Converter para tons de cinza
@@ -317,6 +348,8 @@
           <input type="checkbox" id="opt-ocr" checked>
           <label for="opt-ocr">Usar OCR em documentos digitalizados
             <small>Lê PDFs escaneados para identificar protocolo/processo no nome (baixa ~6 MB na 1ª vez)</small></label>
+        </div>
+        </div>
         </div>
         <div class="limit-row">
           <span class="opt-title">Destino:</span>
@@ -337,6 +370,7 @@
   <!-- ============ JUNTAR ============ -->
   <section id="sec-juntar" data-sec="juntar" class="oculto">
     <div id="dz-juntar" class="dropzone" role="button" tabindex="0" aria-label="Adicionar PDFs para juntar">
+      <svg class="dz-icone" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
       <div class="main-text">Adicione os PDFs que serão juntados</div>
       <div class="sub-text">A ordem da lista abaixo será a ordem no arquivo final</div>
       <input type="file" id="input-juntar" accept="application/pdf,.pdf" multiple>
@@ -386,6 +420,7 @@
       </fieldset>
     </div>
     <div id="dz-converter" class="dropzone" role="button" tabindex="0" aria-label="Selecionar arquivos para converter">
+      <svg class="dz-icone" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
       <div class="main-text">Arraste os arquivos aqui ou clique para selecionar</div>
       <div class="sub-text" id="dz-converter-sub">Aceita PDF</div>
       <input type="file" id="input-converter" accept="application/pdf,.pdf" multiple>
@@ -437,12 +472,14 @@
       </fieldset>
     </div>
     <div id="dz-editar" class="dropzone" role="button" tabindex="0" aria-label="Selecionar PDF para editar">
+      <svg class="dz-icone" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
       <div class="main-text">Arraste o PDF aqui ou clique para selecionar</div>
       <div class="sub-text">Um arquivo por vez</div>
       <input type="file" id="input-editar" accept="application/pdf,.pdf">
     </div>
     <div id="organizar-painel" class="panel oculto"></div>
     <div id="separar-painel" class="panel oculto"></div>
+    <div id="extrair-painel" class="panel oculto"></div>
     <input type="file" id="input-organizar-extra" accept="application/pdf,.pdf" style="display:none">
   </section>
 
@@ -462,7 +499,7 @@
   </details>
 </main>
 
-<footer class="app">LOTEP — Loteria do Estado da Paraíba · Processamento 100% no navegador · Seus PDFs nunca são enviados a nenhum servidor · v2.2 (20/07/2026)<br>
+<footer class="app">LOTEP — Loteria do Estado da Paraíba · Processamento 100% no navegador · Seus PDFs nunca são enviados a nenhum servidor · v2.3 (20/07/2026)<br>
 <a id="link-instalador" href="Instalador-CompactaPDF.exe">Baixar o instalador para Windows</a> — cria o atalho na Área de Trabalho e funciona sem internet</footer>
 
 <script>
@@ -571,7 +608,7 @@ window.__results = []; // depuração/testes
 
 // Visualizador hospedado do claude.ai: o sandbox do iframe bloqueia downloads
 // (sem allow-downloads), popups e o seletor de arquivos — avisamos o usuário.
-const VERSAO = '2.2 — 20/07/2026';
+const VERSAO = '2.3 — 20/07/2026';
 const HOSTED = typeof window.claude !== 'undefined';
 console.log('[compacta-pdf] v' + VERSAO + ' · hospedado=' + HOSTED + ' · OffscreenCanvas=' + (typeof OffscreenCanvas !== 'undefined'));
 if (HOSTED) {
@@ -874,10 +911,72 @@ function makeCard(name, size) {
       el.querySelector('.status').style.display = 'none';
       btnCancel.remove();
     },
+    setThumb(url) {
+      if (!url || el.querySelector('.card-thumb')) return;
+      const img = document.createElement('img');
+      img.className = 'card-thumb';
+      img.src = url;
+      img.alt = '';
+      el.querySelector('.card-head').prepend(img);
+    },
     result() { return el.querySelector('.result'); },
   };
   btnCancel.onclick = () => { api.cancelado = true; api.status('Cancelando...'); };
   return api;
+}
+
+/* ---------- Visualizador de PDF embutido (usa o leitor nativo do navegador) ---------- */
+function abrirVisor(blob, titulo) {
+  const overlay = document.createElement('div');
+  overlay.className = 'visor-overlay';
+  const caixa = document.createElement('div');
+  caixa.className = 'visor-caixa';
+  const topo = document.createElement('div');
+  topo.className = 'visor-topo';
+  const t = document.createElement('span');
+  t.className = 'visor-titulo';
+  t.textContent = titulo;
+  const fechar = document.createElement('button');
+  fechar.type = 'button';
+  fechar.className = 'btn-cancel';
+  fechar.style.marginTop = '0';
+  fechar.textContent = 'Fechar';
+  const url = URL.createObjectURL(blob);
+  const frame = document.createElement('iframe');
+  frame.className = 'visor-frame';
+  frame.title = titulo;
+  frame.src = url;
+  const sair = () => {
+    document.removeEventListener('keydown', esc);
+    overlay.remove();
+    URL.revokeObjectURL(url);
+  };
+  const esc = e => { if (e.key === 'Escape') sair(); };
+  fechar.onclick = sair;
+  overlay.addEventListener('click', e => { if (e.target === overlay) sair(); });
+  document.addEventListener('keydown', esc);
+  topo.append(t, fechar);
+  caixa.append(topo, frame);
+  overlay.appendChild(caixa);
+  document.body.appendChild(overlay);
+}
+
+// miniatura da 1ª página (largura em px); retorna objectURL de JPEG ou null
+async function miniThumbDoc(doc, largura) {
+  try {
+    const page = await doc.getPage(1);
+    const vp1 = page.getViewport({ scale: 1 });
+    const vp = page.getViewport({ scale: (largura || 44) / vp1.width });
+    const canvas = criarCanvas(Math.max(1, Math.round(vp.width)), Math.max(1, Math.round(vp.height)));
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport: vp, intent: 'print' }).promise;
+    page.cleanup();
+    const jpeg = await canvasParaJpegBytes(canvas, 0.7);
+    canvas.width = canvas.height = 0;
+    return URL.createObjectURL(new Blob([jpeg], { type: 'image/jpeg' }));
+  } catch (e) { return null; }
 }
 
 function addDownloadRow(container, name, bytes, extra, warn, sufixo, mime) {
@@ -899,7 +998,16 @@ function addDownloadRow(container, name, bytes, extra, warn, sufixo, mime) {
   const pontoExt = name.lastIndexOf('.');
   a.dataset.ext = pontoExt > 0 ? name.slice(pontoExt) : '.pdf';
   a.addEventListener('click', () => hostedHint(container));
-  row.append(info, a);
+  if (a.dataset.ext === '.pdf' && !HOSTED) {
+    const ver = document.createElement('button');
+    ver.type = 'button';
+    ver.className = 'btn btn-ver';
+    ver.textContent = 'Visualizar';
+    ver.onclick = () => abrirVisor(blob, a.download);
+    row.append(info, ver, a);
+  } else {
+    row.append(info, a);
+  }
   container.appendChild(row);
   if (warn) {
     const w = document.createElement('div');
@@ -1162,6 +1270,11 @@ async function processBytes(origBytes, fileName, cardPronto, sempreBaixar) {
     if (temSenha) {
       throw new Error('Este PDF é protegido por senha. Remova a senha e tente novamente.');
     }
+    // miniatura da 1ª página no cabeçalho do cartão
+    if (pdfDoc) {
+      const thumbUrl = await miniThumbDoc(pdfDoc, 44);
+      if (thumbUrl) card.setThumb(thumbUrl);
+    }
     // identificação automática (protocolo/processo/título) para nomear os resultados
     let ident = { nome: null, origem: null };
     if (pdfDoc) {
@@ -1402,20 +1515,37 @@ $('#limit-mb').addEventListener('input', () => { $('#perfil').value = 'custom'; 
 /* ---------- Juntar PDFs ---------- */
 const arquivosJuntar = [];
 
+async function gerarThumbArquivo(f, largura) {
+  try {
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    const doc = await pdfjsLib.getDocument({ data: bytes }).promise;
+    const u = await miniThumbDoc(doc, largura || 60);
+    doc.destroy();
+    return u;
+  } catch (e) { return null; }
+}
+
 function renderListaJuntar() {
   const lista = $('#lista-juntar');
   lista.innerHTML = '';
-  arquivosJuntar.forEach((f, i) => {
+  arquivosJuntar.forEach((it, i) => {
     const item = document.createElement('div');
     item.className = 'item';
-    const nome = document.createElement('span'); nome.className = 'nome'; nome.textContent = (i + 1) + '. ' + f.name;
-    const tam = document.createElement('span'); tam.className = 'tam'; tam.textContent = fmt(f.size);
+    if (it.thumbUrl) {
+      const img = document.createElement('img');
+      img.className = 'thumb';
+      img.src = it.thumbUrl;
+      img.alt = '';
+      item.appendChild(img);
+    }
+    const nome = document.createElement('span'); nome.className = 'nome'; nome.textContent = (i + 1) + '. ' + it.f.name;
+    const tam = document.createElement('span'); tam.className = 'tam'; tam.textContent = fmt(it.f.size);
     const sobe = document.createElement('button'); sobe.type = 'button'; sobe.textContent = '↑'; sobe.title = 'Mover para cima';
     const desce = document.createElement('button'); desce.type = 'button'; desce.textContent = '↓'; desce.title = 'Mover para baixo';
     const rem = document.createElement('button'); rem.type = 'button'; rem.textContent = 'remover';
     sobe.onclick = () => { if (i > 0) { arquivosJuntar.splice(i - 1, 0, arquivosJuntar.splice(i, 1)[0]); renderListaJuntar(); } };
     desce.onclick = () => { if (i < arquivosJuntar.length - 1) { arquivosJuntar.splice(i + 1, 0, arquivosJuntar.splice(i, 1)[0]); renderListaJuntar(); } };
-    rem.onclick = () => { arquivosJuntar.splice(i, 1); renderListaJuntar(); };
+    rem.onclick = () => { if (it.thumbUrl) URL.revokeObjectURL(it.thumbUrl); arquivosJuntar.splice(i, 1); renderListaJuntar(); };
     item.append(nome, tam, sobe, desce, rem);
     lista.appendChild(item);
   });
@@ -1423,22 +1553,33 @@ function renderListaJuntar() {
 }
 
 ligarDropzone('#dz-juntar', '#input-juntar', files => {
-  for (const f of files) if (/\.pdf$/i.test(f.name) || f.type === 'application/pdf') arquivosJuntar.push(f);
+  for (const f of files) {
+    if (!/\.pdf$/i.test(f.name) && f.type !== 'application/pdf') continue;
+    const it = { f, thumbUrl: null };
+    arquivosJuntar.push(it);
+    gerarThumbArquivo(f, 60).then(u => {
+      if (!u) return;
+      if (arquivosJuntar.includes(it)) { it.thumbUrl = u; renderListaJuntar(); }
+      else URL.revokeObjectURL(u);
+    });
+  }
   renderListaJuntar();
 });
 
 async function executarJuntar(lote) {
-  const card = makeCard('Juntar ' + lote.length + ' arquivos', lote.reduce((s, f) => s + f.size, 0));
+  // aceita tanto Files diretos quanto itens {f, thumbUrl} da lista visual
+  const arquivos = lote.map(x => (x && x.f) ? x.f : x);
+  const card = makeCard('Juntar ' + arquivos.length + ' arquivos', arquivos.reduce((s, f) => s + f.size, 0));
   try {
     const destino = await PDFLib.PDFDocument.create();
     let paginas = 0;
-    for (let i = 0; i < lote.length; i++) {
+    for (let i = 0; i < arquivos.length; i++) {
       card.checar();
-      card.status(`Juntando ${i + 1}/${lote.length}: ${lote[i].name}`);
-      card.progress((i + 1) / lote.length);
-      const bytes = new Uint8Array(await lote[i].arrayBuffer());
+      card.status(`Juntando ${i + 1}/${arquivos.length}: ${arquivos[i].name}`);
+      card.progress((i + 1) / arquivos.length);
+      const bytes = new Uint8Array(await arquivos[i].arrayBuffer());
       const src = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true, parseSpeed: PDFLib.ParseSpeeds.Fastest });
-      if (src.isEncrypted) throw new Error(`O arquivo "${lote[i].name}" é protegido por senha — remova a senha antes de juntar.`);
+      if (src.isEncrypted) throw new Error(`O arquivo "${arquivos[i].name}" é protegido por senha — remova a senha antes de juntar.`);
       const idx = src.getPageIndices();
       const pgs = await destino.copyPages(src, idx);
       pgs.forEach(p => destino.addPage(p));
@@ -1448,16 +1589,17 @@ async function executarJuntar(lote) {
     const saida = await destino.save({ useObjectStreams: true, objectsPerTick: Infinity });
     card.done();
     const ok = document.createElement('div'); ok.className = 'msg-ok';
-    ok.textContent = `${lote.length} arquivos juntados (${paginas} páginas). Resultado:`;
+    ok.textContent = `${arquivos.length} arquivos juntados (${paginas} páginas). Resultado:`;
     card.result().appendChild(ok);
-    window.__results.push({ file: 'juntar', action: 'merge', arquivos: lote.length, paginas });
-    await processBytes(saida, baseName(lote[0].name) + ' - juntado.pdf', null, true);
+    window.__results.push({ file: 'juntar', action: 'merge', arquivos: arquivos.length, paginas });
+    await processBytes(saida, baseName(arquivos[0].name) + ' - juntado.pdf', null, true);
   } catch (err) { falhaCard(card, err); }
 }
 
 $('#btn-juntar').addEventListener('click', () => {
   if (arquivosJuntar.length < 2) return;
   const lote = arquivosJuntar.splice(0, arquivosJuntar.length);
+  lote.forEach(it => { if (it.thumbUrl) URL.revokeObjectURL(it.thumbUrl); });
   renderListaJuntar();
   enfileirar(() => executarJuntar(lote)).catch(() => { });
 });
@@ -1786,6 +1928,7 @@ function atualizarEditarUi() {
   $('#form-carimbo').classList.toggle('oculto', t !== 'carimbo');
   if (t !== 'organizar') limparOrganizacao();
   if (t !== 'separar') limparSeparacao();
+  if (t !== 'extrair') limparExtracao();
 }
 
 /* ---------- Organizar páginas (miniaturas: sequência, remoção, inserção) ---------- */
@@ -2136,6 +2279,145 @@ async function executarSeparacao(nome, bytes, cortes, totalMiniaturas) {
   } catch (err) { falhaCard(cardLote, err); }
 }
 
+/* ---------- Extrair páginas com seleção visual ---------- */
+let extrairEstado = null; // { f, itens: [{thumbUrl}], selec: Set<índice> }
+let extrairSessao = 0;
+
+function limparExtracao() {
+  extrairSessao++;
+  const painel = $('#extrair-painel');
+  if (extrairEstado) {
+    extrairEstado.itens.forEach(it => { if (it.thumbUrl) URL.revokeObjectURL(it.thumbUrl); });
+    extrairEstado = null;
+  }
+  painel.innerHTML = '';
+  painel.classList.add('oculto');
+}
+
+function comprimirIntervalo(selec) {
+  const arr = [...selec].sort((a, b) => a - b);
+  const partes = [];
+  for (let i = 0; i < arr.length;) {
+    let j = i;
+    while (j + 1 < arr.length && arr[j + 1] === arr[j] + 1) j++;
+    partes.push(i === j ? String(arr[i] + 1) : (arr[i] + 1) + '-' + (arr[j] + 1));
+    i = j + 1;
+  }
+  return partes.join(', ');
+}
+
+async function iniciarExtracao(f) {
+  limparExtracao();
+  const sessao = extrairSessao;
+  const painel = $('#extrair-painel');
+  painel.classList.remove('oculto');
+  painel.innerHTML = '';
+  const nota = document.createElement('div');
+  nota.className = 'note';
+  nota.textContent = `Gerando miniaturas de "${f.name}"...`;
+  painel.appendChild(nota);
+  try {
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    const { itens, truncado } = await miniaturasDe(bytes, 0, (i, total) => {
+      if (sessao === extrairSessao) nota.textContent = `Gerando miniaturas de "${f.name}": ${i}/${total}...`;
+    });
+    if (sessao !== extrairSessao) { itens.forEach(it => URL.revokeObjectURL(it.thumbUrl)); return; }
+    extrairEstado = { f, itens, selec: new Set() };
+    // pré-seleciona o que já estiver digitado no campo "Páginas"
+    try {
+      const digitado = $('#ed-intervalo').value.trim();
+      if (digitado) parseIntervalo(digitado, itens.length).forEach(i => extrairEstado.selec.add(i));
+    } catch (e) { }
+    if (truncado) extrairEstado.avisoTruncado = `Mostrando as 100 primeiras páginas (o PDF tem mais ${truncado}); páginas além disso podem ser indicadas digitando no campo.`;
+    renderExtracao();
+  } catch (e) {
+    if (sessao !== extrairSessao) return;
+    painel.innerHTML = '';
+    const err = document.createElement('div');
+    err.className = 'msg-err';
+    err.textContent = 'Não foi possível ler o PDF: ' + ((e && e.message) || e);
+    painel.appendChild(err);
+  }
+}
+
+function renderExtracao() {
+  const painel = $('#extrair-painel');
+  const est = extrairEstado;
+  if (!est) { painel.classList.add('oculto'); return; }
+  painel.classList.remove('oculto');
+  painel.innerHTML = '';
+  const cab = document.createElement('div');
+  cab.style.fontSize = '.87rem';
+  const cabStrong = document.createElement('strong');
+  cabStrong.textContent = 'Extraindo de: ';
+  cab.append(cabStrong, `${est.f.name} — ${est.selec.size} de ${est.itens.length} página(s) selecionada(s)`);
+  painel.appendChild(cab);
+  const nota = document.createElement('div');
+  nota.className = 'note';
+  nota.textContent = 'Clique nas páginas para selecionar/desmarcar. O campo "Páginas" acima acompanha a seleção — e aceita ordem personalizada digitada (ex.: 3, 1).';
+  painel.appendChild(nota);
+  const grade = document.createElement('div');
+  grade.className = 'pg-grid';
+  est.itens.forEach((it, i) => {
+    const cel = document.createElement('div');
+    cel.className = 'pg-item clicavel' + (est.selec.has(i) ? ' sel' : '');
+    const img = document.createElement('img');
+    img.src = it.thumbUrl;
+    img.alt = 'Página ' + (i + 1);
+    const rot = document.createElement('div');
+    rot.className = 'pg-rotulo';
+    rot.textContent = 'pág. ' + (i + 1);
+    cel.append(img, rot);
+    cel.onclick = () => {
+      if (est.selec.has(i)) est.selec.delete(i); else est.selec.add(i);
+      $('#ed-intervalo').value = comprimirIntervalo(est.selec);
+      renderExtracao();
+    };
+    grade.appendChild(cel);
+  });
+  painel.appendChild(grade);
+  const acoesRow = document.createElement('div');
+  acoesRow.className = 'acao-row';
+  const btnExtrair = document.createElement('button');
+  btnExtrair.type = 'button';
+  btnExtrair.className = 'btn';
+  btnExtrair.textContent = `Extrair ${est.selec.size} página(s)`;
+  btnExtrair.disabled = est.selec.size < 1 && !$('#ed-intervalo').value.trim();
+  btnExtrair.onclick = () => {
+    const est2 = extrairEstado;
+    if (!est2) return;
+    const intervalo = $('#ed-intervalo').value.trim() || comprimirIntervalo(est2.selec);
+    if (!intervalo) return;
+    const f = est2.f;
+    limparExtracao();
+    enfileirar(() => executarEdicao(f, 'extrair', { intervalo })).catch(() => { });
+  };
+  const btnDesistir = document.createElement('button');
+  btnDesistir.type = 'button';
+  btnDesistir.className = 'btn-cancel';
+  btnDesistir.style.marginLeft = '8px';
+  btnDesistir.textContent = 'Descartar';
+  btnDesistir.onclick = () => limparExtracao();
+  acoesRow.append(btnExtrair, btnDesistir);
+  painel.appendChild(acoesRow);
+  if (est.avisoTruncado) {
+    const w = document.createElement('div');
+    w.className = 'msg-warn';
+    w.textContent = est.avisoTruncado;
+    painel.appendChild(w);
+  }
+}
+
+$('#ed-intervalo').addEventListener('input', () => {
+  if (!extrairEstado) return;
+  const val = $('#ed-intervalo').value.trim();
+  extrairEstado.selec.clear();
+  if (val) {
+    try { parseIntervalo(val, extrairEstado.itens.length).forEach(i => extrairEstado.selec.add(i)); } catch (e) { }
+  }
+  renderExtracao();
+});
+
 document.querySelectorAll('input[name=ed]').forEach(r => r.addEventListener('change', atualizarEditarUi));
 atualizarEditarUi();
 
@@ -2222,6 +2504,7 @@ ligarDropzone('#dz-editar', '#input-editar', files => {
   const t = edTipo();
   if (t === 'organizar') { iniciarOrganizacao(f); return; }
   if (t === 'separar') { iniciarSeparacao(f); return; }
+  if (t === 'extrair') { iniciarExtracao(f); return; }
   const params = {
     intervalo: $('#ed-intervalo').value,
     inicio: parseInt($('#ed-inicio').value, 10) || 1,
@@ -2424,6 +2707,12 @@ async function autoteste() {
     afirmar(!!row, 'resultado da extração ausente');
     afirmar(await __atPaginasDe(row) === 2, 'esperava 2 páginas');
     afirmar((await __atTextoDe(row, 1)).includes('Pagina 2'), 'ordem das páginas incorreta');
+  });
+
+  await caso('Seletor visual de extração (compressão de intervalos)', async () => {
+    afirmar(comprimirIntervalo(new Set([0, 1, 2, 4])) === '1-3, 5', 'compressão incorreta: ' + comprimirIntervalo(new Set([0, 1, 2, 4])));
+    afirmar(comprimirIntervalo(new Set([6])) === '7', 'página única incorreta');
+    afirmar(comprimirIntervalo(new Set()) === '', 'conjunto vazio deveria dar string vazia');
   });
 
   await caso('Numerar folhas a partir de 45', async () => {
