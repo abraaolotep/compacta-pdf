@@ -195,6 +195,9 @@
     cursor: pointer; color: var(--muted); padding: 1px 7px; font-size: .78rem;
   }
   .pg-item .pg-acoes button:hover { color: var(--accent-text); border-color: var(--accent-border); }
+  .pg-item.corte { border-color: var(--accent-text); border-width: 2px; }
+  .pg-item .pg-doc { color: var(--accent-text); font-weight: 600; font-size: .72rem; margin-top: 2px; min-height: 1em; }
+  .pg-item .pg-acoes button.ativo { background: var(--accent-soft); color: var(--accent-text); border-color: var(--accent-border); }
   .card { margin-top: 14px; }
   .card-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
   .card-head .fname { font-weight: 600; word-break: break-all; font-size: .93rem; }
@@ -414,6 +417,11 @@
           <label for="ed-organizar">Organizar páginas
             <small>Veja miniaturas, mude a sequência, remova páginas e insira páginas de outro PDF</small></label>
         </div>
+        <div class="opt-row">
+          <input type="radio" name="ed" id="ed-separar" value="separar">
+          <label for="ed-separar">Separar documentos
+            <small>Um PDF com vários documentos (lote digitalizado) vira arquivos separados — marque com a tesoura onde cada documento começa; cada um sai renomeado pelo próprio protocolo</small></label>
+        </div>
         <div class="mini-form" id="form-extrair">
           <label for="ed-intervalo">Páginas:</label>
           <input type="text" id="ed-intervalo" placeholder="ex.: 1-3, 5, 8-10" size="18">
@@ -434,6 +442,7 @@
       <input type="file" id="input-editar" accept="application/pdf,.pdf">
     </div>
     <div id="organizar-painel" class="panel oculto"></div>
+    <div id="separar-painel" class="panel oculto"></div>
     <input type="file" id="input-organizar-extra" accept="application/pdf,.pdf" style="display:none">
   </section>
 
@@ -446,14 +455,14 @@
       <p><strong>Identificação automática:</strong> o sistema procura nº de processo (CNJ), nº SEI, nº de protocolo ou o título do PDF — inclusive por OCR em digitalizados — e nomeia o arquivo e os volumes (editável antes de baixar).</p>
       <p><strong>Juntar:</strong> combina vários PDFs em um, na ordem escolhida; o resultado passa pelo limite do destino automaticamente.</p>
       <p><strong>Converter:</strong> PDF para Word (texto editável com formatação básica), texto puro, imagens JPG — e o caminho inverso: fotos/digitalizações para PDF simples, para <em>PDF pesquisável</em> (o OCR embute o texto lido, invisível sobre a imagem) ou direto para Word.</p>
-      <p><strong>Editar:</strong> extrair páginas, numerar folhas no padrão de autos, aplicar carimbo/marca-d'água e organizar páginas com miniaturas (mudar sequência, remover, inserir páginas de outro PDF).</p>
+      <p><strong>Editar:</strong> extrair páginas, numerar folhas no padrão de autos, aplicar carimbo/marca-d'água, organizar páginas com miniaturas (mudar sequência, remover, inserir páginas de outro PDF) e separar documentos de um lote digitalizado — cada documento marcado com a tesoura vira um PDF próprio, renomeado pelo protocolo que houver nele.</p>
       <p><strong>Recibo:</strong> cada resultado oferece um recibo com data, tamanhos e hash SHA-256 dos arquivos gerados — útil para comprovar integridade.</p>
       <p><strong>Privacidade:</strong> todo o processamento acontece no navegador de quem usa a página. Nenhum documento é enviado para servidor algum. No site oficial, a página pode ser instalada como aplicativo e funciona offline.</p>
     </div>
   </details>
 </main>
 
-<footer class="app">LOTEP — Loteria do Estado da Paraíba · Processamento 100% no navegador · Seus PDFs nunca são enviados a nenhum servidor · v2.1.1 (20/07/2026)<br>
+<footer class="app">LOTEP — Loteria do Estado da Paraíba · Processamento 100% no navegador · Seus PDFs nunca são enviados a nenhum servidor · v2.2 (20/07/2026)<br>
 <a id="link-instalador" href="Instalador-CompactaPDF.exe">Baixar o instalador para Windows</a> — cria o atalho na Área de Trabalho e funciona sem internet</footer>
 
 <script>
@@ -562,7 +571,7 @@ window.__results = []; // depuração/testes
 
 // Visualizador hospedado do claude.ai: o sandbox do iframe bloqueia downloads
 // (sem allow-downloads), popups e o seletor de arquivos — avisamos o usuário.
-const VERSAO = '2.1.1 — 20/07/2026';
+const VERSAO = '2.2 — 20/07/2026';
 const HOSTED = typeof window.claude !== 'undefined';
 console.log('[compacta-pdf] v' + VERSAO + ' · hospedado=' + HOSTED + ' · OffscreenCanvas=' + (typeof OffscreenCanvas !== 'undefined'));
 if (HOSTED) {
@@ -1776,6 +1785,7 @@ function atualizarEditarUi() {
   $('#form-numerar').classList.toggle('oculto', t !== 'numerar');
   $('#form-carimbo').classList.toggle('oculto', t !== 'carimbo');
   if (t !== 'organizar') limparOrganizacao();
+  if (t !== 'separar') limparSeparacao();
 }
 
 /* ---------- Organizar páginas (miniaturas: sequência, remoção, inserção) ---------- */
@@ -1968,6 +1978,164 @@ $('#input-organizar-extra').addEventListener('change', async () => {
     alert('Não foi possível ler o PDF: ' + ((e && e.message) || e));
   }
 });
+
+/* ---------- Separar documentos (lote digitalizado → vários PDFs) ---------- */
+let separarEstado = null; // { nome, bytes, itens: [{thumbUrl}], cortes: Set<índice da página onde COMEÇA um novo documento> }
+let separarSessao = 0;
+
+function limparSeparacao() {
+  separarSessao++;
+  const painel = $('#separar-painel');
+  if (separarEstado) {
+    separarEstado.itens.forEach(it => { if (it.thumbUrl) URL.revokeObjectURL(it.thumbUrl); });
+    separarEstado = null;
+  }
+  painel.innerHTML = '';
+  painel.classList.add('oculto');
+}
+
+async function iniciarSeparacao(f) {
+  limparSeparacao();
+  const sessao = separarSessao;
+  const painel = $('#separar-painel');
+  painel.classList.remove('oculto');
+  painel.innerHTML = '';
+  const nota = document.createElement('div');
+  nota.className = 'note';
+  nota.textContent = `Gerando miniaturas de "${f.name}"...`;
+  painel.appendChild(nota);
+  try {
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    const { itens, truncado } = await miniaturasDe(bytes, 0, (i, total) => {
+      if (sessao === separarSessao) nota.textContent = `Gerando miniaturas de "${f.name}": ${i}/${total}...`;
+    });
+    if (sessao !== separarSessao) { itens.forEach(it => URL.revokeObjectURL(it.thumbUrl)); return; }
+    separarEstado = { nome: f.name, bytes, itens, cortes: new Set() };
+    if (truncado) separarEstado.avisoTruncado = `Mostrando as 100 primeiras páginas (o PDF tem mais ${truncado}); o último documento marcado seguirá até o fim real do arquivo.`;
+    renderSeparar();
+  } catch (e) {
+    if (sessao !== separarSessao) return;
+    painel.innerHTML = '';
+    const err = document.createElement('div');
+    err.className = 'msg-err';
+    err.textContent = 'Não foi possível ler o PDF: ' + ((e && e.message) || e);
+    painel.appendChild(err);
+  }
+}
+
+function renderSeparar() {
+  const painel = $('#separar-painel');
+  const est = separarEstado;
+  if (!est) { painel.classList.add('oculto'); return; }
+  painel.classList.remove('oculto');
+  painel.innerHTML = '';
+  const nDocs = est.cortes.size + 1;
+  const cab = document.createElement('div');
+  cab.style.fontSize = '.87rem';
+  const cabStrong = document.createElement('strong');
+  cabStrong.textContent = 'Separando: ';
+  cab.append(cabStrong, `${est.nome} — ${est.itens.length} página(s) · ${nDocs} documento(s)`);
+  painel.appendChild(cab);
+  const nota = document.createElement('div');
+  nota.className = 'note';
+  nota.textContent = 'Clique na tesoura ✂ da página onde um NOVO documento começa. Cada trecho vira um PDF próprio, identificado pelo protocolo que houver nele.';
+  painel.appendChild(nota);
+  const grade = document.createElement('div');
+  grade.className = 'pg-grid';
+  let numDoc = 0;
+  est.itens.forEach((it, i) => {
+    const inicioDoc = i === 0 || est.cortes.has(i);
+    if (inicioDoc) numDoc++;
+    const cel = document.createElement('div');
+    cel.className = 'pg-item' + (est.cortes.has(i) ? ' corte' : '');
+    const img = document.createElement('img');
+    img.src = it.thumbUrl;
+    img.alt = 'Página ' + (i + 1);
+    const rot = document.createElement('div');
+    rot.className = 'pg-rotulo';
+    rot.textContent = 'pág. ' + (i + 1);
+    const doc = document.createElement('div');
+    doc.className = 'pg-doc';
+    doc.textContent = inicioDoc ? ('Doc ' + numDoc + (i === 0 ? '' : ' começa aqui')) : '';
+    const acoes = document.createElement('div');
+    acoes.className = 'pg-acoes';
+    if (i > 0) {
+      const tesoura = document.createElement('button');
+      tesoura.type = 'button';
+      tesoura.textContent = '✂';
+      tesoura.title = est.cortes.has(i) ? 'Desfazer o corte nesta página' : 'Novo documento começa nesta página';
+      if (est.cortes.has(i)) tesoura.className = 'ativo';
+      tesoura.onclick = () => {
+        if (est.cortes.has(i)) est.cortes.delete(i); else est.cortes.add(i);
+        renderSeparar();
+      };
+      acoes.appendChild(tesoura);
+    }
+    cel.append(img, rot, doc, acoes);
+    grade.appendChild(cel);
+  });
+  painel.appendChild(grade);
+  const acoesRow = document.createElement('div');
+  acoesRow.className = 'acao-row';
+  const btnSeparar = document.createElement('button');
+  btnSeparar.type = 'button'; btnSeparar.className = 'btn';
+  btnSeparar.textContent = `Separar em ${nDocs} documento(s)`;
+  btnSeparar.disabled = nDocs < 2;
+  btnSeparar.onclick = () => {
+    const est2 = separarEstado;
+    if (!est2 || est2.cortes.size < 1) return;
+    const nome = est2.nome, bytes = est2.bytes;
+    const cortes = [...est2.cortes].sort((a, b) => a - b);
+    const totalMiniaturas = est2.itens.length;
+    limparSeparacao();
+    enfileirar(() => executarSeparacao(nome, bytes, cortes, totalMiniaturas)).catch(() => { });
+  };
+  const btnDesistir = document.createElement('button');
+  btnDesistir.type = 'button'; btnDesistir.className = 'btn-cancel'; btnDesistir.style.marginLeft = '8px';
+  btnDesistir.textContent = 'Descartar';
+  btnDesistir.onclick = () => limparSeparacao();
+  acoesRow.append(btnSeparar, btnDesistir);
+  painel.appendChild(acoesRow);
+  if (est.avisoTruncado) {
+    const w = document.createElement('div');
+    w.className = 'msg-warn';
+    w.textContent = est.avisoTruncado;
+    painel.appendChild(w);
+  }
+}
+
+async function executarSeparacao(nome, bytes, cortes, totalMiniaturas) {
+  const base = baseName(nome);
+  const cardLote = makeCard(nome + ' — separar documentos', bytes.length);
+  try {
+    const src = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true, parseSpeed: PDFLib.ParseSpeeds.Fastest });
+    if (src.isEncrypted) throw new Error('Este PDF é protegido por senha — remova a senha antes de separar.');
+    const fimReal = src.getPageCount();
+    const inicios = [0, ...cortes];
+    const fins = [...cortes, fimReal]; // o último trecho vai até o fim REAL (mesmo além das 100 miniaturas)
+    const saidas = [];
+    for (let k = 0; k < inicios.length; k++) {
+      cardLote.checar();
+      cardLote.status(`Montando documento ${k + 1} de ${inicios.length} (págs. ${inicios[k] + 1}–${fins[k]})...`);
+      cardLote.progress((k + 1) / inicios.length);
+      const idx = [];
+      for (let p = inicios[k]; p < fins[k]; p++) idx.push(p);
+      const novo = await PDFLib.PDFDocument.create();
+      const pgs = await novo.copyPages(src, idx);
+      pgs.forEach(p => novo.addPage(p));
+      saidas.push({ bytes: await novo.save({ useObjectStreams: true, objectsPerTick: Infinity }), paginas: idx.length });
+    }
+    cardLote.done();
+    const ok = document.createElement('div'); ok.className = 'msg-ok';
+    ok.textContent = `Lote separado em ${saidas.length} documentos — abaixo, cada um com sua própria identificação:`;
+    cardLote.result().appendChild(ok);
+    window.__results.push({ file: nome, action: 'separar', documentos: saidas.map(s => s.paginas) });
+    for (let k = 0; k < saidas.length; k++) {
+      await processBytes(saidas[k].bytes, `${base} - Documento ${k + 1} de ${saidas.length}.pdf`, null, true);
+    }
+  } catch (err) { falhaCard(cardLote, err); }
+}
+
 document.querySelectorAll('input[name=ed]').forEach(r => r.addEventListener('change', atualizarEditarUi));
 atualizarEditarUi();
 
@@ -2053,6 +2221,7 @@ ligarDropzone('#dz-editar', '#input-editar', files => {
   if (!f) return;
   const t = edTipo();
   if (t === 'organizar') { iniciarOrganizacao(f); return; }
+  if (t === 'separar') { iniciarSeparacao(f); return; }
   const params = {
     intervalo: $('#ed-intervalo').value,
     inicio: parseInt($('#ed-inicio').value, 10) || 1,
@@ -2287,6 +2456,23 @@ async function autoteste() {
     afirmar(t1.includes('Pagina 2') && t1.includes('Fonte A'), 'pág. 1 deveria ser A2');
     afirmar(t2.includes('Fonte B'), 'pág. 2 deveria ser B1');
     afirmar(t3.includes('Pagina 1') && t3.includes('Fonte A'), 'pág. 3 deveria ser A1');
+  });
+
+  await caso('Separar documentos do mesmo PDF', async () => {
+    const doc = await PDFLib.PDFDocument.create();
+    const font = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
+    const rotulos = [
+      'PROTOCOLO No 2026-111111', 'PROTOCOLO No 2026-111111',
+      'PROTOCOLO No 2026-222222', 'PROTOCOLO No 2026-222222', 'PROTOCOLO No 2026-222222',
+    ];
+    rotulos.forEach(r => { const pg = doc.addPage([595, 842]); pg.drawText(r, { x: 40, y: 800, size: 12, font }); });
+    const lote = await doc.save({ objectsPerTick: Infinity });
+    await executarSeparacao('at-lote.pdf', lote, [2], 5);
+    const r1 = __atRow(x => x.download === 'Protocolo 2026-111111.pdf');
+    const r2 = __atRow(x => x.download === 'Protocolo 2026-222222.pdf');
+    afirmar(!!r1 && !!r2, 'os documentos separados não foram nomeados pelos próprios protocolos');
+    afirmar(await __atPaginasDe(r1) === 2, 'doc 1 deveria ter 2 páginas');
+    afirmar(await __atPaginasDe(r2) === 3, 'doc 2 deveria ter 3 páginas');
   });
 
   await caso('Fotos → PDF pesquisável por OCR (etapa lenta)', async () => {
