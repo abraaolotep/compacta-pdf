@@ -1,7 +1,7 @@
 // Service worker do Compacta PDF — cache para funcionamento offline.
 // Página principal: rede primeiro (atualizações imediatas), cache como reserva offline.
 // Demais arquivos: cache primeiro com atualização em segundo plano.
-const CACHE = 'compacta-pdf-v24';
+const CACHE = 'compacta-pdf-v25';
 
 self.addEventListener('install', () => {
   self.skipWaiting();

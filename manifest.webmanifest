@@ -2,7 +2,7 @@
   "name": "GTFISC — Ferramenta (LOTEP)",
   "short_name": "GTFISC",
   "description": "Ferramentas de trabalho do GTFISC — compacta, divide, junta, converte e edita PDFs, 100% no navegador.",
-  "start_url": "./",
+  "start_url": "./app.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#fdfcfc",
