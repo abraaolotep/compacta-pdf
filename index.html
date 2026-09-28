@@ -4,89 +4,117 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GTFISC — Ferramenta | LOTEP</title>
-<meta name="description" content="Ferramentas de trabalho do GTFISC/LOTEP: compacte, divida, junte, converta, edite e analise PDFs — 100% no navegador, sem enviar documentos a servidor algum.">
+<meta name="description" content="Ferramentas de trabalho do GTFISC/LOTEP: compacte, divida, junte, converta, edite e analise PDFs — processados no seu navegador; só o Parecer com IA envia anexos, e avisa antes.">
 <link rel="icon" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#9c2129">
+<script>try{var t=localStorage.getItem('gtfisc-tema');if(t==='dark'||t==='light'){document.documentElement.setAttribute('data-theme',t);var m=document.querySelector('meta[name=theme-color]');if(m)m.content=t==='dark'?'#161112':'#9c2129'}}catch(e){}</script>
 <style>
   :root {
     --bg: #fdfcfc; --panel: #ffffff; --border: #e9e2e3; --text: #29201f; --muted: #796a6b; --faint: #a39596;
     --accent-text: #9c2129; --accent-soft: #faf3f3; --accent-border: #d8b2b5; --btn-bg: #9c2129; --btn-hover: #7a161d;
-    --btn-text: #ffffff; --ok: #256b43; --logo-claro: inline-block; --logo-escuro: none;
+    --btn-text: #ffffff; --ok: #256b43; --warn: #8a5a00; --logo-claro: inline-block; --logo-escuro: none;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --bg: #161112; --panel: #1d1718; --border: #372d2e; --text: #efe9e9; --muted: #b3a3a4; --faint: #857678;
       --accent-text: #e8949a; --accent-soft: #2a1f20; --accent-border: #6d474b; --btn-bg: #b03a42; --btn-hover: #c25158;
-      --ok: #62c68f; --logo-claro: none; --logo-escuro: inline-block;
+      --ok: #62c68f; --warn: #d9a95a; --logo-claro: none; --logo-escuro: inline-block;
     }
   }
   :root[data-theme="dark"] {
     --bg: #161112; --panel: #1d1718; --border: #372d2e; --text: #efe9e9; --muted: #b3a3a4; --faint: #857678;
     --accent-text: #e8949a; --accent-soft: #2a1f20; --accent-border: #6d474b; --btn-bg: #b03a42; --btn-hover: #c25158;
-    --ok: #62c68f; --logo-claro: none; --logo-escuro: inline-block;
+    --ok: #62c68f; --warn: #d9a95a; --logo-claro: none; --logo-escuro: inline-block;
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 15px; line-height: 1.55; }
-  body::before { content: ''; display: block; height: 3px; background: var(--btn-bg); }
   a { color: var(--accent-text); }
-  .wrap { max-width: 980px; margin: 0 auto; padding: 0 20px; }
-  header.topo { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 26px 0 8px; flex-wrap: wrap; }
-  .marca { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-width: 0; }
-  .marca img { height: 40px; width: auto; max-width: 100%; }
-  .marca > div { min-width: 0; }
-  @media (max-width: 480px) { .marca img { height: 32px; } .marca strong { font-size: .98rem; } }
+  .wrap { max-width: 1020px; margin: 0 auto; padding: 0 20px; }
+  header.topo { position: sticky; top: 0; z-index: 20; background: var(--bg); border-top: 3px solid var(--btn-bg); border-bottom: 1px solid var(--border); }
+  header.topo .wrap { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 20px; flex-wrap: wrap; }
+  .marca { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .marca img { height: 34px; width: auto; max-width: 100%; }
   .marca .logo-claro { display: var(--logo-claro); }
   .marca .logo-escuro { display: var(--logo-escuro); }
-  .marca strong { font-size: 1.05rem; font-weight: 600; }
-  .marca small { display: block; color: var(--muted); font-size: .82rem; }
-  nav.links { display: flex; gap: 18px; font-size: .9rem; flex-wrap: wrap; }
+  .marca strong { font-size: 1rem; font-weight: 600; }
+  @media (max-width: 420px) { .marca strong { display: none; } }
+  nav.links { display: flex; gap: 14px; align-items: center; font-size: .9rem; flex-wrap: wrap; }
   nav.links a { color: var(--muted); text-decoration: none; }
   nav.links a:hover { color: var(--accent-text); }
-  .btn { display: inline-block; background: var(--btn-bg); color: var(--btn-text); border: none; border-radius: 8px; padding: 11px 20px; font-size: .95rem; font-weight: 600; text-decoration: none; cursor: pointer; }
+  .btn { display: inline-block; background: var(--btn-bg); color: var(--btn-text); border: none; border-radius: 8px; padding: 10px 18px; font-size: .95rem; font-weight: 600; text-decoration: none; cursor: pointer; font-family: inherit; }
   .btn:hover { background: var(--btn-hover); }
   .btn.sec { background: none; color: var(--accent-text); border: 1px solid var(--accent-border); }
   .btn.sec:hover { background: var(--accent-soft); }
-  .hero { display: grid; grid-template-columns: 1fr; gap: 28px; padding: 40px 0 26px; align-items: center; }
-  @media (min-width: 820px) { .hero { grid-template-columns: 1.1fr 1fr; } }
-  .hero h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; font-weight: 700; letter-spacing: -.01em; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .tema { background: none; border: 1px solid var(--border); border-radius: 999px; width: 34px; height: 34px; cursor: pointer; color: var(--muted); font-size: 1rem; }
+  .tema:hover { color: var(--accent-text); border-color: var(--accent-border); }
+  .hero { display: grid; grid-template-columns: 1fr; gap: 28px; padding: 44px 0 26px; align-items: start; }
+  @media (min-width: 860px) { .hero { grid-template-columns: 1.05fr 1fr; } }
+  .hero h1 { font-size: 2.1rem; line-height: 1.18; margin: 0 0 12px; font-weight: 700; letter-spacing: -.01em; }
   .hero h1 span { color: var(--accent-text); }
-  .hero p { color: var(--muted); font-size: 1.05rem; margin: 0 0 20px; }
+  .hero p.lead { color: var(--muted); font-size: 1.05rem; margin: 0 0 20px; }
   .acoes { display: flex; gap: 10px; flex-wrap: wrap; }
-  .dropzone {
-    border: 2px dashed var(--accent-border); border-radius: 14px; padding: 34px 22px; text-align: center;
-    background: var(--panel); cursor: pointer; transition: border-color .15s, background .15s; position: relative;
-  }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+  .card h3 { margin: 0 0 4px; font-size: 1rem; font-weight: 600; }
+  .card .sub { color: var(--muted); font-size: .86rem; margin: 0 0 12px; }
+  .dropzone { border: 2px dashed var(--accent-border); border-radius: 12px; padding: 24px 16px; text-align: center; cursor: pointer; position: relative; transition: border-color .15s, background .15s; }
   .dropzone:hover, .dropzone.drag { border-color: var(--accent-text); background: var(--accent-soft); }
   .dropzone svg { color: var(--accent-text); }
-  .dropzone .titulo { font-weight: 600; margin-top: 8px; }
-  .dropzone .sub { color: var(--muted); font-size: .86rem; margin-top: 4px; }
+  .dropzone .titulo { font-weight: 600; margin-top: 6px; }
+  .dropzone .subt { color: var(--muted); font-size: .84rem; margin-top: 2px; }
   .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-  .dropzone .estado { margin-top: 10px; font-size: .86rem; color: var(--ok); font-weight: 600; min-height: 1.2em; }
-  .numeros { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 8px 0 34px; }
+  .diag { margin-top: 12px; display: none; }
+  .diag.on { display: block; }
+  .diag table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  .diag td { padding: 6px 4px; border-bottom: 1px solid var(--border); }
+  .diag td:first-child { color: var(--muted); width: 40%; }
+  .diag .veredito { margin-top: 10px; font-weight: 600; }
+  .diag .veredito.ok { color: var(--ok); }
+  .diag .veredito.warn { color: var(--warn); }
+  .diag .acoes { margin-top: 12px; }
+  .diag .msg { color: var(--muted); font-size: .86rem; margin-top: 8px; }
+  .diag table { table-layout: fixed; }
+  .diag td { overflow-wrap: anywhere; vertical-align: top; }
+  .secao { scroll-margin-top: calc(var(--altura-topo, 60px) + 12px); }
+  /* celular: cabeçalho compacto e sem fixação — só logo, tema e botão */
+  @media (max-width: 640px) {
+    header.topo { position: static; }
+    nav.links a:not(.btn) { display: none; }
+    nav.links { gap: 8px; }
+    .secao { scroll-margin-top: 12px; }
+  }
+  .numeros { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 10px 0 36px; }
   @media (min-width: 640px) { .numeros { grid-template-columns: repeat(4, 1fr); } }
   .numeros div { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
-  .numeros strong { display: block; font-size: 1.5rem; color: var(--accent-text); font-weight: 700; }
+  .numeros strong { display: block; font-size: 1.6rem; color: var(--accent-text); font-weight: 700; font-variant-numeric: tabular-nums; }
   .numeros span { color: var(--muted); font-size: .84rem; }
-  h2 { font-size: 1.25rem; font-weight: 600; margin: 0 0 6px; }
-  .secao { padding: 22px 0; }
+  h2 { font-size: 1.3rem; font-weight: 600; margin: 0 0 6px; }
+  .secao { padding: 24px 0; }
   .secao > p.sub { color: var(--muted); margin: 0 0 16px; }
-  .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
-  .fcard {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 12px 14px;
-    text-align: center; display: flex; flex-direction: column; align-items: center; gap: 5px; color: var(--text);
-    text-decoration: none; transition: border-color .15s, background .15s, transform .1s;
-  }
+  .explorador { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .explorador input { flex: 1; min-width: 200px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--text); font-size: .95rem; font-family: inherit; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { background: none; border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: .84rem; color: var(--muted); cursor: pointer; font-family: inherit; }
+  .chip:hover { color: var(--accent-text); border-color: var(--accent-border); }
+  .chip.ativo { background: var(--accent-soft); color: var(--accent-text); border-color: var(--accent-border); font-weight: 600; }
+  .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 10px; }
+  .fcard { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 12px 14px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 5px; color: var(--text); text-decoration: none; transition: border-color .15s, background .15s, transform .1s; }
   .fcard:hover { border-color: var(--accent-text); background: var(--accent-soft); transform: translateY(-1px); }
   .fcard svg { width: 30px; height: 30px; color: var(--accent-text); fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   .fcard strong { font-size: .87rem; font-weight: 600; line-height: 1.25; }
   .fcard small { color: var(--muted); font-size: .74rem; line-height: 1.3; }
-  .fcard.parecer { border-color: var(--accent-border); }
+  .fcard[hidden] { display: none; }
+  .vazio { color: var(--muted); font-size: .9rem; padding: 14px 0; display: none; }
   .passos { display: grid; grid-template-columns: 1fr; gap: 12px; }
-  @media (min-width: 720px) { .passos { grid-template-columns: repeat(3, 1fr); } }
-  .passo { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
-  .passo b { display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent-text); border: 1px solid var(--accent-border); margin-bottom: 8px; }
-  .passo p { margin: 4px 0 0; color: var(--muted); font-size: .9rem; }
+  @media (min-width: 760px) { .passos { grid-template-columns: 260px 1fr; } }
+  .passos .lista button { display: block; width: 100%; text-align: left; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; color: var(--text); font-family: inherit; font-size: .95rem; }
+  .passos .lista button b { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent-text); border: 1px solid var(--accent-border); margin-right: 8px; font-size: .8rem; }
+  .passos .lista button.ativo { border-color: var(--accent-text); background: var(--accent-soft); }
+  .passos .painel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; min-height: 150px; }
+  .passos .painel h3 { margin: 0 0 6px; font-size: 1rem; }
+  .passos .painel p { margin: 0; color: var(--muted); }
   .calc { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; display: grid; gap: 12px; grid-template-columns: 1fr; }
   @media (min-width: 720px) { .calc { grid-template-columns: 1fr 1fr 1.4fr; align-items: end; } }
   .calc label { font-size: .84rem; font-weight: 600; display: flex; flex-direction: column; gap: 4px; }
@@ -98,92 +126,129 @@
   details { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; }
   details summary { cursor: pointer; font-weight: 600; }
   details p { color: var(--muted); margin: 8px 0 2px; font-size: .92rem; }
-  footer { border-top: 1px solid var(--border); margin-top: 30px; padding: 22px 0 40px; color: var(--muted); font-size: .84rem; }
+  footer { border-top: 1px solid var(--border); margin-top: 30px; padding: 22px 0 40px; color: var(--muted); font-size: .84rem; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   footer a { color: var(--accent-text); }
-  @media (prefers-reduced-motion: reduce) { .fcard, .dropzone { transition: none; } }
+  .badge { display: inline-block; background: var(--accent-soft); border: 1px solid var(--accent-border); color: var(--accent-text); border-radius: 999px; padding: 2px 10px; font-size: .8rem; font-weight: 600; }
+  @media (prefers-reduced-motion: reduce) { .fcard, .dropzone { transition: none; } html { scroll-behavior: auto; } }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header class="topo">
+<header class="topo">
+  <div class="wrap">
     <div class="marca">
       <img class="logo-claro" src="logo-lotep.png" alt="LOTEP">
       <img class="logo-escuro" src="logo-lotep-branca.png" alt="LOTEP">
-      <div><strong>GTFISC — Ferramenta</strong><small>Loteria do Estado da Paraíba</small></div>
+      <strong>GTFISC — Ferramenta</strong>
     </div>
     <nav class="links">
       <a href="#ferramentas">Ferramentas</a>
       <a href="#como-funciona">Como funciona</a>
       <a href="#privacidade">Privacidade</a>
       <a href="#perguntas">Perguntas</a>
+      <button type="button" class="tema" id="tema" title="Alternar tema claro/escuro" aria-label="Alternar tema">◐</button>
       <a href="app.html" class="btn" style="padding:8px 14px">Abrir a ferramenta</a>
     </nav>
-  </header>
+  </div>
+</header>
 
+<main class="wrap">
   <section class="hero">
     <div>
       <h1>PDFs prontos para o <span>PBDOC, PJe e SEI</span> — sem sair do navegador</h1>
-      <p>Compacte até 9,9 MB ou divida em volumes, junte, organize, converta para Word, aplique OCR em digitalizados e gere pareceres técnicos. Nenhum documento é enviado a servidor algum.</p>
+      <p class="lead">Compacte até 9,9 MB mantendo o texto pesquisável, divida em volumes, junte, organize, converta para Word editável, aplique OCR e gere pareceres técnicos. Seus PDFs não saem do seu computador — só o "Parecer com IA" envia anexos, e avisa antes.</p>
       <div class="acoes">
         <a href="app.html" class="btn">Abrir a ferramenta</a>
         <a href="Instalador-CompactaPDF.exe" class="btn sec">Baixar para Windows</a>
       </div>
+      <div class="numeros" style="margin-top:26px">
+        <div><strong data-contar="19">0</strong><span>ferramentas em duas abas</span></div>
+        <div><strong data-contar="0">0</strong><span>uploads nas ferramentas de PDF</span></div>
+        <div><strong>9,9 MB</strong><span>limite PBDOC já configurado</span></div>
+        <div><strong data-contar="100" data-sufixo="%">0</strong><span>do processamento de PDF no seu computador</span></div>
+      </div>
     </div>
-    <div class="dropzone" id="dz">
-      <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-      <div class="titulo">Solte um PDF aqui para compactar agora</div>
-      <div class="sub">Ele abre direto na ferramenta, já na fila — sem upload para lugar nenhum</div>
-      <div class="estado" id="dz-estado"></div>
-      <input type="file" id="dz-input" accept="application/pdf,.pdf" multiple aria-label="Selecionar PDF">
+    <div class="card">
+      <h3>Analisador instantâneo</h3>
+      <p class="sub">Solte um PDF: em segundos você vê páginas, tamanho, se é pesquisável e se cabe no destino — tudo aqui, sem upload.</p>
+      <div class="dropzone" id="dz">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        <div class="titulo">Arraste o PDF aqui ou clique</div>
+        <div class="subt">O arquivo fica só neste computador</div>
+        <input type="file" id="dz-input" accept="application/pdf,.pdf" aria-label="Selecionar PDF para análise">
+      </div>
+      <div class="diag" id="diag">
+        <table>
+          <tr><td>Arquivo</td><td id="d-nome">—</td></tr>
+          <tr><td>Tamanho</td><td id="d-tam">—</td></tr>
+          <tr><td>Páginas</td><td id="d-pag">—</td></tr>
+          <tr><td>Texto pesquisável</td><td id="d-txt">—</td></tr>
+          <tr><td>Processo / protocolo</td><td id="d-prot">—</td></tr>
+        </table>
+        <div class="veredito" id="d-veredito"></div>
+        <div class="msg" id="d-msg"></div>
+        <div class="acoes">
+          <button type="button" class="btn" id="d-compactar">Compactar agora na ferramenta</button>
+          <a href="app.html" class="btn sec">Abrir a ferramenta</a>
+        </div>
+      </div>
     </div>
   </section>
 
-  <div class="numeros">
-    <div><strong>19</strong><span>ferramentas em duas abas</span></div>
-    <div><strong>0</strong><span>documentos enviados a servidor</span></div>
-    <div><strong>9,9 MB</strong><span>limite PBDOC já configurado</span></div>
-    <div><strong>OCR</strong><span>em português, no próprio navegador</span></div>
-  </div>
-
   <section class="secao" id="ferramentas">
     <h2>Ferramentas</h2>
-    <p class="sub">Clique para abrir a ferramenta já na função escolhida.</p>
-    <div class="grade">
-      <a class="fcard" href="app.html#ferramenta=compactar"><svg viewBox="0 0 24 24"><path d="M12 3v5m0 0 3-3m-3 3L9 5"/><path d="M12 21v-5m0 0 3 3m-3-3-3 3"/><path d="M4 12h16"/></svg><strong>Compactar / Dividir</strong><small>Recomprime imagens mantendo o texto; divide em volumes se preciso</small></a>
-      <a class="fcard" href="app.html#ferramenta=juntar"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="10" rx="1"/><rect x="13" y="10" width="8" height="10" rx="1"/><path d="M11 9h2m-1-1v2"/></svg><strong>Juntar PDFs</strong><small>Vários arquivos em um, na ordem que quiser</small></a>
-      <a class="fcard" href="app.html#ferramenta=separar"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 7.5 20 19M8.5 16.5 20 5"/></svg><strong>Separar documentos</strong><small>Lote digitalizado em arquivos, renomeados pelo protocolo</small></a>
-      <a class="fcard" href="app.html#ferramenta=organizar"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><strong>Organizar páginas</strong><small>Sequência, remoção, inserção</small></a>
-      <a class="fcard" href="app.html#ferramenta=extrair"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 13h6M9 17h6"/></svg><strong>Extrair páginas</strong><small>Seleção visual por miniaturas</small></a>
-      <a class="fcard" href="app.html#ferramenta=girar"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg><strong>Girar páginas</strong><small>Por página ou todas de uma vez</small></a>
-      <a class="fcard" href="app.html#ferramenta=numerar"><svg viewBox="0 0 24 24"><path d="M6 3h12v18H6z"/><path d="M9 7h6M9 11h6"/><path d="M14 17h2"/></svg><strong>Numerar folhas</strong><small>"fl. 001" no padrão de autos</small></a>
-      <a class="fcard" href="app.html#ferramenta=carimbo"><svg viewBox="0 0 24 24"><path d="M5 20h14"/><path d="M7 16h10l-1-6H8z"/><path d="M10 10V6a2 2 0 0 1 4 0v4"/></svg><strong>Carimbo / marca-d'água</strong><small>Texto diagonal em todas as páginas</small></a>
-      <a class="fcard" href="app.html#ferramenta=word"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="m8 11 1.5 6 1.5-4 1.5 4L14 11"/></svg><strong>PDF para Word</strong><small>Parágrafos, negrito e alinhamento preservados</small></a>
-      <a class="fcard" href="app.html#ferramenta=txt"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 12h6M9 16h6"/></svg><strong>PDF para texto</strong><small>Texto puro com linhas reais</small></a>
-      <a class="fcard" href="app.html#ferramenta=img"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="m21 16-5-5-8 8"/></svg><strong>PDF para imagens</strong><small>Uma JPG por página, em ZIP</small></a>
-      <a class="fcard" href="app.html#ferramenta=img2pdf"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="10" height="10" rx="1"/><path d="M13 13h8v8h-8z"/><path d="M13 8h4v5"/></svg><strong>Imagens para PDF</strong><small>Fotos e digitalizações em um PDF</small></a>
-      <a class="fcard" href="app.html#ferramenta=fotopdf"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15h10M7 11h5"/></svg><strong>Fotos → PDF pesquisável</strong><small>OCR embute o texto invisível</small></a>
-      <a class="fcard" href="app.html#ferramenta=fotoword"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m8 10 1.5 5 1.5-3 1.5 3L14 10"/></svg><strong>Fotos → Word</strong><small>Texto lido por OCR, editável</small></a>
-      <a class="fcard" href="app.html#ferramenta=ocrpdf"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><circle cx="11" cy="14" r="2.5"/><path d="m13 16 2.5 2.5"/></svg><strong>Digitalizado → pesquisável</strong><small>Mantém a imagem original, adiciona o texto</small></a>
-      <a class="fcard" href="app.html#ferramenta=senha"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><strong>Proteger / remover senha</strong><small>Criptografia AES-256 no navegador</small></a>
-      <a class="fcard" href="app.html#ferramenta=contador"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><strong>Contador de folhas</strong><small>Relatório do lote com protocolos</small></a>
-      <a class="fcard parecer" href="app.html#ferramenta=parecer-passiva"><svg viewBox="0 0 24 24"><path d="M7 3h10a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 7h6M9 11h6M9 15h3"/><path d="m14.5 16.5 1.5 1.5 3-3"/></svg><strong>Parecer — Plano de jogo</strong><small>Análise automática da modalidade passiva</small></a>
-      <a class="fcard parecer" href="app.html#ferramenta=parecer-ia"><svg viewBox="0 0 24 24"><path d="M12 3l1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7L12 3z"/><path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14z"/></svg><strong>Parecer com IA</strong><small>Anexe o processo; o Claude analisa e redige</small></a>
+    <p class="sub">Busque ou filtre por categoria — cada cartão abre a ferramenta já na função escolhida.</p>
+    <div class="explorador">
+      <input type="search" id="busca" placeholder="Buscar: compactar, OCR, senha, Word…" aria-label="Buscar ferramenta">
+      <div class="chips" id="chips">
+        <button type="button" class="chip ativo" data-cat="todas">Todas</button>
+        <button type="button" class="chip" data-cat="tamanho">Tamanho</button>
+        <button type="button" class="chip" data-cat="organizar">Organizar</button>
+        <button type="button" class="chip" data-cat="converter">Converter</button>
+        <button type="button" class="chip" data-cat="ocr">OCR</button>
+        <button type="button" class="chip" data-cat="seguranca">Segurança</button>
+        <button type="button" class="chip" data-cat="parecer">Parecer</button>
+      </div>
     </div>
+    <div class="grade" id="grade">
+      <a class="fcard" data-cat="tamanho" data-tags="compactar dividir volumes reduzir tamanho pbdoc" href="app.html#ferramenta=compactar"><svg viewBox="0 0 24 24"><path d="M12 3v5m0 0 3-3m-3 3L9 5"/><path d="M12 21v-5m0 0 3 3m-3-3-3 3"/><path d="M4 12h16"/></svg><strong>Compactar / Dividir</strong><small>Recomprime imagens mantendo o texto; divide em volumes se preciso</small></a>
+      <a class="fcard" data-cat="organizar" data-tags="juntar unir mesclar merge" href="app.html#ferramenta=juntar"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="10" rx="1"/><rect x="13" y="10" width="8" height="10" rx="1"/><path d="M11 9h2m-1-1v2"/></svg><strong>Juntar PDFs</strong><small>Vários arquivos em um, na ordem que quiser</small></a>
+      <a class="fcard" data-cat="organizar" data-tags="separar lote dividir documentos protocolo" href="app.html#ferramenta=separar"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 7.5 20 19M8.5 16.5 20 5"/></svg><strong>Separar documentos</strong><small>Lote digitalizado em arquivos, renomeados pelo protocolo</small></a>
+      <a class="fcard" data-cat="organizar" data-tags="organizar paginas sequencia ordem remover inserir" href="app.html#ferramenta=organizar"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><strong>Organizar páginas</strong><small>Sequência, remoção, inserção</small></a>
+      <a class="fcard" data-cat="organizar" data-tags="extrair paginas selecionar" href="app.html#ferramenta=extrair"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 13h6M9 17h6"/></svg><strong>Extrair páginas</strong><small>Seleção visual por miniaturas</small></a>
+      <a class="fcard" data-cat="organizar" data-tags="girar rotacionar rotate" href="app.html#ferramenta=girar"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg><strong>Girar páginas</strong><small>Por página ou todas de uma vez</small></a>
+      <a class="fcard" data-cat="organizar" data-tags="numerar folhas autos fl" href="app.html#ferramenta=numerar"><svg viewBox="0 0 24 24"><path d="M6 3h12v18H6z"/><path d="M9 7h6M9 11h6"/><path d="M14 17h2"/></svg><strong>Numerar folhas</strong><small>"fl. 001" no padrão de autos</small></a>
+      <a class="fcard" data-cat="organizar" data-tags="carimbo marca dagua copia uso interno" href="app.html#ferramenta=carimbo"><svg viewBox="0 0 24 24"><path d="M5 20h14"/><path d="M7 16h10l-1-6H8z"/><path d="M10 10V6a2 2 0 0 1 4 0v4"/></svg><strong>Carimbo / marca-d'água</strong><small>Texto diagonal em todas as páginas</small></a>
+      <a class="fcard" data-cat="converter" data-tags="word docx converter editar fiel" href="app.html#ferramenta=word"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="m8 11 1.5 6 1.5-4 1.5 4L14 11"/></svg><strong>PDF para Word</strong><small>Parágrafos, títulos, listas, tabelas (com e sem bordas), imagens, cabeçalho/rodapé e colunas</small></a>
+      <a class="fcard" data-cat="converter" data-tags="texto txt extrair" href="app.html#ferramenta=txt"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 12h6M9 16h6"/></svg><strong>PDF para texto</strong><small>Texto puro com linhas reais</small></a>
+      <a class="fcard" data-cat="converter" data-tags="imagens jpg zip" href="app.html#ferramenta=img"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="m21 16-5-5-8 8"/></svg><strong>PDF para imagens</strong><small>Uma JPG por página, em ZIP</small></a>
+      <a class="fcard" data-cat="converter" data-tags="imagens fotos para pdf" href="app.html#ferramenta=img2pdf"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="10" height="10" rx="1"/><path d="M13 13h8v8h-8z"/><path d="M13 8h4v5"/></svg><strong>Imagens para PDF</strong><small>Fotos e digitalizações em um PDF</small></a>
+      <a class="fcard" data-cat="ocr" data-tags="fotos ocr pesquisavel" href="app.html#ferramenta=fotopdf"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15h10M7 11h5"/></svg><strong>Fotos → PDF pesquisável</strong><small>OCR embute o texto invisível</small></a>
+      <a class="fcard" data-cat="ocr" data-tags="fotos ocr word" href="app.html#ferramenta=fotoword"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m8 10 1.5 5 1.5-3 1.5 3L14 10"/></svg><strong>Fotos → Word</strong><small>Texto lido por OCR, editável</small></a>
+      <a class="fcard" data-cat="ocr" data-tags="digitalizado ocr pesquisavel scanner" href="app.html#ferramenta=ocrpdf"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><circle cx="11" cy="14" r="2.5"/><path d="m13 16 2.5 2.5"/></svg><strong>Digitalizado → pesquisável</strong><small>Mantém a imagem original, adiciona o texto</small></a>
+      <a class="fcard" data-cat="seguranca" data-tags="senha proteger remover criptografia" href="app.html#ferramenta=senha"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><strong>Proteger / remover senha</strong><small>Criptografia AES-256 no navegador</small></a>
+      <a class="fcard" data-cat="tamanho" data-tags="contador folhas lote relatorio" href="app.html#ferramenta=contador"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><strong>Contador de folhas</strong><small>Relatório do lote com protocolos</small></a>
+      <a class="fcard" data-cat="parecer" data-tags="parecer plano de jogo passiva formulario" href="app.html#ferramenta=parecer-passiva"><svg viewBox="0 0 24 24"><path d="M7 3h10a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 7h6M9 11h6M9 15h3"/><path d="m14.5 16.5 1.5 1.5 3-3"/></svg><strong>Parecer — Plano de jogo</strong><small>Análise automática da modalidade passiva</small></a>
+      <a class="fcard" data-cat="parecer" data-tags="parecer ia claude analise processo" href="app.html#ferramenta=parecer-ia"><svg viewBox="0 0 24 24"><path d="M12 3l1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7L12 3z"/><path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14z"/></svg><strong>Parecer com IA</strong><small>Anexe o processo; o Claude analisa e redige</small></a>
+    </div>
+    <div class="vazio" id="vazio">Nenhuma ferramenta corresponde à busca.</div>
   </section>
 
   <section class="secao" id="como-funciona">
     <h2>Como funciona</h2>
-    <p class="sub">Três passos, sem cadastro e sem instalação obrigatória.</p>
+    <p class="sub">Clique em cada passo.</p>
     <div class="passos">
-      <div class="passo"><b>1</b><strong>Escolha a ferramenta</strong><p>Abra a ferramenta e clique no cartão da função — ou solte o PDF na caixa acima para ir direto à compactação.</p></div>
-      <div class="passo"><b>2</b><strong>Solte o arquivo</strong><p>O processamento acontece no seu computador. O sistema identifica processo/protocolo e já nomeia o resultado.</p></div>
-      <div class="passo"><b>3</b><strong>Baixe e protocole</strong><p>Resultado com visualizador embutido, recibo SHA-256 e, quando preciso, volumes numerados prontos para o PBDOC.</p></div>
+      <div class="lista" id="passos-lista">
+        <button type="button" class="ativo" data-passo="0"><b>1</b>Escolha a ferramenta</button>
+        <button type="button" data-passo="1"><b>2</b>Solte o arquivo</button>
+        <button type="button" data-passo="2"><b>3</b>Confira e baixe</button>
+      </div>
+      <div class="painel" id="passos-painel"></div>
     </div>
   </section>
 
   <section class="secao" id="calculadora">
     <h2>Vai caber?</h2>
-    <p class="sub">Estime quantos volumes um arquivo vai gerar no destino escolhido (a compactação costuma evitar a divisão).</p>
+    <p class="sub">Estime quantos volumes um arquivo geraria no destino — a compactação costuma evitar a divisão.</p>
     <div class="calc">
       <label>Tamanho do arquivo (MB)<input type="text" id="calc-tam" inputmode="decimal" placeholder="Ex.: 32,5"></label>
       <label>Limite do destino (MB)<input type="text" id="calc-lim" inputmode="decimal" value="9,9"></label>
@@ -194,7 +259,7 @@
   <section class="secao" id="privacidade">
     <h2>Privacidade</h2>
     <div class="privacidade">
-      <p><strong>Seus documentos não saem do seu computador.</strong> Todas as ferramentas processam os PDFs dentro do navegador — compactação, OCR, criptografia, conversões. Não há upload, conta ou servidor intermediário; a página funciona até sem internet depois de carregada.</p>
+      <p><strong>Seus documentos não saem do seu computador.</strong> Todas as ferramentas processam os PDFs dentro do navegador — compactação, OCR, criptografia, conversões. Não há upload, conta ou servidor intermediário; depois de carregada, a página funciona até sem internet.</p>
       <p><strong>A única exceção é a ferramenta "Parecer com IA"</strong>, que — por escolha explícita de quem a usa e com a própria chave de API — envia os documentos anexados à Anthropic (Claude) para análise. Ela avisa isso em destaque antes de qualquer envio.</p>
     </div>
   </section>
@@ -203,20 +268,55 @@
     <h2>Perguntas frequentes</h2>
     <details><summary>Preciso instalar alguma coisa?</summary><p>Não. Basta abrir a ferramenta no navegador. Se preferir um atalho na Área de Trabalho que funcione sem internet, use o instalador para Windows (o SmartScreen pode avisar por ele não ser assinado — "Mais informações → Executar assim mesmo").</p></details>
     <details><summary>A compactação estraga o documento?</summary><p>Primeiro o sistema tenta reduzir sem perda alguma; depois recomprime apenas as imagens, mantendo texto, fontes e vetores intactos (o PDF continua pesquisável). Só em último caso converte as páginas em imagem — e, se nem isso bastar, divide o original em volumes sem nenhuma perda.</p></details>
+    <details><summary>A conversão para Word é fiel?</summary><p>Ela reconstrói parágrafos, fontes, negrito/itálico/sublinhado, cores, tamanhos, alinhamento, espaçamento, recuos, listas, títulos (com painel de navegação), tabelas com e sem bordas (incluindo células mescladas), imagens, brasões e desenhos vetoriais, cabeçalho e rodapé repetidos, colunas e o formato/margens de cada página. Digitalizados passam por OCR. Cada conversão mostra um diagnóstico do que foi reconhecido e do que ficou de fora — um PDF nunca vira Word perfeito: confira antes de reaproveitar.</p></details>
     <details><summary>Como o sistema descobre o nome do arquivo?</summary><p>Ele lê as primeiras páginas procurando nº de processo (padrão CNJ), nº SEI, protocolo ou o título do PDF — inclusive por OCR em digitalizados — e sugere o nome, que você pode editar antes de baixar.</p></details>
-    <details><summary>Funciona em documentos sigilosos?</summary><p>Sim: nada é enviado a servidor algum. Para PDFs com senha, use "Proteger / remover senha" — a senha também não sai do navegador.</p></details>
-    <details><summary>E se der erro em algum arquivo?</summary><p>A mensagem explica o motivo (arquivo corrompido, senha, formato) e o que fazer. Cada resultado vem com recibo SHA-256 para comprovar integridade.</p></details>
+    <details><summary>Funciona em documentos sigilosos?</summary><p>Sim: todas as ferramentas de PDF processam o arquivo no seu navegador, sem enviar nada a servidor. A única exceção é o "Parecer com IA", que envia os anexos à Anthropic com a sua chave e pede confirmação antes — não o use com documentos sigilosos. Para PDFs com senha, use "Proteger / remover senha" — a senha também não sai do navegador.</p></details>
   </section>
 
   <footer>
-    LOTEP — Loteria do Estado da Paraíba · GTFISC · Processamento 100% no navegador ·
-    <a href="app.html">Abrir a ferramenta</a> · <a href="Instalador-CompactaPDF.exe">Instalador para Windows</a>
+    <span>LOTEP — Loteria do Estado da Paraíba · GTFISC · Processamento 100% no navegador</span>
+    <span><span class="badge" id="versao">GTFISC — Ferramenta</span> · <a href="app.html">Abrir a ferramenta</a> · <a href="Instalador-CompactaPDF.exe">Instalador para Windows</a></span>
   </footer>
-</div>
+</main>
 
 <script>
 'use strict';
-// entrega de arquivos para a ferramenta via IndexedDB (a página seguinte lê e limpa)
+/* tema claro/escuro (lembrado neste navegador) */
+(function () {
+  // a restauração do tema acontece no <head> (sem "flash"); aqui só a alternância
+  const raiz = document.documentElement;
+  const meta = document.querySelector('meta[name=theme-color]');
+  document.getElementById('tema').addEventListener('click', () => {
+    const escuroAgora = raiz.getAttribute('data-theme') === 'dark' || (!raiz.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
+    const novo = escuroAgora ? 'light' : 'dark';
+    raiz.setAttribute('data-theme', novo);
+    if (meta) meta.content = novo === 'dark' ? '#161112' : '#9c2129';
+    try { localStorage.setItem('gtfisc-tema', novo); } catch (e) { }
+  });
+  // altura real do cabeçalho → --altura-topo (âncoras sob o header fixo)
+  const topo = document.querySelector('header.topo');
+  const aplicar = () => document.documentElement.style.setProperty('--altura-topo', topo.offsetHeight + 'px');
+  aplicar();
+  if ('ResizeObserver' in window) new ResizeObserver(aplicar).observe(topo); else window.addEventListener('resize', aplicar);
+})();
+
+/* contadores animados */
+(function () {
+  const els = [...document.querySelectorAll('[data-contar]')];
+  const reduzir = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  els.forEach(el => {
+    const alvo = parseInt(el.dataset.contar, 10), suf = el.dataset.sufixo || '';
+    if (reduzir || !alvo) { el.textContent = alvo + suf; return; }
+    const t0 = performance.now();
+    (function passo(t) {
+      const f = Math.min(1, (t - t0) / 900);
+      el.textContent = Math.round(alvo * (1 - Math.pow(1 - f, 3))) + suf;
+      if (f < 1) requestAnimationFrame(passo);
+    })(t0);
+  });
+})();
+
+/* entrega de arquivos para a ferramenta via IndexedDB (a página seguinte lê e limpa) */
 function guardarParaEntrega(files) {
   return new Promise((res, rej) => {
     const rq = indexedDB.open('gtfisc-handoff', 1);
@@ -233,38 +333,146 @@ function guardarParaEntrega(files) {
     rq.onerror = () => rej(rq.error);
   });
 }
-const dz = document.getElementById('dz');
-const dzInput = document.getElementById('dz-input');
-const dzEstado = document.getElementById('dz-estado');
-async function entregar(files) {
-  const pdfs = [...files].filter(f => /\.pdf$/i.test(f.name) || f.type === 'application/pdf');
-  if (!pdfs.length) { dzEstado.textContent = 'Selecione arquivos PDF.'; return; }
-  dzEstado.textContent = 'Abrindo a ferramenta com ' + pdfs.length + ' arquivo(s)...';
+
+/* analisador instantâneo (pdf.js carregado só quando necessário) */
+let pdfjsPronto = null;
+function carregarPdfjs() {
+  if (pdfjsPronto) return pdfjsPronto;
+  pdfjsPronto = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'libs/pdf.min.js';
+    s.onload = () => { try { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'libs/pdf.worker.min.js'; res(window.pdfjsLib); } catch (e) { rej(e); } };
+    s.onerror = () => { s.remove(); rej(new Error('pdf.js indisponível')); };
+    document.head.appendChild(s);
+  }).catch(e => { pdfjsPronto = null; throw e; }); // falha não fica memorizada: a próxima tentativa recarrega
+  return pdfjsPronto;
+}
+const fmt = b => b < 100000 ? (b / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' KB' : (b / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' MB';
+function protocoloEm(texto) {
+  let m = texto.match(/\b(\d{7})-(\d{2})\.(\d{4})\.(\d)\.(\d{2})\.(\d{4})\b/);
+  if (m) return 'Processo ' + m[0];
+  m = texto.match(/\b\d{5}\.\d{6}\/\d{4}-\d{2}\b/);
+  if (m) return 'Processo ' + m[0];
+  m = texto.match(/protocolo\s*(?:n[º°o.:\s]*)?\s*([A-Z]{0,4}[-\s]?\d[\d./-]{3,24}\d)/i);
+  if (m) return 'Protocolo ' + m[1];
+  m = texto.match(/processo\s*(?:administrativo\s*)?n[º°o.:\s]+\s*([A-Z]{0,4}[-\s]?\d[\d./-]{3,24}\d)/i);
+  return m ? 'Processo ' + m[1] : null;
+}
+let arquivoAtual = null, analiseId = 0;
+const LIMITE = 9.9e6;
+const dz = document.getElementById('dz'), dzInput = document.getElementById('dz-input');
+const diag = document.getElementById('diag');
+const $ = id => document.getElementById(id);
+async function analisar(files) {
+  const f = [...files].find(x => /\.pdf$/i.test(x.name) || x.type === 'application/pdf');
+  const ver = $('d-veredito');
+  if (!f) { diag.classList.add('on'); ver.textContent = ''; ver.className = 'veredito'; $('d-msg').textContent = 'Selecione um arquivo PDF.'; return; }
+  const meuId = ++analiseId;            // qualquer análise anterior vira obsoleta
+  const viva = () => meuId === analiseId;
+  arquivoAtual = f;
+  const cabe = f.size <= LIMITE;
+  diag.classList.add('on');
+  $('d-nome').textContent = f.name; $('d-tam').textContent = fmt(f.size);
+  $('d-pag').textContent = 'lendo…'; $('d-txt').textContent = '—'; $('d-prot').textContent = '—'; $('d-msg').textContent = '';
+  $('d-compactar').textContent = cabe ? 'Abrir na ferramenta com este arquivo' : 'Compactar agora na ferramenta';
+  ver.textContent = ''; ver.className = 'veredito';
+  let task = null;
   try {
-    await guardarParaEntrega(pdfs);
-    location.href = 'app.html?entrega=1';
+    const pdfjs = await carregarPdfjs();
+    if (!viva()) return;
+    const dados = new Uint8Array(await f.arrayBuffer());
+    if (!viva()) return;
+    task = pdfjs.getDocument({ data: dados, isEvalSupported: false, enableXfa: false });
+    const doc = await task.promise;
+    if (!viva()) return;
+    $('d-pag').textContent = doc.numPages;
+    let texto = '';
+    for (let i = 1; i <= Math.min(2, doc.numPages); i++) {
+      const tc = await (await doc.getPage(i)).getTextContent();
+      if (!viva()) return;
+      texto += tc.items.map(x => x.str).join(' ') + '\n';
+    }
+    const temTexto = texto.replace(/\s+/g, '').length >= 50;
+    $('d-txt').textContent = temTexto ? 'sim' : 'não (digitalizado — use "Digitalizado → pesquisável" para embutir o texto)';
+    const prot = protocoloEm(texto);
+    $('d-prot').textContent = prot || (temTexto ? 'não identificado nas 2 primeiras páginas' : 'não legível sem OCR — a ferramenta tenta por OCR se a opção estiver marcada');
+    if (cabe) { ver.textContent = 'Cabe no PBDOC (≤ 9,9 MB) sem compactar.'; ver.classList.add('ok'); }
+    else { ver.textContent = 'Excede 9,9 MB — a ferramenta tenta reduzir para 1 arquivo; se não der, divide por páginas em pelo menos ' + Math.ceil(f.size / LIMITE) + ' volumes (o número exato aparece na ferramenta).'; ver.classList.add('warn'); }
   } catch (e) {
-    dzEstado.textContent = 'Não foi possível encaminhar — abra a ferramenta e solte o arquivo lá.';
+    if (!viva()) return;
+    $('d-pag').textContent = '—';
+    const nome = e && e.name;
+    ver.textContent = nome === 'PasswordException' ? 'PDF protegido por senha — use "Proteger / remover senha" na ferramenta.'
+      : nome === 'InvalidPDFException' ? 'Este arquivo não é um PDF válido ou está corrompido.'
+      : 'Não foi possível ler este PDF' + (e && e.message ? ' (' + e.message + ')' : '') + '.';
+    ver.classList.add('warn');
+  } finally {
+    if (task) task.destroy().catch(() => { });
   }
 }
 ['dragover', 'dragenter'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
 ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
-dz.addEventListener('drop', e => entregar(e.dataTransfer.files));
-dzInput.addEventListener('change', () => { entregar(dzInput.files); dzInput.value = ''; });
+dz.addEventListener('drop', e => analisar(e.dataTransfer.files));
+dzInput.addEventListener('change', () => { analisar(dzInput.files); dzInput.value = ''; });
+$('d-compactar').addEventListener('click', async () => {
+  if (!arquivoAtual) return;
+  $('d-msg').textContent = 'Abrindo a ferramenta com o arquivo…';
+  try { await guardarParaEntrega([arquivoAtual]); location.href = 'app.html?entrega=1'; }
+  catch (e) { $('d-msg').textContent = 'Não foi possível encaminhar — abra a ferramenta e solte o arquivo lá.'; }
+});
 
-// calculadora de volumes
+/* explorador de ferramentas */
+(function () {
+  const busca = $('busca'), chips = [...document.querySelectorAll('.chip')], cards = [...document.querySelectorAll('#grade .fcard')];
+  let cat = 'todas';
+  const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  function aplicar() {
+    const q = norm(busca.value.trim());
+    let vis = 0;
+    cards.forEach(c => {
+      const okCat = cat === 'todas' || c.dataset.cat === cat;
+      const okQ = !q || norm(c.textContent + ' ' + c.dataset.tags).includes(q);
+      c.hidden = !(okCat && okQ);
+      if (!c.hidden) vis++;
+    });
+    $('vazio').style.display = vis ? 'none' : 'block';
+  }
+  busca.addEventListener('input', aplicar);
+  chips.forEach(ch => ch.addEventListener('click', () => { chips.forEach(x => x.classList.remove('ativo')); ch.classList.add('ativo'); cat = ch.dataset.cat; aplicar(); }));
+})();
+
+/* passo a passo interativo */
+(function () {
+  const passos = [
+    ['Escolha a ferramenta', 'Abra a ferramenta e clique no cartão da função — Compactar, Juntar, Separar, Word, OCR, senha… Ou use o analisador acima: ele já manda o PDF direto para a compactação.'],
+    ['Solte o arquivo', 'O processamento acontece no seu computador. O sistema lê as primeiras páginas, identifica processo/protocolo (por OCR nas 2 primeiras páginas quando o PDF é digitalizado e a opção de OCR está marcada) e sugere o nome do resultado — isso não torna o PDF pesquisável; para isso use "Digitalizado → pesquisável".'],
+    ['Confira e baixe', 'Cada resultado tem visualizador embutido, botão de download, recibo com hash SHA-256 e, quando preciso, volumes numerados prontos para o PBDOC.'],
+  ];
+  const painel = $('passos-painel'), botoes = [...document.querySelectorAll('#passos-lista button')];
+  function mostrar(i) {
+    botoes.forEach((b, k) => b.classList.toggle('ativo', k === i));
+    painel.innerHTML = '';
+    const h = document.createElement('h3'); h.textContent = passos[i][0];
+    const p = document.createElement('p'); p.textContent = passos[i][1];
+    painel.append(h, p);
+  }
+  botoes.forEach(b => b.addEventListener('click', () => mostrar(parseInt(b.dataset.passo, 10))));
+  mostrar(0);
+})();
+
+/* calculadora de volumes */
 const numBr = v => { const s = String(v || '').trim().replace(/\s/g, ''); const n = s.includes(',') ? parseFloat(s.replace(/\./g, '').replace(',', '.')) : parseFloat(s); return isFinite(n) && n > 0 ? n : 0; };
 function calcular() {
-  const tam = numBr(document.getElementById('calc-tam').value);
-  const lim = numBr(document.getElementById('calc-lim').value) || 9.9;
-  const res = document.getElementById('calc-res');
+  const tam = numBr($('calc-tam').value), lim = numBr($('calc-lim').value) || 9.9, res = $('calc-res');
   if (!tam) { res.textContent = 'Informe o tamanho do arquivo.'; return; }
   if (tam <= lim) { res.innerHTML = 'Cabe em <strong>1 arquivo</strong> — nenhuma compactação ou divisão necessária.'; return; }
-  const vol = Math.ceil(tam / lim);
-  res.innerHTML = 'Sem compactar, seriam <strong>' + vol + ' volumes</strong> de até ' + lim.toLocaleString('pt-BR') + ' MB. A ferramenta tenta antes reduzir para <strong>1 arquivo</strong> recomprimindo as imagens.';
+  res.innerHTML = 'Sem compactar, seriam <strong>pelo menos ' + Math.ceil(tam / lim) + ' volumes</strong> de até ' + lim.toLocaleString('pt-BR') + ' MB (a divisão é por páginas). A ferramenta tenta antes reduzir para <strong>1 arquivo</strong> recomprimindo as imagens.';
 }
-document.getElementById('calc-tam').addEventListener('input', calcular);
-document.getElementById('calc-lim').addEventListener('input', calcular);
+$('calc-tam').addEventListener('input', calcular);
+$('calc-lim').addEventListener('input', calcular);
+
+/* versão publicada (gerada no build) */
+fetch('versao.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(j => { if (j && j.versao) $('versao').textContent = 'v' + j.versao; }).catch(() => { });
 </script>
 </body>
 </html>
