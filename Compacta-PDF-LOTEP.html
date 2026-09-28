@@ -248,6 +248,23 @@
     background: var(--panel); color: var(--text); font-size: .89rem;
   }
   .mini-form input[type=number] { width: 90px; }
+  .mini-form select, .mini-form input[type=password] {
+    padding: 6px 8px; border: 1px solid var(--border); border-radius: 7px;
+    background: var(--panel); color: var(--text); font-size: .89rem; max-width: 100%;
+  }
+  .form-bloco + .form-bloco { margin-top: 4px; }
+  .mini-form input[type=text], .mini-form input[type=password] { max-width: 100%; min-width: 0; box-sizing: border-box; }
+  #tj-termos, #num-texto { flex: 1 1 200px; }
+  fieldset { min-width: 0; }
+  .mini-form .par { display: inline-flex; align-items: center; gap: 8px; flex-wrap: nowrap; max-width: 100%; }
+  .mini-form .par select, .mini-form .par input[type=text] { min-width: 0; }
+  .form-bloco .note code { font-size: .8rem; }
+  /* tarjar */
+  .tj-barra { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .86rem; }
+  .tj-barra .btn, .tj-barra .btn-cancel { margin-top: 0; }
+  .tj-area { margin-top: 10px; overflow: auto; max-height: 78vh; border: 1px solid var(--border); border-radius: 6px; background: #888; }
+  .tj-area canvas { display: block; margin: 0 auto; cursor: crosshair; touch-action: none; max-width: none; }
+  .tj-cont { font-weight: 600; }
   .lista-juntar { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
   .lista-juntar .item {
     display: flex; align-items: center; gap: 8px;
@@ -440,15 +457,20 @@
         <strong>Extrair páginas</strong>
         <small>Escolha visual das páginas</small>
       </button>
+      <button type="button" class="fcard" data-ferramenta="dividir">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="7" height="16" rx="1"/><rect x="14" y="4" width="7" height="16" rx="1"/><path d="M12 3v18" stroke-dasharray="2 2"/></svg>
+        <strong>Dividir PDF</strong>
+        <small>A cada N páginas, por marcadores ou intervalos</small>
+      </button>
       <button type="button" class="fcard" data-ferramenta="numerar">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="1"/><text x="12" y="17" text-anchor="middle" font-size="9" fill="currentColor" stroke="none">123</text></svg>
-        <strong>Numerar folhas</strong>
-        <small>fl. 001, fl. 002... padrão de autos</small>
+        <strong>Numerar / cabeçalho e rodapé</strong>
+        <small>fl. 001, "Página 1 de N", Bates, texto com data</small>
       </button>
       <button type="button" class="fcard" data-ferramenta="carimbo">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v5a3 3 0 0 1-6 0z"/><path d="M6 15h12v-2a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2z"/><path d="M4 19h16"/></svg>
-        <strong>Carimbo / marca-d'água</strong>
-        <small>CÓPIA, USO INTERNO...</small>
+        <strong>Marca-d'água</strong>
+        <small>Texto ou logotipo; cor, opacidade, ângulo, atrás do texto</small>
       </button>
       <button type="button" class="fcard" data-ferramenta="word">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="1"/><text x="12" y="16" text-anchor="middle" font-size="10" fill="currentColor" stroke="none">W</text></svg>
@@ -489,6 +511,16 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v3"/></svg>
         <strong>Proteger / remover senha</strong>
         <small>Criptografia AES-256</small>
+      </button>
+      <button type="button" class="fcard" data-ferramenta="tarjar">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><rect x="8" y="10" width="9" height="3" fill="currentColor"/><rect x="8" y="15" width="6" height="3" fill="currentColor"/></svg>
+        <strong>Tarjar dados (LGPD)</strong>
+        <small>Apaga de verdade CPF, nomes e trechos marcados</small>
+      </button>
+      <button type="button" class="fcard" data-ferramenta="limpar">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12l6 6M15 12l-6 6"/></svg>
+        <strong>Remover informações ocultas</strong>
+        <small>Metadados, anexos, scripts, comentários</small>
       </button>
       <button type="button" class="fcard" data-ferramenta="assinar">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16"/><path d="M6 16l9.5-9.5a2.1 2.1 0 0 1 3 3L9 19H6z"/><path d="m14 8 3 3"/></svg>
@@ -663,13 +695,13 @@
         </div>
         <div class="opt-row">
           <input type="radio" name="ed" id="ed-numerar" value="numerar">
-          <label for="ed-numerar">Numerar folhas
-            <small>Carimba "fl. 001, fl. 002..." no rodapé de cada página, no padrão de autos</small></label>
+          <label for="ed-numerar">Numerar folhas / cabeçalho e rodapé
+            <small>fl. 001 dos autos, "Página 1 de N", numeração Bates ou texto livre com data — na posição que escolher</small></label>
         </div>
         <div class="opt-row">
           <input type="radio" name="ed" id="ed-carimbo" value="carimbo">
-          <label for="ed-carimbo">Carimbo / marca-d'água
-            <small>Texto em diagonal em todas as páginas (ex.: CÓPIA, USO INTERNO)</small></label>
+          <label for="ed-carimbo">Marca-d'água
+            <small>Texto ou logotipo, com cor, opacidade, ângulo e posição — na frente ou atrás do conteúdo</small></label>
         </div>
         <div class="opt-row">
           <input type="radio" name="ed" id="ed-organizar" value="organizar">
@@ -682,6 +714,11 @@
             <small>Gire páginas individualmente ou o documento inteiro em 90°</small></label>
         </div>
         <div class="opt-row">
+          <input type="radio" name="ed" id="ed-dividir" value="dividir">
+          <label for="ed-dividir">Dividir PDF
+            <small>A cada N páginas, por marcadores ou por intervalos — como o "Dividir" do Acrobat</small></label>
+        </div>
+        <div class="opt-row">
           <input type="radio" name="ed" id="ed-separar" value="separar">
           <label for="ed-separar">Separar documentos
             <small>Um PDF com vários documentos (lote digitalizado) vira arquivos separados — marque com a tesoura onde cada documento começa; cada um sai renomeado pelo próprio protocolo</small></label>
@@ -689,17 +726,83 @@
       </fieldset>
     </div>
     <div class="panel" id="painel-params-editar">
-      <div class="mini-form" id="form-extrair" style="margin-top:0">
-        <label for="ed-intervalo">Páginas:</label>
-        <input type="text" id="ed-intervalo" placeholder="ex.: 1-3, 5, 8-10" size="18">
+      <div id="form-extrair" class="form-bloco">
+        <div class="mini-form" style="margin-top:0">
+          <label for="ed-intervalo">Páginas:</label>
+          <input type="text" id="ed-intervalo" placeholder="ex.: 1-3, 5, 8-10" size="18">
+        </div>
+        <div class="opt-row"><input type="checkbox" id="ext-separados"><label for="ext-separados">Cada página em um arquivo separado</label></div>
+        <div class="opt-row"><input type="checkbox" id="ext-excluir"><label for="ext-excluir">Excluir as páginas extraídas
+          <small>Gera também uma cópia do PDF sem essas páginas — o seu arquivo original não é alterado</small></label></div>
       </div>
-      <div class="mini-form oculto" id="form-numerar" style="margin-top:0">
-        <label for="ed-inicio">Começar em:</label>
-        <input type="number" id="ed-inicio" value="1" min="1" max="99999">
+      <div id="form-numerar" class="form-bloco oculto">
+        <div class="mini-form" style="margin-top:0">
+          <span class="par"><label for="num-modelo">Modelo:</label><select id="num-modelo">
+            <option value="autos" selected>Folhas de autos — fl. 001</option>
+            <option value="pagina">Página 1 de N</option>
+            <option value="numero">Só o número — 1, 2, 3</option>
+            <option value="bates">Numeração Bates — LOTEP000001</option>
+            <option value="livre">Texto livre (cabeçalho / rodapé)</option>
+          </select></span>
+          <span class="par"><label for="ed-inicio">Começar em:</label><input type="number" id="ed-inicio" value="1" min="0" max="999999999"></span>
+        </div>
+        <div class="mini-form" id="num-linha-serie">
+          <span class="par"><label for="num-prefixo">Prefixo:</label><input type="text" id="num-prefixo" size="10" maxlength="30" value="fl. "></span>
+          <span class="par"><label for="num-digitos">Dígitos:</label><input type="number" id="num-digitos" value="3" min="1" max="15"></span>
+          <span class="par"><label for="num-sufixo">Sufixo:</label><input type="text" id="num-sufixo" size="8" maxlength="30"></span>
+        </div>
+        <div class="mini-form oculto" id="num-linha-livre">
+          <span class="par"><label for="num-texto">Texto:</label><input type="text" id="num-texto" size="44" maxlength="160" value="{arquivo} — {data} — Página {n} de {N}"></span>
+          <div class="note" style="flex-basis:100%;margin-top:0">Use <code>{n}</code> número da página, <code>{N}</code> último número, <code>{data}</code> data de hoje, <code>{arquivo}</code> nome do arquivo.</div>
+        </div>
+        <div class="mini-form">
+          <span class="par"><label for="num-pos">Posição:</label><select id="num-pos">
+            <option value="sup-esq">Cabeçalho — esquerda</option>
+            <option value="sup-centro">Cabeçalho — centro</option>
+            <option value="sup-dir">Cabeçalho — direita</option>
+            <option value="inf-esq">Rodapé — esquerda</option>
+            <option value="inf-centro">Rodapé — centro</option>
+            <option value="inf-dir" selected>Rodapé — direita</option>
+          </select></span>
+          <span class="par"><label for="num-tam">Tamanho:</label><input type="number" id="num-tam" value="9" min="5" max="48"></span>
+          <span class="par"><label for="num-cor">Cor:</label><select id="num-cor"><option value="cinza" selected>Cinza</option><option value="preto">Preto</option><option value="vermelho">Vermelho</option><option value="azul">Azul</option></select></span>
+        </div>
+        <div class="mini-form">
+          <span class="par"><label for="num-paginas">Páginas:</label><input type="text" id="num-paginas" size="14" placeholder="todas (ex.: 2-)"></span>
+          <span class="par"><label for="num-margem-v">Margem (mm) — vertical:</label><input type="number" id="num-margem-v" value="5" min="0" max="80" step="0.5"></span>
+          <span class="par"><label for="num-margem-h">horizontal:</label><input type="number" id="num-margem-h" value="9" min="0" max="80" step="0.5"></span>
+        </div>
       </div>
-      <div class="mini-form oculto" id="form-carimbo" style="margin-top:0">
-        <label for="ed-texto">Texto:</label>
-        <input type="text" id="ed-texto" value="CÓPIA" size="24" maxlength="40">
+      <div id="form-carimbo" class="form-bloco oculto">
+        <div class="mini-form" style="margin-top:0">
+          <span class="par"><label for="ed-texto">Texto:</label><input type="text" id="ed-texto" value="CÓPIA" size="24" maxlength="80"></span>
+          <span class="par"><label for="mc-tam">Tamanho:</label><input type="number" id="mc-tam" value="0" min="0" max="300" title="0 = automático"></span>
+          <span class="note" style="margin-top:0">0 = automático</span>
+        </div>
+        <div class="mini-form">
+          <span class="par"><label for="mc-cor">Cor:</label><select id="mc-cor"><option value="vermelho" selected>Vermelho</option><option value="cinza">Cinza</option><option value="preto">Preto</option><option value="azul">Azul</option></select></span>
+          <span class="par"><label for="mc-opac">Opacidade (%):</label><input type="number" id="mc-opac" value="18" min="5" max="100"></span>
+          <span class="par"><label for="mc-rot">Ângulo:</label><select id="mc-rot"><option value="45" selected>Diagonal ↗ (45°)</option><option value="0">Horizontal</option><option value="-45">Diagonal ↘ (−45°)</option><option value="90">Vertical</option></select></span>
+        </div>
+        <div class="mini-form">
+          <span class="par"><label for="mc-pos">Posição:</label><select id="mc-pos"><option value="centro" selected>Centro</option><option value="topo">Topo</option><option value="base">Base</option></select></span>
+          <span class="par"><label for="mc-camada">Camada:</label><select id="mc-camada"><option value="frente" selected>Na frente do conteúdo</option><option value="atras">Atrás do conteúdo</option></select></span>
+          <span class="par"><label for="mc-paginas">Páginas:</label><input type="text" id="mc-paginas" size="12" placeholder="todas"></span>
+        </div>
+        <div class="opt-row"><input type="checkbox" id="mc-logo"><label for="mc-logo">Usar o logotipo da LOTEP em vez do texto
+          <small>"Atrás do conteúdo" fica sob o texto; em páginas digitalizadas (imagem) a própria página pode escondê-la</small></label></div>
+      </div>
+      <div id="form-dividir" class="form-bloco oculto">
+        <div class="mini-form" style="margin-top:0">
+          <span class="par"><label for="div-modo">Dividir:</label><select id="div-modo">
+            <option value="paginas" selected>A cada N páginas</option>
+            <option value="marcadores">Pelos marcadores de 1º nível</option>
+            <option value="intervalos">Por intervalos (um arquivo por intervalo)</option>
+          </select></span>
+          <span id="div-linha-n"><span class="par"><label for="div-n">Páginas por arquivo:</label><input type="number" id="div-n" value="10" min="1" max="100000"></span></span>
+          <span id="div-linha-int" class="oculto"><span class="par"><label for="div-intervalos">Intervalos:</label><input type="text" id="div-intervalos" size="22" placeholder="ex.: 1-3; 4-10; 11-"></span></span>
+        </div>
+        <div class="note">Cada parte mantém os campos de formulário e os marcadores do seu trecho. Para dividir por TAMANHO (ex.: 9,9 MB), use "Compactar / Dividir".</div>
       </div>
     </div>
     <div id="dz-editar" class="dropzone" role="button" tabindex="0" aria-label="Selecionar PDF para editar">
@@ -730,13 +833,38 @@
           <label for="senha-remover">Remover senha
             <small>Gera uma cópia sem senha — é preciso informar a senha atual</small></label>
         </div>
-        <div class="mini-form">
+        <div class="opt-row" id="senha-abrir-row"><input type="checkbox" id="senha-abrir" checked><label for="senha-abrir">Exigir senha para ABRIR o documento</label></div>
+        <div class="mini-form" id="senha-valor-row">
           <label for="senha-valor">Senha:</label>
           <input type="password" id="senha-valor" size="24" maxlength="64" autocomplete="off">
         </div>
         <div class="mini-form" id="senha-confirma-row">
           <label for="senha-confirma">Confirmar senha:</label>
           <input type="password" id="senha-confirma" size="24" maxlength="64" autocomplete="off">
+        </div>
+        <div id="senha-bloco-perm">
+          <div class="opt-row"><input type="checkbox" id="senha-restringir"><label for="senha-restringir">Restringir impressão, alterações e cópia
+            <small>Como no Acrobat: uma senha de PERMISSÕES, diferente da de abertura, é exigida para mudar essas restrições</small></label></div>
+          <div id="senha-perms" class="oculto">
+            <div class="mini-form">
+              <span class="par"><label for="perm-imprimir">Impressão:</label><select id="perm-imprimir"><option value="none">Não permitida</option><option value="low">Baixa resolução (150 dpi)</option><option value="full" selected>Alta resolução</option></select></span>
+            </div>
+            <div class="mini-form">
+              <span class="par"><label for="perm-alterar">Alterações:</label><select id="perm-alterar">
+                <option value="none" selected>Nenhuma</option>
+                <option value="assembly">Inserir, excluir e girar páginas</option>
+                <option value="form">Preencher formulários e assinar</option>
+                <option value="annotate">Comentar, preencher formulários e assinar</option>
+                <option value="all">Qualquer uma, exceto inserir, excluir ou extrair páginas</option>
+              </select></span>
+            </div>
+            <div class="opt-row"><input type="checkbox" id="perm-copiar"><label for="perm-copiar">Permitir copiar texto, imagens e outros conteúdos</label></div>
+            <div class="mini-form">
+              <span class="par"><label for="senha-perm">Senha de permissões:</label><input type="password" id="senha-perm" size="20" maxlength="64" autocomplete="off"></span>
+              <span class="par"><label for="senha-perm-conf">Confirmar:</label><input type="password" id="senha-perm-conf" size="20" maxlength="64" autocomplete="off"></span>
+            </div>
+            <div class="note">As restrições são respeitadas pelo Acrobat e pelos leitores comuns, mas não substituem o sigilo: para impedir a leitura, use a senha de abertura.</div>
+          </div>
         </div>
         <div class="note">A senha é usada apenas dentro do seu navegador — não é gravada nem enviada a lugar algum. O componente de criptografia (~1,3 MB) é baixado na primeira vez.</div>
       </fieldset>
@@ -747,6 +875,86 @@
       <div class="sub-text">Um arquivo por vez — digite a senha antes</div>
       <input type="file" id="input-senha" accept="application/pdf,.pdf">
     </div>
+  </section>
+
+  <!-- ============ REMOVER INFORMAÇÕES OCULTAS ============ -->
+  <section id="sec-limpar" data-sec="limpar" class="oculto">
+    <div class="panel">
+      <fieldset>
+        <legend>O que remover</legend>
+        <div class="opts-grid">
+          <div class="opt-row"><input type="checkbox" id="lp-metadados" checked><label for="lp-metadados">Metadados<small>Autor, título, programa usado, datas e XMP</small></label></div>
+          <div class="opt-row"><input type="checkbox" id="lp-anexos" checked><label for="lp-anexos">Arquivos anexados<small>Anexos do documento e de comentários</small></label></div>
+          <div class="opt-row"><input type="checkbox" id="lp-js" checked><label for="lp-js">JavaScript, ações e links externos<small>Scripts, ações automáticas, links para sites e arquivos (a navegação interna fica)</small></label></div>
+          <div class="opt-row"><input type="checkbox" id="lp-comentarios" checked><label for="lp-comentarios">Comentários e marcações<small>Notas, destaques, carimbos de revisão, desenhos</small></label></div>
+          <div class="opt-row"><input type="checkbox" id="lp-miniaturas" checked><label for="lp-miniaturas">Miniaturas de página embutidas</label></div>
+          <div class="opt-row"><input type="checkbox" id="lp-privados" checked><label for="lp-privados">Dados privados de aplicativos<small>PieceInfo do Illustrator, Photoshop, Word…</small></label></div>
+          <div class="opt-row"><input type="checkbox" id="lp-formularios"><label for="lp-formularios">Achatar campos de formulário<small>O que foi preenchido vira parte da página</small></label></div>
+          <div class="opt-row"><input type="checkbox" id="lp-marcadores"><label for="lp-marcadores">Marcadores (índice lateral)</label></div>
+          <div class="opt-row"><input type="checkbox" id="lp-estrutura"><label for="lp-estrutura">Estrutura de acessibilidade (tags)<small>Pode conter textos alternativos; remova só se precisar</small></label></div>
+        </div>
+        <div class="note">Sempre: versões anteriores guardadas no arquivo (salvamentos incrementais) e objetos sem uso são eliminados. Assinaturas digitais deixam de existir — o arquivo limpo já não é o documento assinado.</div>
+      </fieldset>
+    </div>
+    <div id="dz-limpar" class="dropzone" role="button" tabindex="0" aria-label="Selecionar PDFs para limpar">
+      <svg class="dz-icone" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      <div class="main-text">Arraste os PDFs aqui ou clique para selecionar</div>
+      <div class="sub-text">Como o "Remover informações ocultas" do Acrobat — vários arquivos de uma vez</div>
+      <input type="file" id="input-limpar" accept="application/pdf,.pdf" multiple>
+    </div>
+    <div class="note">Não procura texto escondido sob imagens nem em camadas ocultas: para eliminar um trecho visível (CPF, nome), use "Tarjar dados".</div>
+  </section>
+
+  <!-- ============ TARJAR DADOS (REDIGIR) ============ -->
+  <section id="sec-tarjar" data-sec="tarjar" class="oculto">
+    <div class="panel">
+      <fieldset>
+        <legend>Localizar e marcar automaticamente</legend>
+        <div class="opts-grid">
+          <div class="opt-row"><input type="checkbox" id="tj-cpf" checked><label for="tj-cpf">CPF</label></div>
+          <div class="opt-row"><input type="checkbox" id="tj-cnpj"><label for="tj-cnpj">CNPJ</label></div>
+          <div class="opt-row"><input type="checkbox" id="tj-email"><label for="tj-email">E-mail</label></div>
+          <div class="opt-row"><input type="checkbox" id="tj-telefone"><label for="tj-telefone">Telefone</label></div>
+        </div>
+        <div class="mini-form">
+          <label for="tj-termos">Nomes e termos:</label>
+          <input type="text" id="tj-termos" size="40" maxlength="600" placeholder="separe por ponto e vírgula — ex.: Fulano de Tal; conta 1234-5">
+        </div>
+        <div class="note">Maiúsculas e acentos não importam. Depois de localizar, confira as tarjas página a página: arraste para acrescentar, clique numa tarja para removê-la.</div>
+      </fieldset>
+      <fieldset>
+        <legend>Ao aplicar</legend>
+        <div class="opt-row"><input type="checkbox" id="tj-ocr" checked><label for="tj-ocr">Manter pesquisável o texto fora das tarjas<small>As páginas tarjadas viram imagem (o conteúdo sob a tarja deixa de existir) e o texto restante volta por OCR</small></label></div>
+        <div class="opt-row"><input type="checkbox" id="tj-limpar" checked><label for="tj-limpar">Remover também metadados, anexos, comentários e JavaScript<small>Nomes e números costumam ficar também nas propriedades do arquivo</small></label></div>
+      </fieldset>
+    </div>
+    <div id="dz-tarjar" class="dropzone" role="button" tabindex="0" aria-label="Selecionar PDF para tarjar">
+      <svg class="dz-icone" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      <div class="main-text">Arraste o PDF aqui ou clique para selecionar</div>
+      <div class="sub-text">Um arquivo por vez</div>
+      <input type="file" id="input-tarjar" accept="application/pdf,.pdf">
+    </div>
+    <div id="tj-painel" class="panel oculto">
+      <div class="tj-barra">
+        <strong id="tj-nome"></strong>
+        <button type="button" class="btn" id="tj-localizar">Localizar e marcar</button>
+        <button type="button" class="btn-cancel" id="tj-limpar-pag">Remover as tarjas desta página</button>
+        <span class="tj-cont" id="tj-contagem"></span>
+      </div>
+      <div class="tj-barra" style="margin-top:8px">
+        <button type="button" class="btn-cancel" id="tj-ant" aria-label="Página anterior">◀</button>
+        <span id="tj-rot"></span>
+        <button type="button" class="btn-cancel" id="tj-prox" aria-label="Próxima página">▶</button>
+        <span class="note" style="margin-top:0">Arraste sobre a página para desenhar uma tarja · clique numa tarja para removê-la</span>
+      </div>
+      <div id="tj-nota" class="note"></div>
+      <div class="tj-area" id="tj-area"><canvas id="tj-canvas" aria-label="Página do PDF para marcar tarjas"></canvas></div>
+      <div class="tj-barra" style="margin-top:10px">
+        <button type="button" class="btn" id="tj-aplicar">Aplicar tarjas e baixar</button>
+        <button type="button" class="btn-cancel" id="tj-descartar">Descartar</button>
+      </div>
+    </div>
+    <div class="note">Como o "Redigir" do Acrobat: o conteúdo sob a tarja é REMOVIDO do arquivo, não apenas coberto. O resultado é conferido antes da entrega. Tudo acontece no seu navegador.</div>
   </section>
 
   <!-- ============ ASSINAR COM CERTIFICADO DIGITAL ============ -->
@@ -1110,7 +1318,7 @@ window.__results = []; // depuração/testes
 
 // Visualizador hospedado do claude.ai: o sandbox do iframe bloqueia downloads
 // (sem allow-downloads), popups e o seletor de arquivos — avisamos o usuário.
-const VERSAO = '3.2.0 — 28/09/2026';
+const VERSAO = '3.3.0 — 28/09/2026';
 const HOSTED = typeof window.claude !== 'undefined';
 // o rodapé lê a versão daqui — fonte única, sem data duplicada no HTML
 { const vr = document.getElementById('versao-rodape'); if (vr) vr.textContent = 'v' + VERSAO; }
@@ -2369,8 +2577,9 @@ const FERRAMENTAS = {
   separar:   { sec: 'editar', radio: 'ed-separar', titulo: 'Separar documentos' },
   organizar: { sec: 'editar', radio: 'ed-organizar', titulo: 'Organizar páginas' },
   extrair:   { sec: 'editar', radio: 'ed-extrair', titulo: 'Extrair páginas' },
-  numerar:   { sec: 'editar', radio: 'ed-numerar', titulo: 'Numerar folhas' },
-  carimbo:   { sec: 'editar', radio: 'ed-carimbo', titulo: "Carimbo / marca-d'água" },
+  numerar:   { sec: 'editar', radio: 'ed-numerar', titulo: 'Numerar folhas, cabeçalho e rodapé' },
+  carimbo:   { sec: 'editar', radio: 'ed-carimbo', titulo: "Marca-d'água" },
+  dividir:   { sec: 'editar', radio: 'ed-dividir', titulo: 'Dividir PDF' },
   word:      { sec: 'converter', radio: 'conv-word', titulo: 'PDF para Word' },
   txt:       { sec: 'converter', radio: 'conv-txt', titulo: 'PDF para texto' },
   img:       { sec: 'converter', radio: 'conv-img', titulo: 'PDF para imagens' },
@@ -2380,6 +2589,8 @@ const FERRAMENTAS = {
   ocrpdf:    { sec: 'converter', radio: 'conv-ocrpdf', titulo: 'PDF digitalizado → pesquisável (OCR)' },
   girar:     { sec: 'editar', radio: 'ed-girar', titulo: 'Girar páginas' },
   senha:     { sec: 'senha', titulo: 'Proteger / remover senha' },
+  limpar:    { sec: 'limpar', titulo: 'Remover informações ocultas' },
+  tarjar:    { sec: 'tarjar', titulo: 'Tarjar dados (LGPD)' },
   contador:  { sec: 'contador', titulo: 'Contador de folhas do lote' },
   assinar:   { sec: 'assinar', titulo: 'Assinar com certificado digital' },
   validar:   { sec: 'validar', titulo: 'Validar assinaturas digitais' },
@@ -2929,8 +3140,9 @@ function atualizarEditarUi() {
   $('#form-extrair').classList.toggle('oculto', t !== 'extrair');
   $('#form-numerar').classList.toggle('oculto', t !== 'numerar');
   $('#form-carimbo').classList.toggle('oculto', t !== 'carimbo');
+  $('#form-dividir').classList.toggle('oculto', t !== 'dividir');
   // o painel de parâmetros só aparece para operações que têm campos
-  $('#painel-params-editar').classList.toggle('oculto', !['extrair', 'numerar', 'carimbo'].includes(t));
+  $('#painel-params-editar').classList.toggle('oculto', !['extrair', 'numerar', 'carimbo', 'dividir'].includes(t));
   if (t !== 'organizar') limparOrganizacao();
   if (t !== 'separar') limparSeparacao();
   if (t !== 'extrair') limparExtracao();
@@ -3425,7 +3637,7 @@ function renderExtracao() {
     if (!intervalo) return;
     const f = est2.f;
     limparExtracao();
-    enfileirar(() => executarEdicao(f, 'extrair', { intervalo })).catch(() => { });
+    enfileirar(() => executarEdicao(f, 'extrair', { intervalo, separados: $('#ext-separados').checked, excluir: $('#ext-excluir').checked })).catch(() => { });
   };
   const btnDesistir = document.createElement('button');
   btnDesistir.type = 'button';
@@ -3503,13 +3715,29 @@ function paraEspacoUsuario(pl, dx, dy) {
 }
 
 async function executarEdicao(f, t, params) {
-  const rotulos = { extrair: 'extrair páginas', numerar: 'numerar folhas', carimbo: 'carimbo' };
+  const rotulos = { extrair: 'extrair páginas', numerar: 'numerar folhas', carimbo: "marca-d'água", dividir: 'dividir' };
   const card = makeCard(f.name + ' — ' + rotulos[t], f.size);
   try {
     const bytes = new Uint8Array(await f.arrayBuffer());
     const src = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true, parseSpeed: PDFLib.ParseSpeeds.Fastest });
     if (src.isEncrypted) throw new Error('Este PDF é protegido por senha — remova-a na ferramenta "Proteger / remover senha" antes de editar.');
     let saida, nomeSaida;
+    if (t === 'extrair' && (params.separados || params.excluir)) {
+      // como o Acrobat: "extrair páginas como arquivos separados" e "excluir páginas após extrair" (o original não é alterado)
+      const idx = parseIntervalo(params.intervalo, src.getPageCount());
+      card.status('Extraindo ' + idx.length + ' página(s)...');
+      const saidas = await parExtrairAvancado(bytes, f.name, idx, params);
+      parEntregarVarios(card, saidas, saidas.length + ' arquivo(s) gerado(s):', baseName(f.name) + ' - extraído');
+      window.__results.push({ file: f.name, action: 'editar-extrair', arquivos: saidas.length });
+      return;
+    }
+    if (t === 'dividir') {
+      card.status('Dividindo...');
+      const saidas = await parDividirPdf(bytes, f.name, params.dividir || {}, (i, n) => { card.checar(); card.status('Gerando a parte ' + i + ' de ' + n + '...'); card.progress(i / n); });
+      parEntregarVarios(card, saidas, 'PDF dividido em ' + saidas.length + ' arquivo(s):', baseName(f.name) + ' - dividido');
+      window.__results.push({ file: f.name, action: 'editar-dividir', arquivos: saidas.length, paginas: saidas.map(s => s.paginas.length) });
+      return;
+    }
     if (t === 'extrair') {
       const idx = parseIntervalo(params.intervalo, src.getPageCount());
       card.status(`Extraindo ${idx.length} página(s)...`);
@@ -3523,34 +3751,17 @@ async function executarEdicao(f, t, params) {
       nomeSaida = baseName(f.name) + ' - pags ' + sanitizarNome(params.intervalo) + '.pdf';
       avisosFidelidade(card, [infoForm]);
     } else if (t === 'numerar') {
-      const inicio = Math.max(1, params.inicio || 1);
       card.status('Numerando folhas...');
-      const font = await src.embedFont(PDFLib.StandardFonts.Helvetica);
-      src.getPages().forEach((p, i) => {
-        // respeita /Rotate e CropBox: o rótulo fica no canto inferior direito COMO O LEITOR MOSTRA a página
-        const pl = planoVisivel(p);
-        const rotulo = 'fl. ' + String(inicio + i).padStart(3, '0');
-        const tam = 9, w = font.widthOfTextAtSize(rotulo, tam);
-        const { x, y } = paraEspacoUsuario(pl, pl.largura - 26 - w, 14);
-        p.drawText(rotulo, { x, y, size: tam, font, color: PDFLib.rgb(0.35, 0.3, 0.3), rotate: PDFLib.degrees(pl.rot) });
-      });
+      // modelos do Acrobat (cabeçalho/rodapé, Bates) — sem opções, o padrão continua "fl. 001" no canto inferior direito
+      const opNum = Object.assign({ inicio: Math.max(1, params.inicio || 1) }, params.numeracao || {});
+      const r = await parAplicarNumeracao(src, opNum, { arquivo: baseName(f.name) });
+      card.status('Numeradas ' + r.paginas + ' página(s): ' + r.primeiro + ' … ' + r.ultimo);
       saida = await src.save({ useObjectStreams: true, objectsPerTick: Infinity });
       nomeSaida = baseName(f.name) + ' - numerado.pdf';
     } else {
-      const texto = ((params.texto || 'CÓPIA').trim() || 'CÓPIA').slice(0, 40);
-      card.status('Aplicando carimbo...');
-      const font = await src.embedFont(PDFLib.StandardFonts.HelveticaBold);
-      src.getPages().forEach(p => {
-        const pl = planoVisivel(p);
-        const size = Math.min(72, Math.max(22, (Math.min(pl.largura, pl.altura) * 1.35) / Math.max(4, texto.length)));
-        const { x, y } = paraEspacoUsuario(pl, pl.largura * 0.14, pl.altura * 0.3);
-        p.drawText(texto, {
-          x, y, size, font,
-          color: PDFLib.rgb(0.62, 0.13, 0.17),
-          opacity: 0.18,
-          rotate: PDFLib.degrees(pl.rot + 35),
-        });
-      });
+      card.status("Aplicando a marca-d'água...");
+      const opMarca = Object.assign({ texto: (params.texto || 'CÓPIA').trim() || 'CÓPIA' }, params.marca || {});
+      await parAplicarMarcaDagua(src, opMarca);
       saida = await src.save({ useObjectStreams: true, objectsPerTick: Infinity });
       nomeSaida = baseName(f.name) + ' - carimbado.pdf';
     }
@@ -3571,11 +3782,17 @@ ligarDropzone('#dz-editar', '#input-editar', files => {
   if (t === 'separar') { iniciarSeparacao(f); return; }
   if (t === 'extrair') { iniciarExtracao(f); return; }
   if (t === 'girar') { iniciarGiro(f); return; }
-  const params = {
-    intervalo: $('#ed-intervalo').value,
-    inicio: parseInt($('#ed-inicio').value, 10) || 1,
-    texto: $('#ed-texto').value,
-  };
+  let params;
+  try {
+    params = {
+      intervalo: $('#ed-intervalo').value,
+      inicio: parseInt($('#ed-inicio').value, 10) || 1,
+      texto: $('#ed-texto').value,
+      numeracao: t === 'numerar' ? parLerOpcoesNumeracao() : null,
+      marca: t === 'carimbo' ? parLerOpcoesMarca() : null,
+      dividir: t === 'dividir' ? parLerOpcoesDividir() : null,
+    };
+  } catch (e) { alert(e.message); return; }
   enfileirar(() => executarEdicao(f, t, params)).catch(() => { });
 });
 
@@ -3804,7 +4021,7 @@ async function diagnosticarCripto(bytes) {
   }
 }
 
-async function executarSenha(f, modo, senha) {
+async function executarSenha(f, modo, senha, protecao) {
   const card = makeCard(f.name + ' — ' + (modo === 'proteger' ? 'proteger com senha' : 'remover senha'), f.size);
   try {
     card.status('Verificando a segurança atual do PDF...');
@@ -3813,8 +4030,11 @@ async function executarSenha(f, modo, senha) {
     const diag = await diagnosticarCripto(bytes);
     let args, msgSenhaErrada = null;
     if (modo === 'proteger') {
-      if (!senha) throw new Error('Digite a nova senha no campo antes de enviar o arquivo.');
-      args = ['--encrypt', senha, senha, '256', '--', 'in.pdf', 'out.pdf'];
+      if (protecao) args = parArgsProtecao(Object.assign({}, protecao, { senha }));
+      else {
+        if (!senha) throw new Error('Digite a nova senha no campo antes de enviar o arquivo.');
+        args = ['--encrypt', senha, senha, '256', '--', 'in.pdf', 'out.pdf'];
+      }
       if (diag.estado !== 'aberto') {
         // como o Acrobat: alterar a segurança de um PDF já protegido exige a senha atual
         const atual = window.prompt(diag.estado === 'senha'
@@ -3839,6 +4059,8 @@ async function executarSenha(f, modo, senha) {
       }
     }
     const saida = await rodarQpdf(args, bytes, msgSenhaErrada);
+    // confere o resultado como um leitor o verá (senha exigida e permissões) antes de entregar
+    if (modo === 'proteger' && protecao) { card.status('Conferindo a proteção aplicada...'); await parConferirProtecao(saida, Object.assign({}, protecao, { senha })); }
     card.done();
     const out = card.result();
     if (saida.__avisos) {
@@ -3850,7 +4072,9 @@ async function executarSenha(f, modo, senha) {
     const ok = document.createElement('div');
     ok.className = 'msg-ok';
     if (modo === 'proteger') {
-      ok.textContent = 'PDF protegido com senha (AES-256). Guarde a senha: sem ela o arquivo não abre.';
+      ok.textContent = protecao && !(protecao.abrir && !protecao.restringir)
+        ? 'PDF protegido (AES-256): ' + parDescricaoProtecao(Object.assign({}, protecao, { senha })) + '. Proteção conferida. Guarde as senhas.'
+        : 'PDF protegido com senha (AES-256). Guarde a senha: sem ela o arquivo não abre.';
       out.appendChild(ok);
       addDownloadRow(out, baseName(f.name) + ' (protegido).pdf', saida, '', false, '');
       addReciboLink(out, f.name, f.size);
@@ -3877,17 +4101,17 @@ ligarDropzone('#dz-senha', '#input-senha', files => {
   if (!f) return;
   const senha = $('#senha-valor').value;
   const modo = document.querySelector('input[name=senha-modo]:checked').value;
-  // ao remover, a senha pode ficar vazia: PDFs só com restrições (abrem sem senha) são tratados sem ela
-  if (!senha && modo === 'proteger') {
-    alert('Digite a senha no campo antes de enviar o arquivo.');
-    return;
+  let protecao = null;
+  if (modo === 'proteger') {
+    protecao = parLerOpcoesProtecao();
+    // ao remover, a senha pode ficar vazia: PDFs só com restrições (abrem sem senha) são tratados sem ela
+    if (protecao.abrir && !senha) { alert('Digite a senha de abertura antes de enviar o arquivo.'); return; }
+    // um erro de digitação ao proteger tornaria o documento irrecuperável
+    if (protecao.abrir && senha !== $('#senha-confirma').value) { alert('A confirmação não confere com a senha de abertura. Confira os dois campos.'); return; }
+    if (protecao.restringir && protecao.senhaPerm !== $('#senha-perm-conf').value) { alert('A confirmação não confere com a senha de permissões. Confira os dois campos.'); return; }
+    try { parValidarProtecao(Object.assign({}, protecao, { senha })); } catch (e) { alert(e.message); return; }
   }
-  // um erro de digitação ao proteger tornaria o documento irrecuperável
-  if (modo === 'proteger' && senha !== $('#senha-confirma').value) {
-    alert('A confirmação não confere com a senha digitada. Confira os dois campos.');
-    return;
-  }
-  enfileirar(() => executarSenha(f, modo, senha)).catch(() => { });
+  enfileirar(() => executarSenha(f, modo, senha, protecao)).catch(() => { });
 });
 
 /* ---------- Contador de folhas do lote ---------- */
@@ -5254,6 +5478,7 @@ async function autoteste() {
 
   if (typeof __corpusWordCasos === 'function') await __corpusWordCasos(caso, afirmar);
   if (typeof __assinadorCasos === 'function') await __assinadorCasos(caso, afirmar);
+  if (typeof __paridadeCasos === 'function') await __paridadeCasos(caso, afirmar);
 
   await caso('PDF para imagens (ZIP)', async () => {
     await pdfParaImagens(new File([pdfTexto3], 'at-img.pdf', { type: 'application/pdf' }));
@@ -10876,18 +11101,34 @@ function assEscolherNaPagina(bytes) {
     try { d = await abrirPdf(bytes.slice()); } catch (e) { rejeitar(e); return; }
     let pag = d.numPages, esc = 1, pos = null, vpAtual = null;
     const { w, h } = AssUI.CARIMBO;
+    let tarefa = null, fechado = false;
+    // um desenho por vez no canvas (um clique no meio cancela o anterior); cancelamento/fechamento não são erro
     const desenhar = async () => {
-      const p = await d.getPage(pag); const vp1 = p.getViewport({ scale: 1 });
-      esc = Math.min(1.3, (painel.clientWidth - 40) / vp1.width) || 1;
-      vpAtual = p.getViewport({ scale: esc });
-      cv.width = Math.round(vpAtual.width); cv.height = Math.round(vpAtual.height);
-      const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
-      await p.render({ canvasContext: cx, viewport: vpAtual, intent: 'print' }).promise;
-      if (pos && pos.pagina === pag - 1) { cx.strokeStyle = '#9c2129'; cx.lineWidth = 2; cx.setLineDash([6, 4]); cx.strokeRect(pos.u * esc, pos.v * esc, w * esc, h * esc); cx.fillStyle = 'rgba(156,33,41,.08)'; cx.fillRect(pos.u * esc, pos.v * esc, w * esc, h * esc); }
-      rot.textContent = 'página ' + pag + ' de ' + d.numPages;
-      $('#ass-confirmar-pos').disabled = !pos;
+      try {
+        if (tarefa) { try { tarefa.cancel(); } catch (e) { } tarefa = null; }
+        const p = await d.getPage(pag); if (fechado) return;
+        const vp1 = p.getViewport({ scale: 1 });
+        esc = Math.min(1.3, (painel.clientWidth - 40) / vp1.width) || 1;
+        vpAtual = p.getViewport({ scale: esc });
+        cv.width = Math.round(vpAtual.width); cv.height = Math.round(vpAtual.height);
+        const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+        const t = tarefa = p.render({ canvasContext: cx, viewport: vpAtual, intent: 'print' });
+        await t.promise;
+        if (tarefa === t) tarefa = null;
+        if (fechado) return;
+        if (pos && pos.pagina === pag - 1) { cx.strokeStyle = '#9c2129'; cx.lineWidth = 2; cx.setLineDash([6, 4]); cx.strokeRect(pos.u * esc, pos.v * esc, w * esc, h * esc); cx.fillStyle = 'rgba(156,33,41,.08)'; cx.fillRect(pos.u * esc, pos.v * esc, w * esc, h * esc); }
+        rot.textContent = 'página ' + pag + ' de ' + d.numPages;
+        $('#ass-confirmar-pos').disabled = !pos;
+      } catch (e) {
+        if (!fechado && !(e && e.name === 'RenderingCancelledException')) console.warn('[assinar] prévia da página:', e);
+      }
     };
-    const fechar = () => { painel.classList.add('oculto'); cv.onclick = null; $('#ass-pag-ant').onclick = $('#ass-pag-prox').onclick = $('#ass-confirmar-pos').onclick = $('#ass-cancelar-pos').onclick = null; try { d.destroy(); } catch (e) { } };
+    const fechar = () => {
+      fechado = true;
+      if (tarefa) { try { tarefa.cancel(); } catch (e) { } }
+      painel.classList.add('oculto'); cv.onclick = null; $('#ass-pag-ant').onclick = $('#ass-pag-prox').onclick = $('#ass-confirmar-pos').onclick = $('#ass-cancelar-pos').onclick = null;
+      try { d.destroy(); } catch (e) { }
+    };
     cv.onclick = ev => {
       const r = cv.getBoundingClientRect();
       const x = (ev.clientX - r.left) * (cv.width / r.width) / esc, y = (ev.clientY - r.top) * (cv.height / r.height) / esc;
@@ -11229,6 +11470,1565 @@ async function __assinadorCasos(caso, afirmar) {
     const raizes = assRaizesIcp();
     afirmar(raizes.length >= 2 && raizes.every(r => r.autoAssinado && /Raiz Brasileira/.test(r.titular.CN)), 'raízes ICP-Brasil: ' + raizes.map(r => r.titular.CN).join('; '));
     for (const r of ASS_RAIZES_ICP) afirmar(assHex(await assHash('SHA-256', assDeB64(r.der))).toUpperCase() === r.sha256.toUpperCase(), 'impressão digital da raiz não confere: ' + r.nome);
+  });
+}
+
+/* ---------- Paridade com o Adobe Acrobat — utilidades comuns ----------
+   Módulos: 10 numeração (cabeçalho/rodapé/Bates) · 20 marca-d'água · 30 proteção com permissões · 40 dividir/extrair
+   · 50 remover informações ocultas · 60 tarjar (redigir) · 80 interface · 90 autotestes */
+
+const PAR_CORES = { cinza: [0.35, 0.3, 0.3], preto: [0, 0, 0], vermelho: [0.62, 0.13, 0.17], azul: [0.1, 0.25, 0.6] };
+function parCor(nome) { const c = PAR_CORES[nome] || PAR_CORES.cinza; return PDFLib.rgb(c[0], c[1], c[2]); }
+const PAR_MM = 72 / 25.4;
+
+// Páginas a afetar: vazio/"todas" = todas; aceita "1-3, 7", "5-" (até o fim) e "-4" (do início).
+// Devolve índices base 0, únicos e em ordem crescente.
+function parPaginas(str, total) {
+  const s = String(str == null ? '' : str).trim().toLowerCase();
+  if (!s || /^(todas|tudo|all)$/.test(s)) return [...Array(total).keys()];
+  const set = new Set();
+  for (const tok of s.split(/[,;]/)) {
+    const t = tok.trim();
+    if (!t) continue;
+    let a, b;
+    const m = t.match(/^(\d*)\s*-\s*(\d*)$/);
+    if (m && (m[1] || m[2])) { a = m[1] ? +m[1] : 1; b = m[2] ? +m[2] : total; }
+    else if (/^\d+$/.test(t)) { a = b = +t; }
+    else throw new Error('Páginas inválidas: "' + t + '". Use, por exemplo: 1-3, 5, 8- (da 8 até o fim).');
+    if (a < 1 || b < 1 || a > total || b > total) throw new Error('Página fora do documento: "' + t + '" (o PDF tem ' + total + ' página(s)).');
+    for (let i = Math.min(a, b); i <= Math.max(a, b); i++) set.add(i - 1);
+  }
+  if (!set.size) throw new Error('Nenhuma página indicada.');
+  return [...set].sort((x, y) => x - y);
+}
+
+// Texto seguro para as fontes padrão (Helvetica, codificação WinAnsi): o que não existir vira "?"
+function parTextoWinAnsi(s) {
+  return (typeof assWinAnsiLimpo === 'function' ? assWinAnsiLimpo(s) : sanitizarWinAnsi(s)).replace(/[\r\n]+/g, ' ');
+}
+
+// Remove do contexto os objetos que ninguém referencia a partir do trailer.
+// O pdf-lib grava TODOS os objetos do contexto — sem esta coleta, conteúdo "removido" (página tarjada,
+// metadados, anexos) continuaria dentro do arquivo salvo.
+function parColetarLixo(doc) {
+  const PL = PDFLib, ctx = doc.context;
+  const vivos = new Set();
+  const pilha = [];
+  const ti = ctx.trailerInfo || {};
+  for (const k of ['Root', 'Info', 'Encrypt']) if (ti[k]) pilha.push(ti[k]);
+  while (pilha.length) {
+    const o = pilha.pop();
+    if (!o) continue;
+    if (o instanceof PL.PDFRef) {
+      if (vivos.has(o.tag)) continue;
+      vivos.add(o.tag);
+      pilha.push(ctx.lookup(o));
+    } else if (o instanceof PL.PDFDict) {
+      for (const [, v] of o.entries()) pilha.push(v);
+    } else if (o instanceof PL.PDFArray) {
+      for (let i = 0; i < o.size(); i++) pilha.push(o.get(i));
+    } else if (o instanceof PL.PDFStream) {
+      pilha.push(o.dict);
+    }
+  }
+  let removidos = 0;
+  for (const [ref] of ctx.enumerateIndirectObjects()) {
+    if (!vivos.has(ref.tag)) { ctx.delete(ref); removidos++; }
+  }
+  return removidos;
+}
+
+// Lista de anotações de uma página como array de refs/dicts (a entrada /Annots pode ser indireta)
+function parAnotacoes(doc, page) {
+  const PL = PDFLib, N = PL.PDFName.of;
+  const a = doc.context.lookup(page.node.get(N('Annots')));
+  if (!(a instanceof PL.PDFArray)) return [];
+  const out = [];
+  for (let i = 0; i < a.size(); i++) {
+    const ref = a.get(i);
+    const dict = doc.context.lookup(ref);
+    if (dict instanceof PL.PDFDict) out.push({ ref, dict, subtipo: String(dict.get(N('Subtype')) || '').replace('/', '') });
+  }
+  return out;
+}
+function parDefinirAnotacoes(doc, page, itens) {
+  const N = PDFLib.PDFName.of;
+  if (!itens.length) page.node.delete(N('Annots'));
+  else page.node.set(N('Annots'), doc.context.obj(itens.map(x => x.ref)));
+}
+
+// Remove do AcroForm (recursivamente) os campos para os quais pred(dictDoCampo, ref) for verdadeiro,
+// e os pais que ficarem sem filhos. Devolve a quantidade removida.
+function parRemoverCampos(doc, pred) {
+  const PL = PDFLib, N = PL.PDFName.of, ctx = doc.context;
+  const acro = ctx.lookup(doc.catalog.get(N('AcroForm')));
+  if (!(acro instanceof PL.PDFDict)) return 0;
+  let removidos = 0;
+  const filtrar = arr => {
+    if (!(arr instanceof PL.PDFArray)) return arr;
+    const manter = [];
+    for (let i = 0; i < arr.size(); i++) {
+      const ref = arr.get(i), d = ctx.lookup(ref);
+      if (!(d instanceof PL.PDFDict)) continue;
+      if (pred(d, ref)) { removidos++; continue; }
+      const kids = ctx.lookup(d.get(N('Kids')));
+      if (kids instanceof PL.PDFArray) {
+        const novos = filtrar(kids);
+        if (novos.size() === 0 && kids.size() > 0) { removidos++; continue; }
+        d.set(N('Kids'), novos);
+      }
+      manter.push(ref);
+    }
+    return ctx.obj(manter);
+  };
+  const campos = ctx.lookup(acro.get(N('Fields')));
+  if (campos instanceof PL.PDFArray) acro.set(N('Fields'), filtrar(campos));
+  return removidos;
+}
+
+// Card com vários arquivos de saída (download individual + ZIP)
+function parEntregarVarios(card, saidas, titulo, zipNome) {
+  card.done();
+  const res = card.result();
+  const ok = document.createElement('div');
+  ok.className = 'msg-ok';
+  ok.textContent = titulo;
+  res.appendChild(ok);
+  for (const s of saidas) addDownloadRow(res, s.nome, s.bytes, s.extra || '');
+  if (saidas.length > 1) addZipButton(res, () => zipNome);
+  return res;
+}
+
+/* ---------- 10 — Numerar folhas / cabeçalho e rodapé / numeração Bates (Acrobat: "Cabeçalho e rodapé" e "Numeração Bates") ---------- */
+const PAR_MODELOS_NUM = {
+  autos: 'Folhas de autos (fl. 001)',
+  pagina: 'Página 1 de N',
+  numero: 'Só o número',
+  bates: 'Numeração Bates',
+  livre: 'Texto livre',
+};
+
+// rótulo de uma página: n = número desta página, total = último número da série
+function parRotuloNumeracao(op, n, total, ctx) {
+  const pad = (v, d) => String(v).padStart(Math.max(1, Math.min(15, d | 0 || 1)), '0');
+  switch (op.modelo) {
+    case 'pagina': return 'Página ' + n + ' de ' + total;
+    case 'numero': return String(n);
+    case 'bates': return (op.prefixo || '') + pad(n, op.digitos || 6) + (op.sufixo || '');
+    case 'livre': return String(op.texto || '{n}')
+      .replace(/\{n\}/g, String(n)).replace(/\{N\}/g, String(total))
+      .replace(/\{data\}/g, ctx.data || '').replace(/\{arquivo\}/g, ctx.arquivo || '');
+    default: return (op.prefixo != null && op.prefixo !== '' ? op.prefixo : 'fl. ') + pad(n, op.digitos || 3) + (op.sufixo || '');
+  }
+}
+
+function __parMarcado(inicio) {
+  const PL = PDFLib;
+  if (inicio) return typeof PL.beginMarkedContent === 'function' ? PL.beginMarkedContent('Artifact') : PL.PDFOperator.of('BMC', [PL.PDFName.of('Artifact')]);
+  return typeof PL.endMarkedContent === 'function' ? PL.endMarkedContent() : PL.PDFOperator.of('EMC');
+}
+
+// Aplica a numeração em `doc` (PDFDocument do pdf-lib). op: { modelo, inicio, digitos, prefixo, sufixo, texto,
+// posicao ('inf-dir' | 'inf-centro' | 'inf-esq' | 'sup-dir' | 'sup-centro' | 'sup-esq'), tamanho, cor, paginas,
+// margemV, margemH (pt) }. As páginas numeradas recebem números consecutivos a partir de `inicio`.
+async function parAplicarNumeracao(doc, op, ctxTexto) {
+  op = Object.assign({ modelo: 'autos', inicio: 1, posicao: 'inf-dir', tamanho: 9, cor: 'cinza', paginas: '', margemV: 14, margemH: 26 }, op || {});
+  const inicio = Math.max(0, Math.floor(+op.inicio || 0));
+  const tam = Math.max(4, Math.min(72, +op.tamanho || 9));
+  const paginas = doc.getPages();
+  const idx = parPaginas(op.paginas, paginas.length);
+  const font = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
+  const ultimo = inicio + idx.length - 1;
+  const ctx = Object.assign({ data: new Date().toLocaleDateString('pt-BR'), arquivo: '' }, ctxTexto || {});
+  const cor = parCor(op.cor);
+  const [vert, horiz] = String(op.posicao || 'inf-dir').split('-');
+  const rotulos = [];
+  idx.forEach((pi, k) => {
+    const p = paginas[pi];
+    // respeita /Rotate e CropBox: posição medida no papel COMO O LEITOR MOSTRA a página
+    const pl = planoVisivel(p);
+    const texto = parTextoWinAnsi(parRotuloNumeracao(op, inicio + k, ultimo, ctx)).slice(0, 200);
+    if (!texto.trim()) return;
+    const w = font.widthOfTextAtSize(texto, tam);
+    const mh = Math.max(0, +op.margemH || 0), mv = Math.max(0, +op.margemV || 0);
+    const dx = horiz === 'esq' ? mh : horiz === 'centro' ? (pl.largura - w) / 2 : pl.largura - mh - w;
+    const dy = vert === 'sup' ? pl.altura - mv - tam * 0.72 : mv;
+    const { x, y } = paraEspacoUsuario(pl, Math.max(0, dx), Math.max(0, dy));
+    // marcado como artefato de paginação (leitores de tela e conversões não o tratam como texto do corpo)
+    p.pushOperators(__parMarcado(true));
+    p.drawText(texto, { x, y, size: tam, font, color: cor, rotate: PDFLib.degrees(pl.rot) });
+    p.pushOperators(__parMarcado(false));
+    rotulos.push(texto);
+  });
+  return { paginas: idx.length, primeiro: rotulos[0] || '', ultimo: rotulos[rotulos.length - 1] || '' };
+}
+
+/* ---------- 20 — Marca-d'água (Acrobat: "Adicionar marca-d'água") ----------
+   op: { texto, tamanho (0 = automático), cor, opacidade (%), angulo (graus, sentido anti-horário na tela),
+         posicao ('centro' | 'topo' | 'base'), camada ('frente' | 'atras'), paginas, imagem (PNG) } */
+
+// Leva o fluxo de conteúdo que o pdf-lib acabou de desenhar para o INÍCIO da lista /Contents da página:
+// o desenho passa a ficar atrás do conteúdo original (os operadores do pdf-lib já vêm envoltos em q/Q).
+function __parMandarParaTras(page) {
+  const PL = PDFLib, N = PL.PDFName.of;
+  const ref = page.contentStreamRef;
+  const arr = page.doc.context.lookup(page.node.get(N('Contents')));
+  if (!ref || !(arr instanceof PL.PDFArray)) return false;
+  const i = arr.indexOf(ref);
+  if (i === undefined || i < 0) return false;
+  if (i > 0) { arr.remove(i); arr.insert(0, ref); }
+  page.contentStream = undefined; page.contentStreamRef = undefined; // próximos desenhos voltam a ir para a frente
+  return true;
+}
+
+async function parAplicarMarcaDagua(doc, op) {
+  op = Object.assign({ texto: 'CÓPIA', tamanho: 0, cor: 'vermelho', opacidade: 18, angulo: 45, posicao: 'centro', camada: 'frente', paginas: '' }, op || {});
+  const PL = PDFLib;
+  const paginas = doc.getPages();
+  const idx = parPaginas(op.paginas, paginas.length);
+  const texto = op.imagem ? '' : parTextoWinAnsi(String(op.texto || '').trim()).slice(0, 80);
+  if (!texto && !op.imagem) throw new Error('Digite o texto da marca-d\'água (ou escolha o logotipo).');
+  const font = texto ? await doc.embedFont(PL.StandardFonts.HelveticaBold) : null;
+  const img = op.imagem ? await doc.embedPng(op.imagem) : null;
+  const opac = Math.max(0.03, Math.min(1, (+op.opacidade || 18) / 100));
+  const ang = ((+op.angulo || 0) % 360 + 360) % 360;
+  const th = ang * Math.PI / 180, c = Math.cos(th), s = Math.sin(th);
+  const cor = parCor(op.cor);
+  let atras = 0;
+  for (const pi of idx) {
+    const p = paginas[pi];
+    // fluxo de conteúdo PRÓPRIO para a marca (se a página já tiver desenho do pdf-lib nesta sessão, ele não é reaproveitado)
+    if (op.camada === 'atras') { p.contentStream = undefined; p.contentStreamRef = undefined; }
+    const pl = planoVisivel(p);
+    const cx = pl.largura / 2;
+    const cy = op.posicao === 'topo' ? pl.altura * 0.84 : op.posicao === 'base' ? pl.altura * 0.16 : pl.altura / 2;
+    const faixa = op.posicao === 'centro' ? 0.8 : 0.26; // fração da altura disponível para o bloco girado
+    let w, h;
+    if (texto) {
+      const w1 = font.widthOfTextAtSize(texto, 1), h1 = 0.72;
+      let size = +op.tamanho;
+      if (!(size > 0)) {
+        // automático: o texto GIRADO cabe em 80% da largura e na faixa vertical escolhida
+        const bw = Math.abs(w1 * c) + Math.abs(h1 * s), bh = Math.abs(w1 * s) + Math.abs(h1 * c);
+        size = Math.max(10, Math.min(pl.largura * 0.8 / bw, pl.altura * faixa / bh, 150));
+      }
+      w = w1 * size; h = h1 * size;
+      // origem (linha de base) tal que o CENTRO do texto caia em (cx, cy) depois de girar
+      const ox = cx - (w / 2 * c - h / 2 * s), oy = cy - (w / 2 * s + h / 2 * c);
+      const { x, y } = paraEspacoUsuario(pl, ox, oy);
+      p.drawText(texto, { x, y, size, font, color: cor, opacity: opac, rotate: PL.degrees(pl.rot + ang) });
+    } else {
+      const escala = +op.tamanho > 0 ? (+op.tamanho / 100) : (op.posicao === 'centro' ? 0.55 : 0.3);
+      w = pl.largura * Math.min(1, escala); h = w * img.height / img.width;
+      const bh = Math.abs(w * s) + Math.abs(h * c);
+      if (bh > pl.altura * faixa) { const k = pl.altura * faixa / bh; w *= k; h *= k; }
+      const ox = cx - (w / 2 * c - h / 2 * s), oy = cy - (w / 2 * s + h / 2 * c);
+      const { x, y } = paraEspacoUsuario(pl, ox, oy);
+      p.drawImage(img, { x, y, width: w, height: h, opacity: opac, rotate: PL.degrees(pl.rot + ang) });
+    }
+    if (op.camada === 'atras' && __parMandarParaTras(p)) atras++;
+  }
+  return { paginas: idx.length, atras };
+}
+
+/* ---------- 30 — Proteger com senha e PERMISSÕES (Acrobat: "Proteger usando senha" → restringir edição e impressão) ----------
+   op: { abrir: bool, senha, restringir: bool, senhaPerm, imprimir: 'none'|'low'|'full',
+         alterar: 'none'|'assembly'|'form'|'annotate'|'all', copiar: bool }
+   'all' = qualquer alteração, exceto montar páginas (inserir, excluir, extrair). */
+const PAR_ROTULOS_PERM = {
+  imprimir: { none: 'impressão não permitida', low: 'impressão em baixa resolução', full: 'impressão em alta resolução' },
+  alterar: {
+    none: 'nenhuma alteração', assembly: 'inserir, excluir e girar páginas', form: 'preencher formulários e assinar',
+    annotate: 'comentar, preencher formulários e assinar', all: 'qualquer alteração, exceto inserir, excluir ou extrair páginas',
+  },
+};
+
+function parValidarProtecao(op) {
+  if (!op.abrir && !op.restringir) throw new Error('Escolha ao menos uma proteção: senha para abrir e/ou restrições de impressão e edição.');
+  if (op.abrir && !op.senha) throw new Error('Digite a senha de abertura.');
+  if (op.restringir) {
+    if (!op.senhaPerm) throw new Error('Digite a senha de permissões.');
+    if (op.abrir && op.senhaPerm === op.senha) throw new Error('A senha de permissões precisa ser diferente da senha de abertura — quem soubesse a de abertura teria acesso total, como avisa o Acrobat.');
+    if (!PAR_ROTULOS_PERM.imprimir[op.imprimir || 'none']) throw new Error('Opção de impressão inválida.');
+    if (!PAR_ROTULOS_PERM.alterar[op.alterar || 'none']) throw new Error('Opção de alterações inválida.');
+  }
+}
+
+// argumentos do qpdf (AES-256). Sem restrições, a senha de abertura também é a de proprietário (acesso total ao abrir).
+function parArgsProtecao(op) {
+  parValidarProtecao(op);
+  const user = op.abrir ? op.senha : '';
+  const owner = op.restringir ? op.senhaPerm : op.senha;
+  const args = ['--encrypt', user, owner, '256'];
+  if (op.restringir) {
+    args.push('--print=' + (op.imprimir || 'none'));
+    // no qpdf as predefinições form/annotate/all também liberam montar páginas; no Acrobat não → --assemble=n
+    const alt = op.alterar || 'none';
+    args.push('--modify=' + alt);
+    if (alt === 'form' || alt === 'annotate' || alt === 'all') args.push('--assemble=n');
+    args.push('--extract=' + (op.copiar ? 'y' : 'n'));
+  }
+  args.push('--', 'in.pdf', 'out.pdf');
+  return args;
+}
+
+function parDescricaoProtecao(op) {
+  const partes = [];
+  if (op.abrir) partes.push('exige senha para abrir');
+  if (op.restringir) {
+    partes.push(PAR_ROTULOS_PERM.imprimir[op.imprimir || 'none']);
+    partes.push(PAR_ROTULOS_PERM.alterar[op.alterar || 'none']);
+    partes.push(op.copiar ? 'cópia de conteúdo permitida' : 'cópia de conteúdo bloqueada');
+  }
+  return partes.join('; ');
+}
+
+// Permissões que um leitor aplicará (pdf.js lê o /P do arquivo cifrado) — usadas para CONFERIR o resultado
+async function parPermissoesEfetivas(bytes, senha) {
+  const d = await pdfjsLib.getDocument({ data: bytes.slice(), password: senha || '', isEvalSupported: false }).promise;
+  try {
+    const p = await d.getPermissions();
+    return p == null ? null : new Set(p);
+  } finally { d.destroy(); }
+}
+
+// confere o arquivo protegido contra o pedido; lança se algo não conferir
+async function parConferirProtecao(saida, op) {
+  const F = pdfjsLib.PermissionFlag;
+  if (op.abrir) {
+    let pediuSenha = false;
+    try { await parPermissoesEfetivas(saida, ''); } catch (e) { pediuSenha = e && e.name === 'PasswordException'; }
+    if (!pediuSenha) throw new Error('Conferência falhou: o PDF protegido abriu sem senha.');
+  }
+  const perms = await parPermissoesEfetivas(saida, op.abrir ? op.senha : '');
+  if (!op.restringir) return;
+  if (!perms) throw new Error('Conferência falhou: o PDF não ficou com restrições.');
+  const tem = f => perms.has(f);
+  const esperado = {
+    imprimir: (op.imprimir || 'none') !== 'none', altaQualidade: op.imprimir === 'full', copiar: !!op.copiar,
+    formularios: ['form', 'annotate', 'all'].includes(op.alterar), comentar: ['annotate', 'all'].includes(op.alterar),
+    montar: op.alterar === 'assembly', editar: op.alterar === 'all',
+  };
+  const real = {
+    imprimir: tem(F.PRINT), altaQualidade: tem(F.PRINT_HIGH_QUALITY) && tem(F.PRINT), copiar: tem(F.COPY),
+    formularios: tem(F.FILL_INTERACTIVE_FORMS), comentar: tem(F.MODIFY_ANNOTATIONS), montar: tem(F.ASSEMBLE),
+    editar: tem(F.MODIFY_CONTENTS),
+  };
+  const dif = Object.keys(esperado).filter(k => esperado[k] !== real[k]);
+  if (dif.length) throw new Error('Conferência das permissões falhou (' + dif.join(', ') + ') — o arquivo não foi entregue.');
+}
+
+/* ---------- 40 — Dividir documento (Acrobat: Organizar páginas → Dividir) e Extrair com opções ---------- */
+
+// mantém só os marcadores que apontam para páginas do conjunto (ou que têm filhos mantidos)
+function parFiltrarMarcadores(arvore, conjunto) {
+  const out = [];
+  for (const it of arvore || []) {
+    const filhos = parFiltrarMarcadores(it.filhos, conjunto);
+    if (conjunto.has(it.pagina) || filhos.length) out.push({ titulo: it.titulo, pagina: conjunto.has(it.pagina) ? it.pagina : -1, filhos });
+  }
+  return out;
+}
+
+// monta um PDF novo só com as páginas `idx` (na ordem dada), preservando formulário e marcadores internos
+async function parMontarParte(src, idx, marcadores) {
+  const novo = await PDFLib.PDFDocument.create();
+  const pgs = await novo.copyPages(src, idx);
+  pgs.forEach(p => novo.addPage(p));
+  migrarCampos(src, novo, pgs);
+  const conj = new Set(idx);
+  escreverMarcadores(novo, parFiltrarMarcadores(marcadores, conj), i => { const k = idx.indexOf(i); return k >= 0 ? pgs[k].ref : null; });
+  return novo.save({ useObjectStreams: true, objectsPerTick: Infinity });
+}
+
+async function __parCarregar(bytes) {
+  const src = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false, parseSpeed: PDFLib.ParseSpeeds.Fastest });
+  if (src.isEncrypted) throw new Error('Este PDF é protegido por senha — remova-a na ferramenta "Proteger / remover senha" antes.');
+  return src;
+}
+
+// grupos de páginas conforme o modo. Devolve [{ idx: [...], rotulo }]
+async function parGruposDivisao(bytes, total, op) {
+  const modo = op.modo || 'paginas';
+  if (modo === 'paginas') {
+    const n = Math.floor(+op.n || 0);
+    if (!(n >= 1)) throw new Error('Informe quantas páginas cada arquivo deve ter.');
+    if (n >= total) throw new Error('O PDF tem ' + total + ' página(s): com ' + n + ' página(s) por arquivo não há o que dividir.');
+    const g = [];
+    for (let i = 0; i < total; i += n) g.push({ idx: [...Array(Math.min(n, total - i)).keys()].map(k => i + k) });
+    return g;
+  }
+  if (modo === 'intervalos') {
+    const partes = String(op.intervalos || '').split(';').map(s => s.trim()).filter(Boolean);
+    if (!partes.length) throw new Error('Informe os intervalos separados por ponto e vírgula (ex.: 1-3; 4-10; 11-).');
+    return partes.map(p => ({ idx: parPaginas(p, total) }));
+  }
+  if (modo === 'marcadores') {
+    const arv = await lerMarcadores(bytes);
+    const inicios = new Map();
+    for (const m of arv) if (m.pagina >= 0 && m.pagina < total && !inicios.has(m.pagina)) inicios.set(m.pagina, m.titulo);
+    if (!inicios.size) throw new Error('Este PDF não tem marcadores (índice lateral) de 1º nível apontando para páginas — use "a cada N páginas" ou "por intervalos".');
+    const pos = [...inicios.keys()].sort((a, b) => a - b);
+    const g = [];
+    if (pos[0] > 0) g.push({ idx: [...Array(pos[0]).keys()], rotulo: 'Início' });
+    pos.forEach((p, k) => {
+      const fim = k + 1 < pos.length ? pos[k + 1] : total;
+      g.push({ idx: [...Array(fim - p).keys()].map(x => p + x), rotulo: inicios.get(p) });
+    });
+    if (g.length < 2) throw new Error('Os marcadores deste PDF apontam todos para o mesmo trecho — não há o que dividir.');
+    return g;
+  }
+  throw new Error('Modo de divisão desconhecido.');
+}
+
+async function parDividirPdf(bytes, nome, op, aoProgresso) {
+  const src = await __parCarregar(bytes);
+  const total = src.getPageCount();
+  const grupos = await parGruposDivisao(bytes, total, op);
+  const marcadores = await lerMarcadores(bytes);
+  const base = baseName(nome), dig = String(grupos.length).length < 2 ? 2 : String(grupos.length).length;
+  const saidas = [];
+  for (let k = 0; k < grupos.length; k++) {
+    if (aoProgresso) aoProgresso(k + 1, grupos.length);
+    const g = grupos[k];
+    const faixa = comprimirIntervalo(new Set(g.idx));
+    const rot = g.rotulo ? ' - ' + (sanitizarNome(g.rotulo).slice(0, 60) || 'parte') : ' (págs ' + faixa.replace(/, /g, ',') + ')';
+    saidas.push({
+      nome: base + ' - ' + String(k + 1).padStart(dig, '0') + rot + '.pdf',
+      bytes: await parMontarParte(src, g.idx, marcadores),
+      extra: g.idx.length + ' pág.',
+      paginas: g.idx.slice(),
+    });
+  }
+  return saidas;
+}
+
+// Extrair com as opções do Acrobat: cada página em um arquivo e/ou "excluir páginas após extrair" (gera a cópia sem elas)
+async function parExtrairAvancado(bytes, nome, idx, op) {
+  const src = await __parCarregar(bytes);
+  const total = src.getPageCount();
+  const marcadores = await lerMarcadores(bytes);
+  const base = baseName(nome);
+  const saidas = [];
+  if (op.separados) {
+    const dig = Math.max(2, String(Math.max(...idx) + 1).length);
+    for (const i of idx) saidas.push({ nome: base + ' - pág ' + String(i + 1).padStart(dig, '0') + '.pdf', bytes: await parMontarParte(src, [i], marcadores), extra: '1 pág.' });
+  } else {
+    saidas.push({ nome: base + ' - pags ' + sanitizarNome(comprimirIntervalo(new Set(idx))) + '.pdf', bytes: await parMontarParte(src, idx, marcadores), extra: idx.length + ' pág.' });
+  }
+  if (op.excluir) {
+    const fora = new Set(idx);
+    const resto = [...Array(total).keys()].filter(i => !fora.has(i));
+    if (!resto.length) throw new Error('"Excluir as páginas extraídas" deixaria o documento sem nenhuma página.');
+    saidas.push({ nome: base + ' - sem as páginas extraídas.pdf', bytes: await parMontarParte(src, resto, marcadores), extra: resto.length + ' pág. restantes' });
+  }
+  return saidas;
+}
+
+/* ---------- 50 — Remover informações ocultas (Acrobat: "Remover informações ocultas" / "Sanitizar documento") ----------
+   op: { metadados, anexos, js, comentarios, formularios, marcadores, miniaturas, privados, estrutura } (booleans)
+   Sempre: versões anteriores (salvamentos incrementais) e objetos órfãos deixam de existir, porque o arquivo é
+   regravado do zero e passa pela coleta de objetos (parColetarLixo). */
+const PAR_LIMPAR_PADRAO = { metadados: true, anexos: true, js: true, comentarios: true, formularios: false, marcadores: false, miniaturas: true, privados: true, estrutura: false };
+const PAR_ANOTACOES_COMENTARIO = new Set(['Text', 'FreeText', 'Line', 'Square', 'Circle', 'Polygon', 'PolyLine', 'Highlight', 'Underline', 'Squiggly', 'StrikeOut', 'Stamp', 'Caret', 'Ink', 'Popup', 'Sound', 'Redact']);
+
+// opera sobre um PDFDocument já carregado; devolve { itens: {rótulo: quantidade}, assinaturas }
+function parLimparDocumento(doc, op) {
+  op = Object.assign({}, PAR_LIMPAR_PADRAO, op || {});
+  const PL = PDFLib, N = PL.PDFName.of, ctx = doc.context, cat = doc.catalog;
+  const itens = {};
+  const somar = (k, n) => { if (n > 0) itens[k] = (itens[k] || 0) + n; };
+  const todosDicts = () => {
+    const out = [];
+    for (const [, o] of ctx.enumerateIndirectObjects()) {
+      if (o instanceof PL.PDFDict) out.push(o); else if (o instanceof PL.PDFStream) out.push(o.dict);
+    }
+    return out;
+  };
+  const nomes = ctx.lookup(cat.get(N('Names')));
+
+  // assinaturas digitais: o arquivo regravado deixa de ser o documento assinado → campos de assinatura saem
+  let assinaturas = 0;
+  const widgetsAss = new Set();
+  parRemoverCampos(doc, (d, ref) => {
+    const ft = d.get(N('FT'));
+    if (ft && ft.toString() === '/Sig') {
+      if (d.get(N('V'))) assinaturas++;
+      widgetsAss.add(ref.tag);
+      const kids = ctx.lookup(d.get(N('Kids')));
+      if (kids instanceof PL.PDFArray) for (let i = 0; i < kids.size(); i++) { const k = kids.get(i); if (k instanceof PL.PDFRef) widgetsAss.add(k.tag); }
+      return true;
+    }
+    return false;
+  });
+  if (widgetsAss.size) {
+    cat.delete(N('Perms'));
+    for (const p of doc.getPages()) {
+      const an = parAnotacoes(doc, p);
+      const manter = an.filter(a => !(a.ref instanceof PL.PDFRef && widgetsAss.has(a.ref.tag)));
+      if (manter.length !== an.length) parDefinirAnotacoes(doc, p, manter);
+    }
+  }
+
+  if (op.metadados) {
+    if (ctx.trailerInfo.Info) { ctx.trailerInfo.Info = undefined; somar('Informações do documento (autor, título, programa, datas)', 1); }
+    let xmp = 0;
+    for (const d of todosDicts()) if (d.has(N('Metadata'))) { d.delete(N('Metadata')); xmp++; }
+    if (cat.has(N('Metadata'))) { cat.delete(N('Metadata')); xmp++; }
+    somar('Metadados XMP', xmp);
+  }
+  if (op.privados) {
+    let n = 0;
+    for (const d of todosDicts()) for (const k of ['PieceInfo', 'LastModified']) if (d.has(N(k))) { d.delete(N(k)); n++; }
+    if (cat.has(N('PieceInfo'))) { cat.delete(N('PieceInfo')); n++; }
+    somar('Dados privados de aplicativos (PieceInfo)', n);
+  }
+  if (op.anexos) {
+    let n = 0;
+    if (nomes instanceof PL.PDFDict && nomes.has(N('EmbeddedFiles'))) { nomes.delete(N('EmbeddedFiles')); n++; }
+    for (const d of todosDicts()) if (d.has(N('AF'))) { d.delete(N('AF')); n++; }
+    for (const p of doc.getPages()) {
+      const an = parAnotacoes(doc, p);
+      const manter = an.filter(a => a.subtipo !== 'FileAttachment');
+      if (manter.length !== an.length) { n += an.length - manter.length; parDefinirAnotacoes(doc, p, manter); }
+    }
+    somar('Arquivos anexados', n);
+  }
+  if (op.js) {
+    let n = 0;
+    if (nomes instanceof PL.PDFDict && nomes.has(N('JavaScript'))) { nomes.delete(N('JavaScript')); n++; }
+    if (cat.has(N('OpenAction'))) { cat.delete(N('OpenAction')); n++; }
+    // ações de links, marcadores e campos: saem JavaScript, URI, Launch, SubmitForm etc.; "ir para página" (GoTo) fica
+    const limparAcoes = d => {
+      if (d.has(N('AA'))) { d.delete(N('AA')); n++; }
+      if (!d.has(N('A'))) return;
+      const a = ctx.lookup(d.get(N('A')));
+      const s = a instanceof PL.PDFDict ? String(a.get(N('S')) || '') : '';
+      if (s === '/GoTo') { if (a.has(N('Next'))) { a.delete(N('Next')); n++; } }
+      else { d.delete(N('A')); n++; }
+    };
+    for (const d of todosDicts()) if (!(d.get(N('Type')) && d.get(N('Type')).toString() === '/Action')) limparAcoes(d);
+    for (const p of doc.getPages()) {
+      const an = parAnotacoes(doc, p);
+      an.forEach(a => limparAcoes(a.dict)); // anotações podem estar gravadas diretamente no /Annots
+      const manter = an.filter(a => a.subtipo !== 'Link' || a.dict.has(N('Dest')) || a.dict.has(N('A')));
+      if (manter.length !== an.length) { n += an.length - manter.length; parDefinirAnotacoes(doc, p, manter); }
+    }
+    somar('JavaScript, ações automáticas e links externos', n);
+  }
+  if (op.comentarios) {
+    let n = 0;
+    for (const p of doc.getPages()) {
+      const an = parAnotacoes(doc, p);
+      const manter = an.filter(a => !PAR_ANOTACOES_COMENTARIO.has(a.subtipo));
+      if (manter.length !== an.length) { n += an.length - manter.length; parDefinirAnotacoes(doc, p, manter); }
+    }
+    somar('Comentários e marcações', n);
+  }
+  if (op.formularios) {
+    try {
+      const form = doc.getForm();
+      const qtd = form.getFields().length;
+      if (qtd) { form.flatten(); somar('Campos de formulário achatados', qtd); }
+    } catch (e) { itens['Formulário: não foi possível achatar (' + ((e && e.message) || e) + ')'] = 0; }
+  }
+  if (op.marcadores) {
+    if (cat.has(N('Outlines'))) { cat.delete(N('Outlines')); somar('Marcadores', 1); }
+    const pm = cat.get(N('PageMode'));
+    if (pm && pm.toString() === '/UseOutlines') cat.delete(N('PageMode'));
+  }
+  if (op.miniaturas) {
+    let n = 0;
+    for (const p of doc.getPages()) if (p.node.has(N('Thumb'))) { p.node.delete(N('Thumb')); n++; }
+    somar('Miniaturas de página embutidas', n);
+  }
+  if (op.estrutura) {
+    let n = 0;
+    for (const k of ['StructTreeRoot', 'MarkInfo']) if (cat.has(N(k))) { cat.delete(N(k)); n++; }
+    for (const p of doc.getPages()) if (p.node.has(N('StructParents'))) p.node.delete(N('StructParents'));
+    somar('Estrutura de acessibilidade (tags)', n);
+  }
+  return { itens, assinaturas };
+}
+
+async function parLimparPdf(bytes, op) {
+  const doc = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false, throwOnInvalidObject: false });
+  if (doc.isEncrypted) throw new Error('Este PDF é protegido por senha — remova-a na ferramenta "Proteger / remover senha" antes.');
+  const revisoes = (assDeLatin1(bytes).match(/%%EOF/g) || []).length;
+  const r = parLimparDocumento(doc, op);
+  if (typeof doc.flush === 'function') await doc.flush();
+  const orfaos = parColetarLixo(doc);
+  const saida = await doc.save({ useObjectStreams: true, objectsPerTick: Infinity, updateFieldAppearances: false });
+  if (revisoes > 1) r.itens['Versões anteriores do arquivo (salvamentos incrementais)'] = revisoes - 1;
+  if (orfaos) r.itens['Objetos órfãos (conteúdo sem uso que continuava no arquivo)'] = orfaos;
+  return { bytes: saida, itens: r.itens, assinaturas: r.assinaturas };
+}
+
+/* ---------- 60 — Tarjar (Acrobat: "Redigir") ----------
+   Marcas em coordenadas VISUAIS da página (pt, origem no canto superior esquerdo, como o pdf.js mostra com escala 1).
+   Aplicar = remoção REAL: cada página com tarja é renderizada, recebe os retângulos pretos e passa a ser só essa
+   imagem (no mesmo objeto de página, então links e marcadores continuam valendo); o texto fora das tarjas volta por
+   OCR (opcional). Anotações/campos da página, tags de acessibilidade e objetos órfãos são eliminados, e o arquivo
+   final é relido para conferir que nada ficou legível sob as tarjas. */
+
+const PAR_SEM_ACENTO = new RegExp('[' + String.fromCharCode(0x300) + '-' + String.fromCharCode(0x36f) + ']', 'g');
+function parNormalizarChar(ch) { return ch.normalize('NFD').replace(PAR_SEM_ACENTO, '').toLowerCase().charAt(0) || ch.toLowerCase(); }
+function parNormalizar(s) { return String(s || '').normalize('NFD').replace(PAR_SEM_ACENTO, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+
+function parCpfValido(d) {
+  if (!/^\d{11}$/.test(d) || /^(\d)\1{10}$/.test(d)) return false;
+  const dv = n => { let s = 0; for (let i = 0; i < n; i++) s += +d[i] * (n + 1 - i); const r = (s * 10) % 11; return r === 10 ? 0 : r; };
+  return dv(9) === +d[9] && dv(10) === +d[10];
+}
+function parCnpjValido(d) {
+  if (!/^\d{14}$/.test(d) || /^(\d)\1{13}$/.test(d)) return false;
+  const dv = n => { const p = n === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]; let s = 0; for (let i = 0; i < n; i++) s += +d[i] * p[i]; const r = s % 11; return r < 2 ? 0 : 11 - r; };
+  return dv(12) === +d[12] && dv(13) === +d[13];
+}
+// padrões prontos (como os "padrões" da Localizar texto e redigir do Acrobat). Número sem pontuação só conta com dígito verificador válido.
+const PAR_PADROES_TARJA = {
+  cpf: { rotulo: 'CPF', re: () => /(?<![\d.])(\d{3}\s?\.\s?\d{3}\s?\.\s?\d{3}\s?-\s?\d{2}|\d{11})(?![\d])/g, ok: s => /[.-]/.test(s) || parCpfValido(s.replace(/\D/g, '')) },
+  cnpj: { rotulo: 'CNPJ', re: () => /(?<![\d.])(\d{2}\s?\.\s?\d{3}\s?\.\s?\d{3}\s?\/\s?\d{4}\s?-\s?\d{2}|\d{14})(?![\d])/g, ok: s => /[./-]/.test(s) || parCnpjValido(s.replace(/\D/g, '')) },
+  email: { rotulo: 'e-mail', re: () => /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, ok: () => true },
+  telefone: { rotulo: 'telefone', re: () => /(?:\(\d{2}\)\s?|(?<!\d)\d{2}\s)9?\d{4}[-\s]\d{4}(?!\d)/g, ok: () => true },
+};
+
+let __parMedidor = null;
+function __parLarguraTexto(s, familia) {
+  if (!__parMedidor) __parMedidor = document.createElement('canvas').getContext('2d');
+  __parMedidor.font = '100px ' + (familia || 'sans-serif');
+  return __parMedidor.measureText(s).width;
+}
+
+// retângulo visual (pt) de str[k0..k1) de um item de texto do pdf.js
+function parCaixaTrecho(item, k0, k1, vp, familia) {
+  const [a, b, , , e, f] = item.transform;
+  const esc = Math.hypot(a, b) || 1;
+  const ux = a / esc, uy = b / esc, vx = -uy, vy = ux;
+  const fs = item.height || esc;
+  const total = __parLarguraTexto(item.str, familia);
+  const r0 = total > 0 ? __parLarguraTexto(item.str.slice(0, k0), familia) / total : k0 / item.str.length;
+  const r1 = total > 0 ? __parLarguraTexto(item.str.slice(0, k1), familia) / total : k1 / item.str.length;
+  const folga = fs * 0.12;
+  const s0 = item.width * r0 - folga, s1 = item.width * r1 + folga, t0 = -fs * 0.28, t1 = fs * 1.0;
+  const pts = [[s0, t0], [s1, t0], [s0, t1], [s1, t1]].map(([s, t]) => vp.convertToViewportPoint(e + ux * s + vx * t, f + uy * s + vy * t));
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const u = Math.min(...xs), v = Math.min(...ys);
+  return { u, v, w: Math.max(...xs) - u, h: Math.max(...ys) - v };
+}
+
+// texto corrido da página + mapa caractere → (item, posição)
+function __parTextoPagina(tc) {
+  let texto = '', norm = '';
+  const mapa = [];
+  tc.items.forEach((it, i) => {
+    if (!it.str) return;
+    if (texto && !/\s$/.test(texto)) { texto += ' '; norm += ' '; mapa.push(null); }
+    for (let k = 0; k < it.str.length; k++) { texto += it.str[k]; norm += parNormalizarChar(it.str[k]); mapa.push({ i, k }); }
+  });
+  return { texto, norm, mapa };
+}
+
+// procura em todas as páginas; devolve Map(página → [{u,v,w,h,termo,tipo}]) e contagem por tipo
+async function parLocalizarParaTarjar(djs, criterios) {
+  const regras = [];
+  for (const [k, p] of Object.entries(PAR_PADROES_TARJA)) if (criterios[k]) regras.push({ tipo: p.rotulo, re: p.re(), ok: p.ok, campo: 'texto' });
+  for (const t of (criterios.termos || [])) {
+    const n = parNormalizar(t);
+    if (n.length < 2) continue;
+    const esc = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+');
+    regras.push({ tipo: '"' + t + '"', re: new RegExp(esc, 'g'), ok: () => true, campo: 'norm' });
+  }
+  if (!regras.length) throw new Error('Marque ao menos um tipo de dado (CPF, CNPJ...) ou digite um termo para localizar.');
+  const achados = new Map(), contagem = {};
+  let paginasSemTexto = 0;
+  for (let pi = 0; pi < djs.numPages; pi++) {
+    const pg = await djs.getPage(pi + 1);
+    const vp = pg.getViewport({ scale: 1 });
+    const tc = await pg.getTextContent();
+    const { texto, norm, mapa } = __parTextoPagina(tc);
+    if (texto.replace(/\s+/g, '').length < 20) paginasSemTexto++;
+    for (const r of regras) {
+      r.re.lastIndex = 0;
+      const alvo = r.campo === 'norm' ? norm : texto;
+      let m;
+      while ((m = r.re.exec(alvo))) {
+        if (!m[0]) { r.re.lastIndex++; continue; }
+        const trecho = texto.slice(m.index, m.index + m[0].length);
+        if (!r.ok(trecho)) continue;
+        // agrupa os caracteres por item de texto
+        const porItem = new Map();
+        for (let c = m.index; c < m.index + m[0].length; c++) {
+          const ref = mapa[c]; if (!ref) continue;
+          const g = porItem.get(ref.i) || { k0: ref.k, k1: ref.k + 1 };
+          g.k0 = Math.min(g.k0, ref.k); g.k1 = Math.max(g.k1, ref.k + 1);
+          porItem.set(ref.i, g);
+        }
+        const lista = achados.get(pi) || [];
+        for (const [i, g] of porItem) {
+          const it = tc.items[i];
+          const fam = tc.styles && tc.styles[it.fontName] ? tc.styles[it.fontName].fontFamily : 'sans-serif';
+          lista.push(Object.assign(parCaixaTrecho(it, g.k0, g.k1, vp, fam), { termo: trecho, tipo: r.tipo, origem: 'busca' }));
+        }
+        achados.set(pi, lista);
+        contagem[r.tipo] = (contagem[r.tipo] || 0) + 1;
+      }
+    }
+    pg.cleanup();
+  }
+  return { achados, contagem, paginasSemTexto };
+}
+
+// Aplica as tarjas. marcas: Map(página → [{u,v,w,h,termo?}]). op: { ocr, limpar, dpi }
+async function parAplicarTarjas(bytes, marcas, op, card) {
+  op = Object.assign({ ocr: true, limpar: true, dpi: 200 }, op || {});
+  const PL = PDFLib, N = PL.PDFName.of;
+  const doc = await PL.PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false, throwOnInvalidObject: false });
+  if (doc.isEncrypted) throw new Error('Este PDF é protegido por senha — remova-a na ferramenta "Proteger / remover senha" antes.');
+  const pags = [...marcas.keys()].filter(k => (marcas.get(k) || []).length).sort((a, b) => a - b);
+  if (!pags.length) throw new Error('Nenhuma tarja marcada.');
+  const djs = await abrirPdf(bytes.slice());
+  const font = op.ocr ? await doc.embedFont(PL.StandardFonts.Helvetica) : null;
+  const widgets = new Set();
+  let ocrPaginas = 0, tarjas = 0;
+  try {
+    for (let k = 0; k < pags.length; k++) {
+      const pi = pags[k];
+      if (card) { card.checar(); card.status('Tarjando a página ' + (pi + 1) + ' (' + (k + 1) + ' de ' + pags.length + ')...'); card.progress((k + 0.5) / pags.length); }
+      const pg = await djs.getPage(pi + 1);
+      const vp1 = pg.getViewport({ scale: 1 });
+      let s = (op.dpi || 200) / 72;
+      const maior = Math.max(vp1.width, vp1.height);
+      if (maior * s > 4000) s = 4000 / maior;
+      const vp = pg.getViewport({ scale: s });
+      const cv = criarCanvas(Math.max(1, Math.round(vp.width)), Math.max(1, Math.round(vp.height)));
+      const cx = cv.getContext('2d');
+      cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+      // intent 'print' + anotações: o que o leitor imprimiria (inclusive campos preenchidos e comentários visíveis)
+      await pg.render({ canvasContext: cx, viewport: vp, intent: 'print', annotationMode: pdfjsLib.AnnotationMode.ENABLE_STORAGE }).promise;
+      cx.fillStyle = '#000';
+      for (const m of marcas.get(pi)) { cx.fillRect(Math.floor(m.u * s) - 1, Math.floor(m.v * s) - 1, Math.ceil(m.w * s) + 2, Math.ceil(m.h * s) + 2); tarjas++; }
+      const larguraPx = cv.width, alturaPx = cv.height;
+      const jpeg = await canvasParaJpegBytes(cv, 0.88);
+      cv.width = cv.height = 0;
+      pg.cleanup();
+
+      const page = doc.getPage(pi);
+      for (const a of parAnotacoes(doc, page)) if (a.subtipo === 'Widget' && a.ref instanceof PL.PDFRef) widgets.add(a.ref.tag);
+      const node = page.node;
+      for (const chave of ['Annots', 'Thumb', 'PieceInfo', 'Metadata', 'StructParents', 'AA', 'B', 'Group', 'Tabs', 'SeparationInfo',
+        'CropBox', 'BleedBox', 'TrimBox', 'ArtBox', 'VP', 'AF', 'PZ', 'Trans', 'Dur', 'PresSteps', 'UserUnit', 'LastModified']) node.delete(N(chave));
+      const vw = vp1.width, vh = vp1.height;
+      node.set(N('MediaBox'), doc.context.obj([0, 0, vw, vh]));
+      node.set(N('Rotate'), PL.PDFNumber.of(0));
+      node.set(N('Resources'), doc.context.obj({}));
+      node.set(N('Contents'), doc.context.obj([]));
+      const img = await doc.embedJpg(jpeg);
+      page.drawImage(img, { x: 0, y: 0, width: vw, height: vh });
+      if (op.ocr) {
+        let rec = null;
+        try { rec = await reconhecerBlob(new Blob([jpeg], { type: 'image/jpeg' }), card || { status() { }, checar() { } }, 'Refazendo o texto pesquisável da página ' + (pi + 1), s * 72); }
+        catch (e) { if (e && e.cancelado) throw e; }
+        const esc = vw / larguraPx;
+        if (rec && rec.data && desenharCamadaOcr(page, font, rec, (px, py) => [px * esc, (alturaPx - py) * esc], esc)) ocrPaginas++;
+      }
+    }
+  } finally { try { djs.destroy(); } catch (e) { } }
+
+  // campos cujos widgets estavam nas páginas tarjadas: o valor preenchido também é conteúdo → saem do formulário
+  const campos = parRemoverCampos(doc, (d, ref) => ref instanceof PL.PDFRef && widgets.has(ref.tag));
+  // tags de acessibilidade podem guardar o texto tarjado (ActualText / Alt) → saem
+  let tags = false;
+  for (const k of ['StructTreeRoot', 'MarkInfo']) if (doc.catalog.has(N(k))) { doc.catalog.delete(N(k)); tags = true; }
+  if (tags) for (const p of doc.getPages()) p.node.delete(N('StructParents'));
+  const limpeza = op.limpar ? parLimparDocumento(doc, PAR_LIMPAR_PADRAO) : null;
+  if (typeof doc.flush === 'function') await doc.flush();
+  const orfaos = parColetarLixo(doc);
+  const saida = await doc.save({ useObjectStreams: true, objectsPerTick: Infinity, updateFieldAppearances: false });
+  return { bytes: saida, paginas: pags.length, tarjas, ocrPaginas, campos, tags, orfaos, limpeza };
+}
+
+// Conferência do arquivo final: nada legível sob as tarjas (bloqueia) e termos localizados que ainda aparecem (avisa)
+async function parVerificarTarjas(saida, marcas, termos) {
+  const problemas = [], avisos = [];
+  const d = await abrirPdf(saida.slice());
+  try {
+    for (const [pi, lista] of marcas) {
+      if (!lista || !lista.length) continue;
+      const pg = await d.getPage(pi + 1);
+      const vp = pg.getViewport({ scale: 1 });
+      const tc = await pg.getTextContent();
+      for (const it of tc.items) {
+        if (!it.str || !it.str.trim()) continue;
+        const [a, b, , , e, f] = it.transform;
+        const esc = Math.hypot(a, b) || 1, ux = a / esc, uy = b / esc, h = it.height || esc;
+        const [px, py] = vp.convertToViewportPoint(e + ux * it.width / 2 - uy * h * 0.35, f + uy * it.width / 2 + ux * h * 0.35);
+        if (lista.some(m => px >= m.u && px <= m.u + m.w && py >= m.v && py <= m.v + m.h)) problemas.push('página ' + (pi + 1) + ': "' + it.str.slice(0, 40) + '" continua legível sob uma tarja');
+      }
+      pg.cleanup();
+    }
+    const alvos = [...new Set((termos || []).map(parNormalizar).filter(t => t.length >= 2))];
+    if (alvos.length) {
+      const onde = new Map();
+      for (let i = 1; i <= d.numPages; i++) {
+        const pg = await d.getPage(i);
+        const txt = parNormalizar((await pg.getTextContent()).items.map(x => x.str).join(' '));
+        for (const t of alvos) if (txt.includes(t)) onde.set(t, (onde.get(t) || []).concat('pág. ' + i));
+        pg.cleanup();
+      }
+      // fora das páginas: marcadores, metadados, anotações, nomes de anexos…
+      const PL = PDFLib, lib = await PL.PDFDocument.load(saida, { updateMetadata: false, throwOnInvalidObject: false });
+      let fora = '';
+      const visitar = o => {
+        if (o instanceof PL.PDFString || o instanceof PL.PDFHexString) { try { fora += ' ' + o.decodeText(); } catch (e) { } }
+        else if (o instanceof PL.PDFDict) { for (const [, v] of o.entries()) visitar(v); }
+        else if (o instanceof PL.PDFArray) { for (let i = 0; i < o.size(); i++) visitar(o.get(i)); }
+      };
+      for (const [, o] of lib.context.enumerateIndirectObjects()) {
+        if (o instanceof PL.PDFStream) {
+          visitar(o.dict);
+          const tipo = String(o.dict.get(PL.PDFName.of('Type')) || '');
+          if (tipo === '/Metadata' || tipo === '/EmbeddedFile') { try { fora += ' ' + new TextDecoder().decode(PL.decodePDFRawStream(o).decode()); } catch (e) { } }
+        } else visitar(o);
+      }
+      const foraN = parNormalizar(fora);
+      for (const t of alvos) if (foraN.includes(t)) onde.set(t, (onde.get(t) || []).concat('estrutura do arquivo (marcadores, metadados ou anotações)'));
+      for (const [t, locais] of onde) avisos.push('"' + t + '" ainda aparece em: ' + locais.join(', '));
+    }
+  } finally { d.destroy(); }
+  return { problemas, avisos };
+}
+
+/* ---------- 80 — interface das ferramentas de paridade com o Acrobat ---------- */
+function __parNum(v, padrao) { const n = parseFloat(v); return isFinite(n) ? n : padrao; }
+
+/* ---- Numerar / cabeçalho e rodapé ---- */
+function parLerOpcoesNumeracao() {
+  const m = $('#num-modelo').value;
+  return {
+    modelo: m, inicio: Math.max(0, Math.floor(__parNum($('#ed-inicio').value, 1))),
+    digitos: Math.max(1, Math.min(15, Math.floor(__parNum($('#num-digitos').value, m === 'bates' ? 6 : 3)))),
+    prefixo: $('#num-prefixo').value, sufixo: $('#num-sufixo').value, texto: $('#num-texto').value,
+    posicao: $('#num-pos').value, tamanho: Math.max(5, Math.min(48, __parNum($('#num-tam').value, 9))), cor: $('#num-cor').value,
+    paginas: $('#num-paginas').value,
+    margemV: Math.max(0, __parNum($('#num-margem-v').value, 5)) * PAR_MM, margemH: Math.max(0, __parNum($('#num-margem-h').value, 9)) * PAR_MM,
+  };
+}
+function parAtualizarNumeracaoUi(ajustarPadroes) {
+  const m = $('#num-modelo').value;
+  $('#num-linha-serie').classList.toggle('oculto', !['autos', 'bates'].includes(m));
+  $('#num-linha-livre').classList.toggle('oculto', m !== 'livre');
+  if (ajustarPadroes) {
+    if (m === 'autos') { $('#num-prefixo').value = 'fl. '; $('#num-digitos').value = 3; }
+    if (m === 'bates') { $('#num-prefixo').value = ''; $('#num-digitos').value = 6; }
+  }
+}
+
+/* ---- Marca-d'água ---- */
+function parLerOpcoesMarca() {
+  const logo = $('#mc-logo').checked;
+  const imagem = logo ? logoBytesPng() : null;
+  if (logo && !imagem) throw new Error('Não encontrei o logotipo embutido nesta versão da ferramenta.');
+  return {
+    texto: $('#ed-texto').value, tamanho: Math.max(0, __parNum($('#mc-tam').value, 0)), cor: $('#mc-cor').value,
+    opacidade: Math.max(5, Math.min(100, __parNum($('#mc-opac').value, 18))), angulo: __parNum($('#mc-rot').value, 45),
+    posicao: $('#mc-pos').value, camada: $('#mc-camada').value, paginas: $('#mc-paginas').value, imagem,
+  };
+}
+
+/* ---- Dividir ---- */
+function parLerOpcoesDividir() {
+  return { modo: $('#div-modo').value, n: Math.floor(__parNum($('#div-n').value, 0)), intervalos: $('#div-intervalos').value };
+}
+function parAtualizarDividirUi() {
+  const m = $('#div-modo').value;
+  $('#div-linha-n').classList.toggle('oculto', m !== 'paginas');
+  $('#div-linha-int').classList.toggle('oculto', m !== 'intervalos');
+}
+
+/* ---- Senha com permissões ---- */
+function parLerOpcoesProtecao() {
+  return {
+    abrir: $('#senha-abrir').checked, restringir: $('#senha-restringir').checked, senhaPerm: $('#senha-perm').value,
+    imprimir: $('#perm-imprimir').value, alterar: $('#perm-alterar').value, copiar: $('#perm-copiar').checked,
+  };
+}
+function parAtualizarSenhaUi() {
+  const proteger = $('#senha-proteger').checked, abrir = $('#senha-abrir').checked, restr = $('#senha-restringir').checked;
+  $('#senha-abrir-row').classList.toggle('oculto', !proteger);
+  $('#senha-bloco-perm').classList.toggle('oculto', !proteger);
+  $('#senha-perms').classList.toggle('oculto', !(proteger && restr));
+  $('#senha-valor-row').classList.toggle('oculto', proteger && !abrir);
+  $('#senha-confirma-row').classList.toggle('oculto', !(proteger && abrir));
+}
+
+/* ---- Remover informações ocultas ---- */
+function parLerOpcoesLimpeza() {
+  const o = {};
+  for (const k of Object.keys(PAR_LIMPAR_PADRAO)) { const el = document.getElementById('lp-' + k); o[k] = el ? el.checked : PAR_LIMPAR_PADRAO[k]; }
+  return o;
+}
+function __parListaItens(res, itens) {
+  const ul = document.createElement('ul');
+  ul.style.margin = '6px 0 0 18px'; ul.style.fontSize = '.86rem';
+  for (const [k, v] of Object.entries(itens)) { const li = document.createElement('li'); li.textContent = v > 0 ? k + ': ' + v : k; ul.appendChild(li); }
+  if (ul.children.length) res.appendChild(ul);
+}
+async function parExecutarLimpeza(f, op) {
+  const card = makeCard(f.name + ' — remover informações ocultas', f.size);
+  try {
+    card.status('Removendo informações ocultas...');
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    const r = await parLimparPdf(bytes, op);
+    card.done();
+    const res = card.result();
+    const ok = document.createElement('div');
+    ok.className = 'msg-ok';
+    ok.textContent = Object.keys(r.itens).length ? 'Informações ocultas removidas:' : 'Nada dos itens marcados foi encontrado; o arquivo foi regravado limpo.';
+    res.appendChild(ok);
+    __parListaItens(res, r.itens);
+    if (r.assinaturas) {
+      const w = document.createElement('div'); w.className = 'msg-warn';
+      w.textContent = 'O PDF tinha ' + r.assinaturas + ' assinatura(s) digital(is): elas foram retiradas, porque o arquivo limpo já não é o documento assinado. Assine de novo se precisar.';
+      res.appendChild(w);
+    }
+    addDownloadRow(res, baseName(f.name) + ' (limpo).pdf', r.bytes, 'original: ' + fmt(bytes.length));
+    window.__results.push({ file: f.name, action: 'limpar', itens: r.itens, assinaturas: r.assinaturas });
+  } catch (e) { falhaCard(card, e); }
+}
+
+/* ---- Tarjar ---- */
+const TJ = { sessao: 0, f: null, bytes: null, djs: null, pag: 0, marcas: new Map(), escala: 1, dpr: 1, fundo: null, vw: 0, vh: 0, drag: null };
+function parTjTotal() { let n = 0, p = 0; for (const [, l] of TJ.marcas) if (l.length) { n += l.length; p++; } return { n, p }; }
+function parTjContagem() {
+  const { n, p } = parTjTotal();
+  $('#tj-contagem').textContent = n ? n + ' tarja(s) em ' + p + ' página(s)' : 'nenhuma tarja';
+  $('#tj-aplicar').disabled = !n;
+}
+function parTjLimpar() {
+  TJ.sessao++;
+  if (TJ.djs) { try { TJ.djs.destroy(); } catch (e) { } }
+  Object.assign(TJ, { f: null, bytes: null, djs: null, pag: 0, marcas: new Map(), fundo: null, drag: null });
+  $('#tj-painel').classList.add('oculto');
+}
+async function parTjAbrir(f) {
+  parTjLimpar();
+  const sessao = TJ.sessao;
+  const bytes = new Uint8Array(await f.arrayBuffer());
+  let djs;
+  try { djs = await abrirPdf(bytes.slice()); }
+  catch (e) { alert('Não foi possível abrir o PDF: ' + mensagemAmigavel(e)); return; }
+  if (sessao !== TJ.sessao) { djs.destroy(); return; }
+  Object.assign(TJ, { f, bytes, djs, pag: 0, marcas: new Map() });
+  $('#tj-nome').textContent = f.name;
+  $('#tj-nota').textContent = '';
+  $('#tj-painel').classList.remove('oculto');
+  await parTjRender();
+  parTjContagem();
+  $('#tj-painel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+async function parTjRender() {
+  // descartar/trocar de arquivo no meio do desenho não é erro
+  try { await __parTjRender(); }
+  catch (e) { if (!(e && e.name === 'RenderingCancelledException') && TJ.djs) console.warn('[tarjar] prévia da página:', e); }
+}
+async function __parTjRender() {
+  if (!TJ.djs) return;
+  const sessao = TJ.sessao, pagAlvo = TJ.pag;
+  const pg = await TJ.djs.getPage(pagAlvo + 1);
+  const vp1 = pg.getViewport({ scale: 1 });
+  const area = $('#tj-area');
+  TJ.escala = Math.min(1.6, Math.max(280, (area.clientWidth || 800) - 4) / vp1.width);
+  TJ.dpr = Math.min(2, window.devicePixelRatio || 1);
+  const vp = pg.getViewport({ scale: TJ.escala * TJ.dpr });
+  const fundo = criarCanvas(Math.max(1, Math.round(vp.width)), Math.max(1, Math.round(vp.height)));
+  const cx = fundo.getContext('2d');
+  cx.fillStyle = '#fff'; cx.fillRect(0, 0, fundo.width, fundo.height);
+  await pg.render({ canvasContext: cx, viewport: vp, intent: 'print', annotationMode: pdfjsLib.AnnotationMode.ENABLE_STORAGE }).promise;
+  pg.cleanup();
+  if (sessao !== TJ.sessao || pagAlvo !== TJ.pag) return; // trocou de arquivo ou de página durante o desenho
+  Object.assign(TJ, { fundo, vw: vp1.width, vh: vp1.height });
+  const cv = $('#tj-canvas');
+  cv.width = fundo.width; cv.height = fundo.height;
+  cv.style.width = Math.round(vp1.width * TJ.escala) + 'px'; cv.style.height = Math.round(vp1.height * TJ.escala) + 'px';
+  $('#tj-rot').textContent = 'página ' + (TJ.pag + 1) + ' de ' + TJ.djs.numPages;
+  $('#tj-ant').disabled = TJ.pag === 0;
+  $('#tj-prox').disabled = TJ.pag >= TJ.djs.numPages - 1;
+  parTjDesenhar();
+}
+function __parRetDoArrasto(d) {
+  const u = Math.max(0, Math.min(d.x0, d.x1)), v = Math.max(0, Math.min(d.y0, d.y1));
+  return { u, v, w: Math.min(TJ.vw, Math.max(d.x0, d.x1)) - u, h: Math.min(TJ.vh, Math.max(d.y0, d.y1)) - v };
+}
+function parTjDesenhar() {
+  if (!TJ.fundo) return;
+  const cv = $('#tj-canvas'), cx = cv.getContext('2d'), k = TJ.escala * TJ.dpr;
+  cx.drawImage(TJ.fundo, 0, 0);
+  for (const m of (TJ.marcas.get(TJ.pag) || [])) {
+    cx.fillStyle = 'rgba(0,0,0,0.72)';
+    cx.fillRect(m.u * k, m.v * k, m.w * k, m.h * k);
+    cx.strokeStyle = m.origem === 'busca' ? '#d4a017' : '#9c2129';
+    cx.lineWidth = 2 * TJ.dpr;
+    cx.strokeRect(m.u * k, m.v * k, m.w * k, m.h * k);
+  }
+  if (TJ.drag && TJ.drag.ativo) {
+    const r = __parRetDoArrasto(TJ.drag);
+    cx.setLineDash([6 * TJ.dpr, 4 * TJ.dpr]);
+    cx.strokeStyle = '#9c2129'; cx.lineWidth = 2 * TJ.dpr;
+    cx.fillStyle = 'rgba(156,33,41,0.18)';
+    cx.fillRect(r.u * k, r.v * k, r.w * k, r.h * k);
+    cx.strokeRect(r.u * k, r.v * k, r.w * k, r.h * k);
+    cx.setLineDash([]);
+  }
+}
+function __parTjPonto(ev) {
+  const r = $('#tj-canvas').getBoundingClientRect();
+  return { x: (ev.clientX - r.left) / r.width * TJ.vw, y: (ev.clientY - r.top) / r.height * TJ.vh };
+}
+function __parSobreposicao(a, b) {
+  const x = Math.max(0, Math.min(a.u + a.w, b.u + b.w) - Math.max(a.u, b.u)), y = Math.max(0, Math.min(a.v + a.h, b.v + b.h) - Math.max(a.v, b.v));
+  const i = x * y, uni = a.w * a.h + b.w * b.h - i;
+  return uni > 0 ? i / uni : 0;
+}
+async function parTjLocalizar() {
+  if (!TJ.djs) return;
+  const crit = {
+    cpf: $('#tj-cpf').checked, cnpj: $('#tj-cnpj').checked, email: $('#tj-email').checked, telefone: $('#tj-telefone').checked,
+    termos: $('#tj-termos').value.split(/[;\n]/).map(s => s.trim()).filter(Boolean),
+  };
+  const btn = $('#tj-localizar'), nota = $('#tj-nota'), sessao = TJ.sessao;
+  btn.disabled = true;
+  nota.textContent = 'Procurando em ' + TJ.djs.numPages + ' página(s)...';
+  try {
+    const r = await parLocalizarParaTarjar(TJ.djs, crit);
+    if (sessao !== TJ.sessao) return;
+    let novas = 0;
+    for (const [pi, lista] of r.achados) {
+      const atual = TJ.marcas.get(pi) || [];
+      for (const m of lista) if (!atual.some(x => __parSobreposicao(x, m) > 0.8)) { atual.push(m); novas++; }
+      TJ.marcas.set(pi, atual);
+    }
+    const partes = Object.entries(r.contagem).map(([k, v]) => v + ' × ' + k);
+    let txt = partes.length ? 'Encontrado: ' + partes.join(', ') + ' — ' + novas + ' tarja(s) nova(s). Confira cada página antes de aplicar.' : 'Nada encontrado com esses critérios.';
+    if (r.paginasSemTexto) txt += ' ' + r.paginasSemTexto + ' página(s) não têm texto (provavelmente digitalizadas): nelas a busca não enxerga nada — desenhe as tarjas à mão.';
+    nota.textContent = txt;
+    const primeira = [...r.achados.keys()].sort((a, b) => a - b)[0];
+    if (primeira != null && primeira !== TJ.pag) { TJ.pag = primeira; await parTjRender(); } else parTjDesenhar();
+  } catch (e) {
+    nota.textContent = (e && e.message) || String(e);
+  } finally { btn.disabled = false; parTjContagem(); }
+}
+function parTjAplicar() {
+  if (!TJ.djs) return;
+  if (!parTjTotal().n) { alert('Marque ao menos uma tarja: use "Localizar e marcar" ou arraste sobre a página.'); return; }
+  const f = TJ.f, bytes = TJ.bytes;
+  const marcas = new Map([...TJ.marcas].filter(([, l]) => l.length).map(([k, l]) => [k, l.map(m => Object.assign({}, m))]));
+  const termos = [...new Set([...marcas.values()].flat().filter(m => m.termo).map(m => m.termo))];
+  const op = { ocr: $('#tj-ocr').checked, limpar: $('#tj-limpar').checked };
+  parTjLimpar();
+  enfileirar(() => parExecutarTarja(f, bytes, marcas, termos, op)).catch(() => { });
+}
+async function parExecutarTarja(f, bytes, marcas, termos, op) {
+  const card = makeCard(f.name + ' — tarjar', f.size);
+  try {
+    const r = await parAplicarTarjas(bytes, marcas, op, card);
+    card.status('Conferindo o arquivo tarjado...');
+    const v = await parVerificarTarjas(r.bytes, marcas, termos);
+    card.done();
+    const res = card.result();
+    if (v.problemas.length) {
+      const e = document.createElement('div'); e.className = 'msg-err';
+      e.textContent = 'A conferência encontrou texto legível sob as tarjas — o arquivo NÃO foi entregue: ' + v.problemas.slice(0, 5).join('; ');
+      res.appendChild(e);
+      window.__results.push({ file: f.name, action: 'tarjar', erro: v.problemas });
+      return;
+    }
+    const ok = document.createElement('div'); ok.className = 'msg-ok';
+    ok.textContent = r.tarjas + ' tarja(s) aplicada(s) em ' + r.paginas + ' página(s). O conteúdo sob elas foi removido do arquivo, e a conferência não encontrou nada legível sob as tarjas.';
+    res.appendChild(ok);
+    const itens = {};
+    if (op.ocr) itens['Páginas tarjadas com o texto restante pesquisável (OCR)'] = r.ocrPaginas;
+    if (r.campos) itens['Campos de formulário das páginas tarjadas removidos'] = r.campos;
+    if (r.tags) itens['Estrutura de acessibilidade removida (podia guardar o texto tarjado)'] = 0;
+    if (r.limpeza) Object.assign(itens, r.limpeza.itens);
+    if (r.orfaos) itens['Objetos órfãos eliminados (o conteúdo antigo das páginas)'] = r.orfaos;
+    __parListaItens(res, itens);
+    for (const a of v.avisos) { const w = document.createElement('div'); w.className = 'msg-warn'; w.textContent = a + ' — só as ocorrências marcadas foram tarjadas.'; res.appendChild(w); }
+    addDownloadRow(res, baseName(f.name) + ' (tarjado).pdf', r.bytes, r.paginas + ' pág. tarjada(s)');
+    window.__results.push({ file: f.name, action: 'tarjar', tarjas: r.tarjas, paginas: r.paginas, avisos: v.avisos });
+  } catch (e) { falhaCard(card, e); }
+}
+
+(function parLigar() {
+  if (typeof document === 'undefined' || !document.getElementById('sec-tarjar')) return;
+  $('#num-modelo').addEventListener('change', () => parAtualizarNumeracaoUi(true));
+  parAtualizarNumeracaoUi(false);
+  $('#div-modo').addEventListener('change', parAtualizarDividirUi);
+  parAtualizarDividirUi();
+  ['#senha-proteger', '#senha-remover', '#senha-abrir', '#senha-restringir'].forEach(s => $(s).addEventListener('change', parAtualizarSenhaUi));
+  parAtualizarSenhaUi();
+  ligarDropzone('#dz-limpar', '#input-limpar', files => {
+    const op = parLerOpcoesLimpeza();
+    for (const f of files.filter(x => /\.pdf$/i.test(x.name) || x.type === 'application/pdf')) enfileirar(() => parExecutarLimpeza(f, op)).catch(() => { });
+  });
+  ligarDropzone('#dz-tarjar', '#input-tarjar', files => {
+    const f = files.find(x => /\.pdf$/i.test(x.name) || x.type === 'application/pdf');
+    if (f) parTjAbrir(f);
+  });
+  $('#tj-localizar').addEventListener('click', () => parTjLocalizar());
+  $('#tj-limpar-pag').addEventListener('click', () => { TJ.marcas.set(TJ.pag, []); parTjDesenhar(); parTjContagem(); });
+  // os botões e o rótulo acompanham o clique na hora (o desenho da página vem depois)
+  const irPara = d => { if (!TJ.djs) return; const n = Math.max(0, Math.min(TJ.djs.numPages - 1, TJ.pag + d)); if (n === TJ.pag) return; TJ.pag = n;
+    $('#tj-rot').textContent = 'página ' + (n + 1) + ' de ' + TJ.djs.numPages; $('#tj-ant').disabled = n === 0; $('#tj-prox').disabled = n >= TJ.djs.numPages - 1; parTjRender(); };
+  $('#tj-ant').addEventListener('click', () => irPara(-1));
+  $('#tj-prox').addEventListener('click', () => irPara(1));
+  $('#tj-aplicar').addEventListener('click', parTjAplicar);
+  $('#tj-descartar').addEventListener('click', parTjLimpar);
+  const cv = $('#tj-canvas');
+  cv.addEventListener('pointerdown', ev => {
+    if (!TJ.fundo || ev.button > 0) return;
+    const p = __parTjPonto(ev);
+    try { cv.setPointerCapture(ev.pointerId); } catch (e) { }
+    TJ.drag = { x0: p.x, y0: p.y, x1: p.x, y1: p.y, ativo: false };
+    ev.preventDefault();
+  });
+  cv.addEventListener('pointermove', ev => {
+    if (!TJ.drag) return;
+    const p = __parTjPonto(ev);
+    TJ.drag.x1 = p.x; TJ.drag.y1 = p.y;
+    if (!TJ.drag.ativo && Math.hypot(p.x - TJ.drag.x0, p.y - TJ.drag.y0) > 3) TJ.drag.ativo = true;
+    if (TJ.drag.ativo) parTjDesenhar();
+  });
+  cv.addEventListener('pointerup', ev => {
+    const d = TJ.drag; TJ.drag = null;
+    if (!d) return;
+    const lista = TJ.marcas.get(TJ.pag) || [];
+    if (d.ativo) {
+      const r = __parRetDoArrasto(d);
+      if (r.w >= 3 && r.h >= 3) lista.push(Object.assign(r, { origem: 'manual' }));
+    } else {
+      // clique: remove a tarja de cima sob o ponteiro
+      for (let i = lista.length - 1; i >= 0; i--) { const m = lista[i]; if (d.x0 >= m.u && d.x0 <= m.u + m.w && d.y0 >= m.v && d.y0 <= m.v + m.h) { lista.splice(i, 1); break; } }
+    }
+    TJ.marcas.set(TJ.pag, lista);
+    parTjDesenhar(); parTjContagem();
+  });
+  cv.addEventListener('pointercancel', () => { TJ.drag = null; parTjDesenhar(); });
+  window.addEventListener('beforeunload', e => { if (TJ.djs && parTjTotal().n) { e.preventDefault(); e.returnValue = ''; } });
+})();
+
+/* ---------- 90 — autotestes da paridade com o Acrobat (entram na bateria "?teste") ----------
+   Oráculos independentes: posição/ângulo pelo pdf.js, camada por pixel renderizado, permissões como um leitor as aplica,
+   remoção verificada varrendo TODOS os objetos e fluxos decodificados do arquivo. */
+
+// TODO o texto recuperável de um PDF, sem confiar na estrutura: bytes brutos + TODO fluxo encontrado nos bytes
+// (de qualquer revisão, órfão ou não) descomprimido + strings hexadecimais/UTF-16 decodificadas + strings dos objetos
+async function __parTudoTexto(bytes) {
+  const PL = PDFLib;
+  const bruto = assDeLatin1(bytes);
+  let s = bruto;
+  const tmp = await PL.PDFDocument.create();
+  const re = /(?<!end)stream\r?\n/g;
+  let m;
+  while ((m = re.exec(bruto))) {
+    const ini = m.index + m[0].length, fim = bruto.indexOf('endstream', ini);
+    if (fim < 0) break;
+    let corpo = bytes.subarray(ini, fim);
+    while (corpo.length && (corpo[corpo.length - 1] === 0x0a || corpo[corpo.length - 1] === 0x0d)) corpo = corpo.subarray(0, corpo.length - 1);
+    try { s += ' ' + assDeLatin1(PL.decodePDFRawStream(PL.PDFRawStream.of(tmp.context.obj({ Filter: 'FlateDecode' }), corpo)).decode()); } catch (e) { }
+    re.lastIndex = fim;
+  }
+  try {
+    const d = await PL.PDFDocument.load(bytes, { updateMetadata: false, ignoreEncryption: true, throwOnInvalidObject: false });
+    const visitar = o => {
+      if (o instanceof PL.PDFString || o instanceof PL.PDFHexString) { try { s += ' ' + o.decodeText(); } catch (e) { } }
+      else if (o instanceof PL.PDFDict) { for (const [, v] of o.entries()) visitar(v); }
+      else if (o instanceof PL.PDFArray) { for (let i = 0; i < o.size(); i++) visitar(o.get(i)); }
+    };
+    for (const [, o] of d.context.enumerateIndirectObjects()) visitar(o instanceof PL.PDFStream ? o.dict : o);
+  } catch (e) { }
+  // strings hexadecimais em qualquer lugar do que foi reunido (inclusive UTF-16 com BOM)
+  const hexes = s.match(/<[0-9A-Fa-f\s]{4,}>/g) || [];
+  for (const h of hexes) {
+    let hex = h.slice(1, -1).replace(/\s/g, '');
+    if (hex.length % 2) hex += '0';
+    const by = assDeHex(hex);
+    if (by[0] === 0xfe && by[1] === 0xff) { let t = ''; for (let i = 2; i + 1 < by.length; i += 2) t += String.fromCharCode((by[i] << 8) | by[i + 1]); s += ' ' + t; }
+    else s += ' ' + assDeLatin1(by);
+  }
+  return s;
+}
+async function __parRegiao(bytes, pagina, u, v, w, h) {
+  const d = await abrirPdf(bytes.slice());
+  try {
+    const pg = await d.getPage(pagina + 1), s = 2, vp = pg.getViewport({ scale: s });
+    const cv = criarCanvas(Math.round(vp.width), Math.round(vp.height)), cx = cv.getContext('2d');
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+    await pg.render({ canvasContext: cx, viewport: vp, intent: 'print' }).promise;
+    const px = cx.getImageData(Math.round(u * s), Math.round(v * s), Math.max(1, Math.round(w * s)), Math.max(1, Math.round(h * s))).data;
+    let escuros = 0;
+    for (let i = 0; i < px.length; i += 4) if (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11 < 128) escuros++;
+    return escuros / (px.length / 4);
+  } finally { d.destroy(); }
+}
+async function __parTextosPaginas(bytes) {
+  const d = await abrirPdf(bytes.slice());
+  try {
+    const out = [];
+    for (let i = 1; i <= d.numPages; i++) { const pg = await d.getPage(i); out.push((await pg.getTextContent()).items.map(x => x.str).join(' ')); pg.cleanup(); }
+    return out;
+  } finally { d.destroy(); }
+}
+// itens de texto de uma página com centro/ângulo VISUAIS (como aparecem na tela; y para baixo)
+async function __parItensVisuais(bytes, pagina) {
+  const d = await abrirPdf(bytes.slice());
+  try {
+    const pg = await d.getPage(pagina + 1), vp = pg.getViewport({ scale: 1 });
+    const tc = await pg.getTextContent();
+    return {
+      vw: vp.width, vh: vp.height,
+      itens: tc.items.filter(i => i.str && i.str.trim()).map(it => {
+        const [a, b, , , e, f] = it.transform;
+        const esc = Math.hypot(a, b) || 1, ux = a / esc, uy = b / esc, h = esc * 0.72;
+        const [x0, y0] = vp.convertToViewportPoint(e, f);
+        const [cx, cy] = vp.convertToViewportPoint(e + ux * it.width / 2 - uy * h / 2, f + uy * it.width / 2 + ux * h / 2);
+        const [x1, y1] = vp.convertToViewportPoint(e + ux * 10, f + uy * 10);
+        return { str: it.str, x0, y0, cx, cy, angulo: Math.round(Math.atan2(-(y1 - y0), x1 - x0) * 180 / Math.PI), tam: esc };
+      }),
+    };
+  } finally { d.destroy(); }
+}
+async function __parPixel(bytes, pagina, u, v, escala) {
+  const d = await abrirPdf(bytes.slice());
+  try {
+    const pg = await d.getPage(pagina + 1), s = escala || 2, vp = pg.getViewport({ scale: s });
+    const cv = criarCanvas(Math.round(vp.width), Math.round(vp.height)), cx = cv.getContext('2d');
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+    await pg.render({ canvasContext: cx, viewport: vp, intent: 'print' }).promise;
+    const px = cx.getImageData(Math.round(u * s), Math.round(v * s), 1, 1).data;
+    return [px[0], px[1], px[2]];
+  } finally { d.destroy(); }
+}
+async function __parPdfPaginas(n, rotulo, rot) {
+  const PL = PDFLib, d = await PL.PDFDocument.create(), f = await d.embedFont(PL.StandardFonts.Helvetica);
+  for (let i = 0; i < n; i++) {
+    const p = d.addPage([595, 842]);
+    if (rot && rot[i]) p.setRotation(PL.degrees(rot[i]));
+    p.drawText((rotulo || 'Pagina') + ' ' + (i + 1), { x: 60, y: 780, size: 14, font: f });
+  }
+  return { doc: d, font: f };
+}
+
+async function __paridadeCasos(caso, afirmar) {
+  const PL = PDFLib, N = PL.PDFName.of;
+  const quase = (a, b, tol) => Math.abs(a - b) <= tol;
+
+  await caso('Paridade: intervalos de páginas (2-, -3, listas, erros)', async () => {
+    afirmar(parPaginas('', 5).join() === '0,1,2,3,4' && parPaginas('todas', 3).join() === '0,1,2', 'vazio/todas');
+    afirmar(parPaginas('2-', 5).join() === '1,2,3,4', '"2-" deveria ir até o fim: ' + parPaginas('2-', 5));
+    afirmar(parPaginas('-2, 5', 5).join() === '0,1,4', '"-2, 5"');
+    afirmar(parPaginas('3, 1, 3', 5).join() === '0,2', 'únicos e ordenados');
+    let e1 = null; try { parPaginas('7', 5); } catch (e) { e1 = e; }
+    let e2 = null; try { parPaginas('a-b', 5); } catch (e) { e2 = e; }
+    afirmar(e1 && /fora do documento/.test(e1.message) && e2 && /inválidas/.test(e2.message), 'mensagens de erro');
+  });
+
+  await caso('Paridade: numeração — modelos, posição, páginas escolhidas e artefato', async () => {
+    afirmar(parRotuloNumeracao({ modelo: 'autos' }, 45, 50, {}) === 'fl. 045', 'autos');
+    afirmar(parRotuloNumeracao({ modelo: 'bates', prefixo: 'LOTEP', digitos: 6, sufixo: '-A' }, 7, 9, {}) === 'LOTEP000007-A', 'Bates');
+    afirmar(parRotuloNumeracao({ modelo: 'livre', texto: '{arquivo} {data} {n}/{N}' }, 2, 9, { arquivo: 'x', data: '01/02/2026' }) === 'x 01/02/2026 2/9', 'livre');
+    const { doc } = await __parPdfPaginas(5);
+    const r = await parAplicarNumeracao(doc, { modelo: 'pagina', inicio: 1, posicao: 'sup-centro', paginas: '2-', tamanho: 10 });
+    afirmar(r.paginas === 4 && r.primeiro === 'Página 1 de 4' && r.ultimo === 'Página 4 de 4', 'rótulos: ' + r.primeiro + ' … ' + r.ultimo);
+    const b = await doc.save();
+    const t = await __parTextosPaginas(b);
+    afirmar(!/Página/.test(t[0]) && t[1].includes('Página 1 de 4') && t[4].includes('Página 4 de 4'), 'páginas numeradas: ' + t.map(x => x.slice(-14)).join(' | '));
+    const v = await __parItensVisuais(b, 2);
+    const it = v.itens.find(i => i.str.includes('Página 2 de 4'));
+    afirmar(it && quase(it.cx, v.vw / 2, 3) && it.y0 < 40, 'cabeçalho centralizado: centro x=' + (it && it.cx.toFixed(1)) + ' y=' + (it && it.y0.toFixed(1)));
+    const lib = await PL.PDFDocument.load(b);
+    const conts = lib.context.lookup(lib.getPage(1).node.get(N('Contents')));
+    const ultimo = lib.context.lookup(conts.get(conts.size() - 1));
+    afirmar(assDeLatin1(PL.decodePDFRawStream(ultimo).decode()).includes('/Artifact BMC'), 'numeração não foi marcada como artefato de paginação');
+  });
+
+  await caso('Paridade: numeração Bates à esquerda e cabeçalho em página girada (/Rotate 90)', async () => {
+    const { doc } = await __parPdfPaginas(2, 'Pagina', [0, 90]);
+    await parAplicarNumeracao(doc, { modelo: 'bates', prefixo: 'LOTEP', digitos: 6, inicio: 7, posicao: 'inf-esq', margemH: 30, margemV: 20 });
+    const b = await doc.save();
+    const v0 = await __parItensVisuais(b, 0);
+    const i0 = v0.itens.find(i => i.str === 'LOTEP000007');
+    afirmar(i0 && quase(i0.x0, 30, 1.5) && quase(i0.y0, v0.vh - 20, 1.5) && i0.angulo === 0, 'Bates no rodapé esquerdo: ' + JSON.stringify(i0));
+    const v1 = await __parItensVisuais(b, 1);
+    const i1 = v1.itens.find(i => i.str === 'LOTEP000008');
+    afirmar(v1.vw > v1.vh, 'página girada deveria aparecer deitada');
+    afirmar(i1 && i1.angulo === 0 && quase(i1.x0, 30, 1.5) && quase(i1.y0, v1.vh - 20, 1.5), 'na página girada o rótulo deve ficar legível no rodapé esquerdo COMO APARECE: ' + JSON.stringify(i1));
+    const { doc: d2 } = await __parPdfPaginas(1);
+    await parAplicarNumeracao(d2, { modelo: 'livre', texto: 'Ω teste {n}' });
+    const t = await __parTextosPaginas(await d2.save());
+    afirmar(t[0].includes('? teste 1'), 'caractere fora da fonte deveria virar "?" sem quebrar: ' + t[0]);
+  });
+
+  await caso("Paridade: marca-d'água centralizada a 45° (inclusive em página girada) e só nas páginas pedidas", async () => {
+    const { doc } = await __parPdfPaginas(3, 'Pagina', [0, 90, 0]);
+    await parAplicarMarcaDagua(doc, { texto: 'CONFIDENCIAL', angulo: 45, paginas: '1-2' });
+    const b = await doc.save();
+    for (const p of [0, 1]) {
+      const v = await __parItensVisuais(b, p);
+      const it = v.itens.find(i => i.str === 'CONFIDENCIAL');
+      afirmar(it, 'marca ausente na página ' + (p + 1));
+      afirmar(quase(it.cx, v.vw / 2, 6) && quase(it.cy, v.vh / 2, 6), 'página ' + (p + 1) + ': centro visual (' + it.cx.toFixed(1) + ', ' + it.cy.toFixed(1) + ') ≠ centro da página (' + v.vw / 2 + ', ' + v.vh / 2 + ')');
+      afirmar(it.angulo === 45, 'página ' + (p + 1) + ': ângulo visual ' + it.angulo + '° (esperado 45°)');
+    }
+    const t = await __parTextosPaginas(b);
+    afirmar(!t[2].includes('CONFIDENCIAL'), 'a página 3 não foi pedida');
+    const lib = await PL.PDFDocument.load(b);
+    const gs = lib.context.lookup(lib.context.lookup(lib.getPage(0).node.get(N('Resources'))).get(N('ExtGState')));
+    const ok = gs && gs.entries().some(([, g]) => { const d = lib.context.lookup(g); const ca = d && d.get(N('ca')); return ca && quase(ca.asNumber(), 0.18, 0.001); });
+    afirmar(ok, 'opacidade de 18% não aplicada');
+  });
+
+  await caso("Paridade: marca-d'água atrás do conteúdo fica sob um fundo branco; na frente aparece", async () => {
+    const monta = async () => {
+      const d = await PL.PDFDocument.create(); const p = d.addPage([400, 400]);
+      p.drawRectangle({ x: 100, y: 100, width: 200, height: 200, color: PL.rgb(1, 1, 1) });
+      p.drawRectangle({ x: 0, y: 0, width: 400, height: 60, color: PL.rgb(1, 1, 1) });
+      return d;
+    };
+    const atras = await monta(); await parAplicarMarcaDagua(atras, { texto: 'XXXXXXXX', angulo: 0, opacidade: 100, cor: 'preto', camada: 'atras', tamanho: 60 });
+    const frente = await monta(); await parAplicarMarcaDagua(frente, { texto: 'XXXXXXXX', angulo: 0, opacidade: 100, cor: 'preto', camada: 'frente', tamanho: 60 });
+    const ba = await atras.save(), bf = await frente.save();
+    // região 60×30 pt no centro, toda dentro do retângulo branco (100..300)
+    const ra = await __parRegiao(ba, 0, 170, 185, 60, 30), rf = await __parRegiao(bf, 0, 170, 185, 60, 30);
+    afirmar(ra === 0, 'atrás: a marca deveria estar escondida pelo retângulo branco (' + (ra * 100).toFixed(1) + '% de pixels escuros)');
+    afirmar(rf > 0.15, 'na frente: a marca deveria aparecer (' + (rf * 100).toFixed(1) + '% de pixels escuros)');
+  });
+
+  await caso("Paridade: marca-d'água com o logotipo da LOTEP", async () => {
+    const logo = logoBytesPng();
+    afirmar(logo && logo.length > 1000, 'logotipo embutido ausente');
+    const { doc } = await __parPdfPaginas(2);
+    await parAplicarMarcaDagua(doc, { imagem: logo, angulo: 0, opacidade: 25 });
+    const b = await doc.save();
+    const d = await abrirPdf(b.slice());
+    try {
+      for (let i = 1; i <= 2; i++) {
+        const ops = await (await d.getPage(i)).getOperatorList();
+        afirmar(ops.fnArray.includes(pdfjsLib.OPS.paintImageXObject), 'logotipo ausente na página ' + i);
+      }
+    } finally { d.destroy(); }
+    let e = null; try { await parAplicarMarcaDagua((await __parPdfPaginas(1)).doc, { texto: '   ' }); } catch (x) { e = x; }
+    afirmar(e && /Digite o texto/.test(e.message), 'texto vazio deveria ser recusado');
+  });
+
+  await caso('Paridade: senha com permissões — argumentos, validação e o que o leitor aplica (qpdf)', async () => {
+    const a1 = parArgsProtecao({ abrir: true, senha: 'a1', restringir: false });
+    afirmar(a1.join(' ') === '--encrypt a1 a1 256 -- in.pdf out.pdf', 'só abertura: ' + a1.join(' '));
+    const a2 = parArgsProtecao({ abrir: false, restringir: true, senhaPerm: 'p', imprimir: 'low', alterar: 'form', copiar: false });
+    afirmar(a2.slice(0, 4).join('|') === '--encrypt||p|256' && a2.includes('--print=low') && a2.includes('--modify=form') && a2.includes('--assemble=n') && a2.includes('--extract=n'), 'só permissões: ' + a2.join(' '));
+    const erros = [{ abrir: false, restringir: false }, { abrir: true, senha: 'x', restringir: true, senhaPerm: 'x' }, { abrir: true, senha: '' }];
+    for (const op of erros) { let e = null; try { parArgsProtecao(op); } catch (x) { e = x; } afirmar(!!e, 'deveria recusar: ' + JSON.stringify(op)); }
+    const orig = await (await __parPdfPaginas(1)).doc.save();
+    const F = pdfjsLib.PermissionFlag;
+    const casos = [
+      { op: { abrir: true, senha: 'Abre#1', restringir: true, senhaPerm: 'Perm#1', imprimir: 'low', alterar: 'form', copiar: false }, sim: [F.PRINT, F.FILL_INTERACTIVE_FORMS], nao: [F.PRINT_HIGH_QUALITY, F.COPY, F.MODIFY_ANNOTATIONS, F.ASSEMBLE, F.MODIFY_CONTENTS] },
+      { op: { abrir: false, restringir: true, senhaPerm: 'Perm#2', imprimir: 'none', alterar: 'assembly', copiar: true }, sim: [F.ASSEMBLE, F.COPY], nao: [F.PRINT, F.FILL_INTERACTIVE_FORMS, F.MODIFY_CONTENTS] },
+      { op: { abrir: false, restringir: true, senhaPerm: 'Perm#3', imprimir: 'full', alterar: 'all', copiar: false }, sim: [F.PRINT, F.PRINT_HIGH_QUALITY, F.MODIFY_CONTENTS, F.MODIFY_ANNOTATIONS, F.FILL_INTERACTIVE_FORMS], nao: [F.ASSEMBLE, F.COPY] },
+      { op: { abrir: false, restringir: true, senhaPerm: 'Perm#4', imprimir: 'full', alterar: 'annotate', copiar: false }, sim: [F.MODIFY_ANNOTATIONS, F.FILL_INTERACTIVE_FORMS], nao: [F.ASSEMBLE, F.MODIFY_CONTENTS] },
+    ];
+    for (const c of casos) {
+      const saida = await rodarQpdf(parArgsProtecao(c.op), orig);
+      await parConferirProtecao(saida, c.op);
+      const perms = await parPermissoesEfetivas(saida, c.op.abrir ? c.op.senha : '');
+      afirmar(perms, 'sem permissões lidas: ' + c.op.alterar);
+      for (const f of c.sim) afirmar(perms.has(f), c.op.alterar + '/' + c.op.imprimir + ': deveria permitir o bit ' + f);
+      for (const f of c.nao) afirmar(!perms.has(f), c.op.alterar + '/' + c.op.imprimir + ': NÃO deveria permitir o bit ' + f);
+    }
+    // a conferência precisa acusar quando o arquivo não tem o que foi pedido
+    const soAbrir = await rodarQpdf(parArgsProtecao({ abrir: true, senha: 's1' }), orig);
+    let e = null; try { await parConferirProtecao(soAbrir, { abrir: true, senha: 's1', restringir: true, senhaPerm: 'x', imprimir: 'none', alterar: 'none' }); } catch (x) { e = x; }
+    afirmar(e && /Conferência/.test(e.message), 'a conferência deveria recusar um arquivo sem as restrições pedidas');
+  });
+
+  await caso('Paridade: dividir a cada N páginas, por intervalos e por marcadores (com formulário)', async () => {
+    const { doc, font } = await __parPdfPaginas(10);
+    const form = doc.getForm();
+    const campo = form.createTextField('campo.parte2'); campo.setText('VALOR-P5'); campo.addToPage(doc.getPage(4), { x: 60, y: 600, width: 200, height: 20, font });
+    escreverMarcadores(doc, [{ titulo: 'Capitulo A', pagina: 0, filhos: [] }, { titulo: 'Capitulo B', pagina: 4, filhos: [{ titulo: 'Secao B.1', pagina: 5, filhos: [] }] }, { titulo: 'Capitulo C', pagina: 7, filhos: [] }], i => doc.getPage(i).ref);
+    const b = await doc.save();
+    const n3 = await parDividirPdf(b, 'Processo.pdf', { modo: 'paginas', n: 3 });
+    afirmar(n3.length === 4 && n3.map(s => s.paginas.length).join() === '3,3,3,1', 'a cada 3: ' + n3.map(s => s.paginas.length));
+    afirmar(n3[0].nome === 'Processo - 01 (págs 1-3).pdf' && n3[3].nome === 'Processo - 04 (págs 10).pdf', 'nomes: ' + n3.map(s => s.nome).join(' | '));
+    const t2 = await __parTextosPaginas(n3[1].bytes);
+    afirmar(t2.join('|') === 'Pagina 4|Pagina 5|Pagina 6', 'conteúdo da parte 2: ' + t2.join('|'));
+    const p2 = await PL.PDFDocument.load(n3[1].bytes);
+    afirmar(p2.getForm().getFields().map(f => f.getName()).join() === 'campo.parte2', 'o campo da página 5 deveria ir junto com a parte 2');
+    const iv = await parDividirPdf(b, 'P.pdf', { modo: 'intervalos', intervalos: '1-2; 9-' });
+    afirmar(iv.length === 2 && iv[0].paginas.join() === '0,1' && iv[1].paginas.join() === '8,9', 'intervalos');
+    const mk = await parDividirPdf(b, 'P.pdf', { modo: 'marcadores' });
+    afirmar(mk.length === 3 && mk.map(s => s.paginas.length).join() === '4,3,3', 'por marcadores: ' + mk.map(s => s.paginas.length));
+    afirmar(mk[1].nome === 'P - 02 - Capitulo B.pdf', 'nome pelo marcador: ' + mk[1].nome);
+    const mB = await lerMarcadores(mk[1].bytes);
+    afirmar(mB.length === 1 && mB[0].titulo === 'Capitulo B' && mB[0].pagina === 0 && mB[0].filhos[0] && mB[0].filhos[0].pagina === 1, 'marcadores da parte B: ' + JSON.stringify(mB));
+    for (const [op, rx] of [[{ modo: 'paginas', n: 10 }, /não há o que dividir/], [{ modo: 'intervalos', intervalos: '' }, /Informe os intervalos/], [{ modo: 'intervalos', intervalos: '1-99' }, /fora do documento/]]) {
+      let e = null; try { await parDividirPdf(b, 'P.pdf', op); } catch (x) { e = x; }
+      afirmar(e && rx.test(e.message), 'deveria recusar ' + JSON.stringify(op) + ': ' + (e && e.message));
+    }
+    let e = null; try { await parDividirPdf(await (await __parPdfPaginas(3)).doc.save(), 'S.pdf', { modo: 'marcadores' }); } catch (x) { e = x; }
+    afirmar(e && /não tem marcadores/.test(e.message), 'PDF sem marcadores');
+  });
+
+  await caso('Paridade: extrair em arquivos separados e "excluir as páginas extraídas"', async () => {
+    const b = await (await __parPdfPaginas(5)).doc.save();
+    const s = await parExtrairAvancado(b, 'Doc.pdf', [1, 3], { separados: true, excluir: true });
+    afirmar(s.length === 3, 'esperava 2 páginas separadas + o restante: ' + s.length);
+    afirmar((await __parTextosPaginas(s[0].bytes)).join() === 'Pagina 2' && (await __parTextosPaginas(s[1].bytes)).join() === 'Pagina 4', 'páginas separadas');
+    afirmar((await __parTextosPaginas(s[2].bytes)).join('|') === 'Pagina 1|Pagina 3|Pagina 5', 'restante sem as páginas extraídas');
+    let e = null; try { await parExtrairAvancado(b, 'Doc.pdf', [0, 1, 2, 3, 4], { excluir: true }); } catch (x) { e = x; }
+    afirmar(e && /sem nenhuma página/.test(e.message), 'excluir todas deveria ser recusado');
+  });
+
+  await caso('Paridade: remover informações ocultas — nada dos segredos plantados sobra no arquivo', async () => {
+    const { doc, font } = await __parPdfPaginas(2);
+    const ctx = doc.context, p1 = doc.getPage(0), p2 = doc.getPage(1);
+    p1.drawText('Corpo visivel do documento', { x: 60, y: 700, size: 12, font });
+    doc.setAuthor('AUTOR-SECRETO'); doc.setTitle('TITULO-SECRETO');
+    doc.catalog.set(N('Metadata'), ctx.register(ctx.stream('<x:xmpmeta>XMP-SECRETO</x:xmpmeta>', { Type: 'Metadata', Subtype: 'XML' })));
+    await doc.attach(assTxt('ANEXO-SECRETO'), 'anexo.txt', { mimeType: 'text/plain' });
+    const js = ctx.register(ctx.obj({ S: 'JavaScript', JS: PL.PDFString.of('app.alert("JS-SECRETO")') }));
+    doc.catalog.set(N('Names'), ctx.obj({ JavaScript: ctx.obj({ Names: [PL.PDFString.of('x'), js] }) }));
+    doc.catalog.set(N('OpenAction'), ctx.obj({ S: 'JavaScript', JS: PL.PDFString.of('OPENACTION-SECRETO') }));
+    const anot = [
+      ctx.register(ctx.obj({ Type: 'Annot', Subtype: 'Text', Rect: [10, 10, 30, 30], Contents: PL.PDFString.of('COMENTARIO-SECRETO') })),
+      ctx.register(ctx.obj({ Type: 'Annot', Subtype: 'Link', Rect: [40, 10, 90, 30], A: ctx.obj({ S: 'URI', URI: PL.PDFString.of('https://exemplo.com/URI-SECRETA') }) })),
+      ctx.register(ctx.obj({ Type: 'Annot', Subtype: 'Link', Rect: [100, 10, 150, 30], Dest: [p2.ref, 'Fit'] })),
+    ];
+    p1.node.set(N('Annots'), ctx.obj(anot));
+    p1.node.set(N('Thumb'), ctx.register(ctx.flateStream('THUMB-SECRETO')));
+    p1.node.set(N('PieceInfo'), ctx.obj({ Illustrator: ctx.obj({ Private: PL.PDFString.of('PIECE-SECRETO') }) }));
+    ctx.register(ctx.flateStream('ORFAO-SECRETO'));
+    let b = await doc.save({ useObjectStreams: false });
+    // salvamento incremental: o autor antigo fica guardado na 1ª revisão
+    const x = assUltimoXref(b), info = doc.context.trailerInfo.Info, raiz = doc.context.trailerInfo.Root;
+    let upd = '\n' + info.objectNumber + ' 0 obj\n<< /Author (AUTOR-NOVO) >>\nendobj\n';
+    const offObj = b.length + 1, offXref = b.length + upd.length;
+    upd += 'xref\n0 1\n0000000000 65535 f \n' + info.objectNumber + ' 1\n' + String(offObj).padStart(10, '0') + ' 00000 n \ntrailer\n<< /Size ' + x.size + ' /Root ' + raiz.objectNumber + ' 0 R /Info ' + info.objectNumber + ' 0 R /Prev ' + x.off + ' >>\nstartxref\n' + offXref + '\n%%EOF\n';
+    b = assJunta([b, assTxt(upd)]);
+    const segredos = ['AUTOR-SECRETO', 'TITULO-SECRETO', 'AUTOR-NOVO', 'XMP-SECRETO', 'ANEXO-SECRETO', 'JS-SECRETO', 'OPENACTION-SECRETO', 'COMENTARIO-SECRETO', 'URI-SECRETA', 'THUMB-SECRETO', 'PIECE-SECRETO', 'ORFAO-SECRETO'];
+    const antes = await __parTudoTexto(b);
+    afirmar(segredos.every(s => antes.includes(s)), 'o PDF de teste deveria conter todos os segredos: faltam ' + segredos.filter(s => !antes.includes(s)).join(', '));
+    const r = await parLimparPdf(b, PAR_LIMPAR_PADRAO);
+    const depois = await __parTudoTexto(r.bytes);
+    const sobrou = segredos.filter(s => depois.includes(s));
+    afirmar(!sobrou.length, 'sobrou no arquivo limpo: ' + sobrou.join(', '));
+    afirmar((await __parTextosPaginas(r.bytes))[0].includes('Corpo visivel do documento'), 'o conteúdo visível não pode ser afetado');
+    const lib = await PL.PDFDocument.load(r.bytes);
+    const an = parAnotacoes(lib, lib.getPage(0));
+    afirmar(an.length === 1 && an[0].subtipo === 'Link' && an[0].dict.has(N('Dest')), 'o link interno (ir para página) deveria ficar: ' + an.map(a => a.subtipo));
+    afirmar(r.itens['Versões anteriores do arquivo (salvamentos incrementais)'] === 1, 'versões anteriores não relatadas: ' + JSON.stringify(r.itens));
+    const parcial = await parLimparPdf(b, { metadados: false, anexos: false, js: false, comentarios: false, miniaturas: false, privados: false });
+    const tp = await __parTudoTexto(parcial.bytes);
+    afirmar(tp.includes('AUTOR-NOVO') && tp.includes('COMENTARIO-SECRETO') && !tp.includes('AUTOR-SECRETO') && !tp.includes('ORFAO-SECRETO'), 'com as opções desmarcadas os itens ficam; revisões antigas e órfãos saem sempre');
+  });
+
+  await caso('Paridade: remover informações ocultas retira assinaturas e achata formulário', async () => {
+    const { doc, font } = await __parPdfPaginas(1);
+    const c = doc.getForm().createTextField('nome'); c.setText('PREENCHIDO-XYZ'); c.addToPage(doc.getPage(0), { x: 60, y: 600, width: 220, height: 22, font });
+    const base = await doc.save();
+    const prov = await assProvedorTeste('RSA');
+    const assinado = (await assAssinarPdfs([{ nome: 'a.pdf', bytes: base }], prov, { linhas: [{ t: 'teste' }], visivel: { pagina: 0, u: 300, v: 700, w: 200, h: 60 } }))[0].bytes;
+    afirmar((await assValidarPdf(assinado)).assinaturas.length === 1, 'PDF de teste deveria estar assinado');
+    const r = await parLimparPdf(assinado, Object.assign({}, PAR_LIMPAR_PADRAO, { formularios: true }));
+    afirmar(r.assinaturas === 1, 'assinatura não relatada');
+    const v = await assValidarPdf(r.bytes);
+    afirmar(v.assinaturas.length === 0 && !assDeLatin1(r.bytes).includes('/ByteRange'), 'a assinatura deveria sair do arquivo limpo');
+    const lib = await PL.PDFDocument.load(r.bytes);
+    afirmar(lib.getForm().getFields().length === 0, 'campos deveriam ter sido achatados');
+    afirmar((await __parTextosPaginas(r.bytes))[0].includes('PREENCHIDO-XYZ'), 'o valor preenchido deveria continuar visível na página');
+  });
+
+  // PDF de teste da tarja: dados pessoais em texto, página sem pontuação, página girada, campo e marcador
+  const __tarjaFonte = async () => {
+    const { doc, font } = await __parPdfPaginas(0);
+    const p1 = doc.addPage([595, 842]);
+    p1.drawText('Nome: Fulano de Tal da Silva', { x: 60, y: 760, size: 12, font });
+    p1.drawText('CPF: 123.456.789-09', { x: 60, y: 740, size: 12, font });
+    p1.drawText('E-mail: fulano@exemplo.com', { x: 60, y: 720, size: 12, font });
+    p1.drawText('Texto publico que deve continuar', { x: 60, y: 690, size: 12, font });
+    const c = doc.getForm().createTextField('dado'); c.setText('VALOR-SECRETO-CAMPO'); c.addToPage(p1, { x: 60, y: 600, width: 220, height: 22, font });
+    const p2 = doc.addPage([595, 842]);
+    p2.drawText('Referencia ao CPF 12345678909 sem pontuacao', { x: 60, y: 760, size: 12, font });
+    p2.drawText('Numero qualquer 12345678900 que nao e CPF', { x: 60, y: 740, size: 12, font });
+    const p3 = doc.addPage([595, 842]); p3.setRotation(PL.degrees(90));
+    p3.drawText('CPF: 123.456.789-09', { x: 60, y: 500, size: 12, font });
+    const p4 = doc.addPage([595, 842]);
+    p4.drawText('Pagina sem dados pessoais', { x: 60, y: 760, size: 12, font });
+    doc.setTitle('Processo de Fulano de Tal da Silva CPF 123.456.789-09');
+    escreverMarcadores(doc, [{ titulo: 'Dados de Fulano de Tal da Silva', pagina: 0, filhos: [] }], i => doc.getPage(i).ref);
+    return { bytes: await doc.save(), font };
+  };
+
+  await caso('Paridade: tarjar — localizar CPF (com dígito verificador), e-mail e nome sem acento/maiúscula', async () => {
+    const { bytes, font } = await __tarjaFonte();
+    const d = await abrirPdf(bytes.slice());
+    let r;
+    try { r = await parLocalizarParaTarjar(d, { cpf: true, email: true, termos: ['fulano de tal da silva'] }); } finally { d.destroy(); }
+    afirmar(r.contagem.CPF === 3, 'CPFs encontrados: ' + r.contagem.CPF + ' (esperado 3: formatado, sem pontuação e na página girada; 12345678900 tem DV inválido)');
+    afirmar(r.contagem['e-mail'] === 1 && r.contagem['"fulano de tal da silva"'] === 1, 'contagem: ' + JSON.stringify(r.contagem));
+    const cpf = r.achados.get(0).find(m => m.tipo === 'CPF');
+    const x0 = 60 + font.widthOfTextAtSize('CPF: ', 12), x1 = 60 + font.widthOfTextAtSize('CPF: 123.456.789-09', 12);
+    afirmar(quase(cpf.u, x0 - 1.4, 2.5) && quase(cpf.u + cpf.w, x1 + 1.4, 2.5), 'caixa do CPF [' + cpf.u.toFixed(1) + '–' + (cpf.u + cpf.w).toFixed(1) + '] deveria cobrir só os números [' + x0.toFixed(1) + '–' + x1.toFixed(1) + ']');
+    afirmar(cpf.v < 842 - 740 - 8 && cpf.v + cpf.h > 842 - 740 + 2, 'altura da caixa do CPF');
+    const g = r.achados.get(2).find(m => m.tipo === 'CPF');
+    afirmar(g && g.h > g.w, 'na página girada o texto aparece na vertical: a caixa deveria ser alta e estreita (' + (g && [g.w.toFixed(1), g.h.toFixed(1)]) + ')');
+  });
+
+  await caso('Paridade: tarjar — remoção real, conferência e o que continua no arquivo', async () => {
+    const { bytes } = await __tarjaFonte();
+    const d = await abrirPdf(bytes.slice());
+    let achados;
+    try { achados = (await parLocalizarParaTarjar(d, { cpf: true, email: true, termos: ['fulano de tal da silva'] })).achados; } finally { d.destroy(); }
+    const termos = [...new Set([...achados.values()].flat().map(m => m.termo))];
+    const segredos = ['123.456.789-09', '12345678909', 'fulano@exemplo.com', 'VALOR-SECRETO-CAMPO'];
+    const noOriginal = await __parTudoTexto(bytes);
+    afirmar(segredos.every(s => noOriginal.includes(s)), 'o oráculo precisa enxergar os dados no original: faltam ' + segredos.filter(s => !noOriginal.includes(s)).join(', '));
+    // a conferência precisa acusar texto sob tarja (roda no ORIGINAL, que não foi tarjado)
+    const falso = await parVerificarTarjas(bytes, achados, termos);
+    afirmar(falso.problemas.length >= 3, 'a conferência não acusou os dados ainda legíveis no original: ' + falso.problemas.length);
+    const r = await parAplicarTarjas(bytes, achados, { ocr: false, limpar: true });
+    const v = await parVerificarTarjas(r.bytes, achados, termos);
+    afirmar(!v.problemas.length, 'texto legível sob tarja: ' + v.problemas.join('; '));
+    afirmar(v.avisos.some(a => /fulano de tal da silva/.test(a) && /estrutura/.test(a)), 'o nome no marcador deveria ser avisado: ' + v.avisos.join(' | '));
+    const tudo = await __parTudoTexto(r.bytes);
+    const vazou = segredos.filter(s => tudo.includes(s));
+    afirmar(!vazou.length, 'vazou no arquivo: ' + vazou.join(', '));
+    const t = await __parTextosPaginas(r.bytes);
+    afirmar(t.length === 4 && !t[0].trim() && !t[2].trim() && t[3].includes('Pagina sem dados pessoais'), 'páginas tarjadas sem texto (OCR desligado) e a página sem tarja intacta: ' + JSON.stringify(t));
+    const cpf = achados.get(0).find(m => m.tipo === 'CPF');
+    const px = await __parPixel(r.bytes, 0, cpf.u + cpf.w / 2, cpf.v + cpf.h / 2);
+    afirmar(px[0] < 30 && px[1] < 30 && px[2] < 30, 'a tarja deveria estar preta: ' + px);
+    const lib = await PL.PDFDocument.load(r.bytes);
+    const p3 = lib.getPage(2);
+    afirmar(p3.getRotation().angle === 0 && Math.round(p3.getWidth()) === 842 && Math.round(p3.getHeight()) === 595, 'página girada deveria virar imagem deitada 842×595 sem /Rotate');
+    afirmar(lib.getForm().getFields().length === 0 && !lib.catalog.has(N('StructTreeRoot')), 'campo da página tarjada deveria sair');
+    const mk = await lerMarcadores(r.bytes);
+    afirmar(mk.length === 1 && mk[0].pagina === 0, 'o marcador deveria continuar apontando para a página 1: ' + JSON.stringify(mk));
+    let e = null; try { await parAplicarTarjas(bytes, new Map(), {}); } catch (x) { e = x; }
+    afirmar(e && /Nenhuma tarja/.test(e.message), 'sem tarjas deveria ser recusado');
+  });
+
+  await caso('Paridade: tarjar com OCR mantém pesquisável o texto fora das tarjas (etapa lenta)', async () => {
+    const { bytes } = await __tarjaFonte();
+    const d = await abrirPdf(bytes.slice());
+    let achados;
+    try { achados = (await parLocalizarParaTarjar(d, { cpf: true })).achados; } finally { d.destroy(); }
+    const so1 = new Map([[0, achados.get(0)]]);
+    const r = await parAplicarTarjas(bytes, so1, { ocr: true, limpar: false });
+    const t = (await __parTextosPaginas(r.bytes))[0];
+    afirmar(r.ocrPaginas === 1 && /publico/i.test(t) && /Fulano/i.test(t), 'o texto fora da tarja deveria voltar pelo OCR: "' + t.slice(0, 120) + '"');
+    afirmar(!/456/.test(t), 'o OCR não pode reler o CPF tarjado: "' + t.slice(0, 160) + '"');
+    const v = await parVerificarTarjas(r.bytes, so1, ['123.456.789-09']);
+    afirmar(!v.problemas.length, 'conferência: ' + v.problemas.join('; '));
   });
 }
 
