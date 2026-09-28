@@ -339,6 +339,25 @@
   .msg-warn { color: var(--warn); font-size: .84rem; margin-top: 6px; }
   .msg-err { color: var(--err); font-weight: 600; font-size: .89rem; }
   .note { color: var(--faint); font-size: .8rem; margin-top: 5px; }
+  /* assinador digital */
+  .ass-lista { display: grid; gap: 8px; margin-top: 10px; }
+  .ass-cert { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: var(--panel); }
+  .ass-cert:hover { border-color: var(--accent-border); }
+  .ass-cert.sel { border-color: var(--btn-bg); background: var(--accent-soft); }
+  .ass-cert input { margin-top: 3px; }
+  .ass-cert .ass-nome { font-weight: 600; }
+  .ass-cert .ass-det { color: var(--muted); font-size: .82rem; margin-top: 2px; }
+  .ass-cert .ass-tag { display: inline-block; font-size: .72rem; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--accent-border); color: var(--accent-text); margin-left: 6px; font-weight: 600; }
+  .ass-cert.vencido { opacity: .6; }
+  .ass-aviso { border-left: 3px solid var(--warn); padding: 8px 12px; background: var(--accent-soft); border-radius: 0 6px 6px 0; font-size: .86rem; margin-top: 10px; }
+  .ass-aviso ol { margin: 6px 0 0 18px; padding: 0; }
+  .ass-preview { margin-top: 12px; }
+  .ass-preview .ass-pag-nav { display: flex; gap: 8px; align-items: center; font-size: .86rem; margin-bottom: 6px; flex-wrap: wrap; }
+  .ass-preview canvas { max-width: 100%; border: 1px solid var(--border); cursor: crosshair; display: block; }
+  .ass-sig { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-top: 8px; }
+  .ass-sig .ass-st { font-weight: 700; }
+  .ass-sig .ass-st.ok { color: var(--ok); } .ass-sig .ass-st.meio { color: var(--warn); } .ass-sig .ass-st.ruim { color: var(--err); }
+  .ass-sig ul { margin: 6px 0 0 18px; padding: 0; font-size: .86rem; }
   a.link-recibo { color: var(--faint); font-size: .8rem; margin-top: 6px; display: inline-block; cursor: pointer; text-decoration: underline; }
   a.link-recibo:hover { color: var(--accent-text); }
   .dl-row {
@@ -477,6 +496,16 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v3"/></svg>
         <strong>Proteger / remover senha</strong>
         <small>Criptografia AES-256</small>
+      </button>
+      <button type="button" class="fcard" data-ferramenta="assinar">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16"/><path d="M6 16l9.5-9.5a2.1 2.1 0 0 1 3 3L9 19H6z"/><path d="m14 8 3 3"/></svg>
+        <strong>Assinar com certificado</strong>
+        <small>ICP-Brasil: A1, token A3 ou nuvem</small>
+      </button>
+      <button type="button" class="fcard" data-ferramenta="validar">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="m9 12 2 2 4-4"/></svg>
+        <strong>Validar assinaturas</strong>
+        <small>Quem assinou, quando e se o PDF foi alterado</small>
       </button>
       <button type="button" class="fcard" data-ferramenta="contador">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h2M4 12h2M4 18h2"/><path d="M9 6h11M9 12h11M9 18h11"/></svg>
@@ -727,6 +756,81 @@
     </div>
   </section>
 
+  <!-- ============ ASSINAR COM CERTIFICADO DIGITAL ============ -->
+  <section id="sec-assinar" data-sec="assinar" class="oculto">
+    <div class="panel">
+      <fieldset>
+        <legend>1. Certificado digital</legend>
+        <div class="opt-row">
+          <input type="radio" name="ass-origem" id="ass-origem-win" value="win" checked>
+          <label for="ass-origem-win">Instalado neste computador
+            <small>A1 instalado, token/cartão A3 ou certificado em nuvem (VIDaaS, BirdID, SafeID, SerproID…) pelo aplicativo do provedor — usa o "Assinador GTFISC"</small></label>
+        </div>
+        <div class="opt-row">
+          <input type="radio" name="ass-origem" id="ass-origem-pfx" value="pfx">
+          <label for="ass-origem-pfx">Arquivo do certificado A1 (.pfx / .p12)
+            <small>Aberto só neste navegador, com a senha do certificado — nada é enviado</small></label>
+        </div>
+        <div id="ass-painel-win">
+          <div class="mini-form"><button type="button" id="ass-buscar" class="btn">Buscar meus certificados</button><span id="ass-status-local" class="note" style="margin-top:0"></span></div>
+          <div id="ass-lista" class="ass-lista"></div>
+        </div>
+        <div id="ass-painel-pfx" class="oculto">
+          <div class="mini-form"><label for="ass-pfx">Arquivo:</label><input type="file" id="ass-pfx" accept=".pfx,.p12,application/x-pkcs12"></div>
+          <div class="mini-form"><label for="ass-pfx-senha">Senha do certificado:</label><input type="password" id="ass-pfx-senha" size="22" autocomplete="off"><button type="button" id="ass-pfx-abrir" class="btn">Abrir</button></div>
+          <div id="ass-pfx-info" class="ass-lista"></div>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>2. Aparência e opções</legend>
+        <div class="opt-row"><input type="checkbox" id="ass-visivel" checked><label for="ass-visivel">Assinatura visível (carimbo no documento)</label></div>
+        <div class="mini-form"><label for="ass-posicao">Posição do carimbo:</label>
+          <select id="ass-posicao">
+            <option value="auto" selected>Automática — espaço livre no fim da última página</option>
+            <option value="inf-dir">Última página — canto inferior direito</option>
+            <option value="inf-esq">Última página — canto inferior esquerdo</option>
+            <option value="sup-dir">Primeira página — canto superior direito</option>
+            <option value="escolher">Escolher na página (clique no lugar)</option>
+          </select></div>
+        <div class="mini-form"><label for="ass-motivo">Motivo:</label><input type="text" id="ass-motivo" size="34" maxlength="120" placeholder="opcional — ex.: Aprovo este documento"></div>
+        <div class="mini-form"><label for="ass-local">Local:</label><input type="text" id="ass-local" size="34" maxlength="80" placeholder="opcional — ex.: João Pessoa - PB"></div>
+        <div class="opt-row"><input type="checkbox" id="ass-logo"><label for="ass-logo">Incluir o logotipo da LOTEP no carimbo</label></div>
+        <div class="opt-row"><input type="checkbox" id="ass-icp" checked><label for="ass-icp">Padrão ICP-Brasil (política PAdES AD-RB v1.3)
+          <small>Recomendado: é o formato que o validador oficial (validar.iti.gov.br) confere</small></label></div>
+        <div class="opt-row"><input type="checkbox" id="ass-certificar"><label for="ass-certificar">Certificar o documento (só como 1ª assinatura)
+          <small>Como no Acrobat: depois disso só é permitido preencher formulários e acrescentar assinaturas</small></label></div>
+      </fieldset>
+    </div>
+    <div id="ass-escolher" class="panel oculto">
+      <div class="ass-preview">
+        <div class="ass-pag-nav"><strong>Clique onde o carimbo deve ficar</strong>
+          <button type="button" class="btn-cancel" id="ass-pag-ant" style="margin-top:0">◀</button><span id="ass-pag-rot"></span>
+          <button type="button" class="btn-cancel" id="ass-pag-prox" style="margin-top:0">▶</button>
+          <button type="button" class="btn" id="ass-confirmar-pos">Assinar aqui</button>
+          <button type="button" class="btn-cancel" id="ass-cancelar-pos" style="margin-top:0">Cancelar</button></div>
+        <canvas id="ass-canvas"></canvas>
+      </div>
+    </div>
+    <div id="dz-assinar" class="dropzone" role="button" tabindex="0" aria-label="Selecionar PDFs para assinar">
+      <svg class="dz-icone" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      <div class="main-text">Arraste os PDFs a assinar aqui ou clique para selecionar</div>
+      <div class="sub-text">Vários arquivos = um lote: uma única confirmação (e um único PIN do token)</div>
+      <input type="file" id="input-assinar" accept="application/pdf,.pdf" multiple>
+    </div>
+    <div class="note">A assinatura é acrescentada ao final do arquivo (atualização incremental, como no Acrobat): assinaturas anteriores continuam válidas. Confira o resultado em <b>Validar assinaturas</b> ou em validar.iti.gov.br.</div>
+  </section>
+
+  <!-- ============ VALIDAR ASSINATURAS ============ -->
+  <section id="sec-validar" data-sec="validar" class="oculto">
+    <div id="dz-validar" class="dropzone" role="button" tabindex="0" aria-label="Selecionar PDFs assinados">
+      <svg class="dz-icone" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      <div class="main-text">Arraste PDFs assinados aqui</div>
+      <div class="sub-text">Mostra cada assinatura: signatário, CPF/CNPJ, data, cadeia ICP-Brasil e se o documento foi alterado</div>
+      <input type="file" id="input-validar" accept="application/pdf,.pdf" multiple>
+    </div>
+    <div class="note">Confere a integridade e a assinatura criptográfica no próprio navegador e a cadeia até a raiz ICP-Brasil. A consulta de revogação (LCR/OCSP) não é feita — para validação oficial, use validar.iti.gov.br.</div>
+  </section>
+
   <!-- ============ CONTADOR DE FOLHAS DO LOTE ============ -->
   <section id="sec-contador" data-sec="contador" class="oculto">
     <div id="dz-contador" class="dropzone" role="button" tabindex="0" aria-label="Selecionar PDFs para contagem">
@@ -936,7 +1040,7 @@ window.__results = []; // depuração/testes
 
 // Visualizador hospedado do claude.ai: o sandbox do iframe bloqueia downloads
 // (sem allow-downloads), popups e o seletor de arquivos — avisamos o usuário.
-const VERSAO = '3.1.0 — 28/09/2026';
+const VERSAO = '3.2.0 — 28/09/2026';
 const HOSTED = typeof window.claude !== 'undefined';
 // o rodapé lê a versão daqui — fonte única, sem data duplicada no HTML
 { const vr = document.getElementById('versao-rodape'); if (vr) vr.textContent = 'v' + VERSAO; }
@@ -2207,6 +2311,8 @@ const FERRAMENTAS = {
   girar:     { sec: 'editar', radio: 'ed-girar', titulo: 'Girar páginas' },
   senha:     { sec: 'senha', titulo: 'Proteger / remover senha' },
   contador:  { sec: 'contador', titulo: 'Contador de folhas do lote' },
+  assinar:   { sec: 'assinar', titulo: 'Assinar com certificado digital' },
+  validar:   { sec: 'validar', titulo: 'Validar assinaturas digitais' },
   'parecer-passiva': { sec: 'parecer-passiva', titulo: 'Parecer técnico — Plano de jogo (Passiva)' },
   'parecer-ia': { sec: 'parecer-ia', titulo: 'Parecer com IA — anexar plano de jogo' },
 };
@@ -5077,6 +5183,7 @@ async function autoteste() {
   });
 
   if (typeof __corpusWordCasos === 'function') await __corpusWordCasos(caso, afirmar);
+  if (typeof __assinadorCasos === 'function') await __assinadorCasos(caso, afirmar);
 
   await caso('PDF para imagens (ZIP)', async () => {
     await pdfParaImagens(new File([pdfTexto3], 'at-img.pdf', { type: 'application/pdf' }));
@@ -9299,6 +9406,1759 @@ async function __corpusWordCasos(caso, afirmar) {
     afirmar(__textoDoXml(xml).includes('Linha dois') && __textoDoXml(xml).includes('Página dois'), 'texto simples ausente');
     afirmar(/<w:pgSz w:w="119\d\d" w:h="168\d\d"/.test(xml), 'A4 padrão ausente');
     afirmar(!!zip.file('docProps/core.xml') && (await zip.file('docProps/core.xml').async('string')).includes('GTFISC'), 'docProps/core ausente');
+  });
+}
+
+/* ============================================================================
+   Assinador digital — GTFISC — Ferramenta
+   Assinatura PAdES (ICP-Brasil, política AD-RB) feita no navegador por ATUALIZAÇÃO INCREMENTAL do PDF
+   (assinaturas anteriores continuam válidas). A chave privada nunca sai do seu lugar: arquivo .pfx
+   decifrado só na memória do navegador (WebCrypto, chave não exportável) ou certificado do Windows
+   (A1, token A3 ou nuvem via aplicativo do provedor) usado pelo "Assinador GTFISC" local.
+   Etapas: 00 DER · 10 X.509 · 20 CMS · 30 PDF · 40 PFX · 50 provedores · 60 validação · 70 testes · 80 interface
+   ============================================================================ */
+
+/* ---------- 00 — ASN.1 DER: leitura (aceita BER de comprimento indefinido) e escrita ---------- */
+const OID = {
+  data: '1.2.840.113549.1.7.1', signedData: '1.2.840.113549.1.7.2', encryptedData: '1.2.840.113549.1.7.6',
+  contentType: '1.2.840.113549.1.9.3', messageDigest: '1.2.840.113549.1.9.4', signingTime: '1.2.840.113549.1.9.5',
+  signingCertificate: '1.2.840.113549.1.9.16.2.12', signingCertificateV2: '1.2.840.113549.1.9.16.2.47',
+  sigPolicyId: '1.2.840.113549.1.9.16.2.15', spUri: '1.2.840.113549.1.9.16.5.1', timeStampToken: '1.2.840.113549.1.9.16.2.14',
+  sha1: '1.3.14.3.2.26', sha256: '2.16.840.1.101.3.4.2.1', sha384: '2.16.840.1.101.3.4.2.2', sha512: '2.16.840.1.101.3.4.2.3',
+  rsa: '1.2.840.113549.1.1.1', sha1Rsa: '1.2.840.113549.1.1.5', sha256Rsa: '1.2.840.113549.1.1.11', sha384Rsa: '1.2.840.113549.1.1.12', sha512Rsa: '1.2.840.113549.1.1.13', rsaPss: '1.2.840.113549.1.1.10',
+  ecPublicKey: '1.2.840.10045.2.1', ecdsaSha1: '1.2.840.10045.4.1', ecdsaSha256: '1.2.840.10045.4.3.2', ecdsaSha384: '1.2.840.10045.4.3.3', ecdsaSha512: '1.2.840.10045.4.3.4',
+  p256: '1.2.840.10045.3.1.7', p384: '1.3.132.0.34', p521: '1.3.132.0.35',
+  cn: '2.5.4.3', sobrenome: '2.5.4.4', serialNumber: '2.5.4.5', c: '2.5.4.6', l: '2.5.4.7', st: '2.5.4.8', o: '2.5.4.10', ou: '2.5.4.11', email: '1.2.840.113549.1.9.1',
+  ski: '2.5.29.14', keyUsage: '2.5.29.15', san: '2.5.29.17', basicConstraints: '2.5.29.19', crlDp: '2.5.29.31', certPolicies: '2.5.29.32', aki: '2.5.29.35', extKeyUsage: '2.5.29.37', aia: '1.3.6.1.5.5.7.1.1',
+  icpPfDados: '2.16.76.1.3.1', icpPjResponsavel: '2.16.76.1.3.2', icpPjCnpj: '2.16.76.1.3.3', icpPjResponsavelDados: '2.16.76.1.3.4',
+  icpTituloEleitor: '2.16.76.1.3.5', icpPfCei: '2.16.76.1.3.6', icpPjCei: '2.16.76.1.3.7', icpPjNome: '2.16.76.1.3.8',
+  // PKCS#12 / PKCS#5
+  keyBag: '1.2.840.113549.1.12.10.1.1', shroudedKeyBag: '1.2.840.113549.1.12.10.1.2', certBag: '1.2.840.113549.1.12.10.1.3',
+  x509Certificate: '1.2.840.113549.1.9.22.1', friendlyName: '1.2.840.113549.1.9.20', localKeyId: '1.2.840.113549.1.9.21',
+  pbes2: '1.2.840.113549.1.5.13', pbkdf2: '1.2.840.113549.1.5.12',
+  hmacSha1: '1.2.840.113549.2.7', hmacSha224: '1.2.840.113549.2.8', hmacSha256: '1.2.840.113549.2.9', hmacSha384: '1.2.840.113549.2.10', hmacSha512: '1.2.840.113549.2.11',
+  aes128cbc: '2.16.840.1.101.3.4.1.2', aes192cbc: '2.16.840.1.101.3.4.1.22', aes256cbc: '2.16.840.1.101.3.4.1.42',
+  desEde3Cbc: '1.2.840.113549.3.7', desCbc: '1.3.14.3.2.7', rc2Cbc: '1.2.840.113549.3.2',
+  pbeSha1Rc4_128: '1.2.840.113549.1.12.1.1', pbeSha1Rc4_40: '1.2.840.113549.1.12.1.2', pbeSha1Des3: '1.2.840.113549.1.12.1.3',
+  pbeSha1Des2: '1.2.840.113549.1.12.1.4', pbeSha1Rc2_128: '1.2.840.113549.1.12.1.5', pbeSha1Rc2_40: '1.2.840.113549.1.12.1.6',
+};
+const OID_NOME = Object.fromEntries(Object.entries(OID).map(([k, v]) => [v, k]));
+
+function assJunta(partes) {
+  let n = 0; for (const p of partes) n += p.length;
+  const out = new Uint8Array(n); let k = 0;
+  for (const p of partes) { out.set(p, k); k += p.length; }
+  return out;
+}
+function assTxt(s) { return new TextEncoder().encode(s); }
+function assHex(u8) { let s = ''; for (const b of u8) s += (b < 16 ? '0' : '') + b.toString(16); return s; }
+function assDeHex(h) { h = h.replace(/[^0-9a-fA-F]/g, ''); if (h.length % 2) h = '0' + h; const o = new Uint8Array(h.length / 2); for (let i = 0; i < o.length; i++) o[i] = parseInt(h.substr(i * 2, 2), 16); return o; }
+function assB64(u8) { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); }
+function assDeB64(s) { const t = atob(String(s).replace(/-----[^-]+-----/g, '').replace(/\s+/g, '')); const o = new Uint8Array(t.length); for (let i = 0; i < t.length; i++) o[i] = t.charCodeAt(i); return o; }
+function assIguais(a, b) { if (!a || !b || a.length !== b.length) return false; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false; return true; }
+async function assHash(alg, dados) { return new Uint8Array(await crypto.subtle.digest(alg, dados)); }
+const ASS_HASH_OID = { [OID.sha1]: 'SHA-1', [OID.sha256]: 'SHA-256', [OID.sha384]: 'SHA-384', [OID.sha512]: 'SHA-512' };
+
+// ---- leitura ----
+function derLer(b, pos, fimMax) {
+  pos = pos || 0; fimMax = fimMax == null ? b.length : fimMax;
+  if (pos >= fimMax) throw new Error('DER: fim inesperado dos dados');
+  const ini = pos, tag = b[pos++];
+  let num = tag & 0x1f;
+  if (num === 0x1f) { num = 0; let c; do { c = b[pos++]; num = num * 128 + (c & 0x7f); } while (c & 0x80); }
+  let len = b[pos++];
+  const no = { b, tag, classe: tag >> 6, construido: !!(tag & 0x20), num, ini, iniC: 0, fimC: 0, fim: 0, indef: false, _f: null };
+  if (len === 0x80) {
+    no.indef = true; no.iniC = pos;
+    const filhos = []; let p = pos;
+    while (!(b[p] === 0 && b[p + 1] === 0)) { if (p >= fimMax) throw new Error('DER: fim de conteúdo ausente'); const f = derLer(b, p, fimMax); filhos.push(f); p = f.fim; }
+    no.fimC = p; no.fim = p + 2; no._f = filhos;
+    return no;
+  }
+  if (len & 0x80) { const n = len & 0x7f; if (n > 4) throw new Error('DER: comprimento grande demais'); len = 0; for (let i = 0; i < n; i++) len = len * 256 + b[pos++]; }
+  no.iniC = pos; no.fimC = pos + len; no.fim = no.fimC;
+  if (no.fim > fimMax) throw new Error('DER: comprimento além do fim');
+  return no;
+}
+function derFilhos(no) {
+  if (no._f) return no._f;
+  const out = []; let p = no.iniC;
+  while (p < no.fimC) { const f = derLer(no.b, p, no.fimC); out.push(f); p = f.fim; }
+  no._f = out; return out;
+}
+function derBruto(no) { return no.b.subarray(no.ini, no.fim); }
+// conteúdo de um primitivo; OCTET/BIT STRING construídos (BER) são concatenados
+function derConteudo(no) {
+  if (!no.construido) return no.b.subarray(no.iniC, no.fimC);
+  return assJunta(derFilhos(no).map(derConteudo));
+}
+function derOid(no) {
+  const c = derConteudo(no); const partes = [];
+  let v = 0, primeiro = true;
+  for (const x of c) {
+    v = v * 128 + (x & 0x7f);
+    if (!(x & 0x80)) { if (primeiro) { const a = v < 40 ? 0 : v < 80 ? 1 : 2; partes.push(a, v - a * 40); primeiro = false; } else partes.push(v); v = 0; }
+  }
+  return partes.join('.');
+}
+function derIntBytes(no) { let c = derConteudo(no); while (c.length > 1 && c[0] === 0) c = c.subarray(1); return c; }
+function derIntNum(no) { const c = derConteudo(no); let v = 0; for (const x of c) v = v * 256 + x; if (c.length && (c[0] & 0x80)) v -= Math.pow(256, c.length); return v; }
+function derTexto(no) {
+  const c = derConteudo(no);
+  if (no.num === 0x1e) { let s = ''; for (let i = 0; i + 1 < c.length; i += 2) s += String.fromCharCode((c[i] << 8) | c[i + 1]); return s; } // BMPString
+  if (no.num === 0x14 || no.num === 0x1a || (no.num === 0x04 && !/[\x80-\xff]/.test(String.fromCharCode.apply(null, c)))) return String.fromCharCode.apply(null, c); // T61/Visible/OCTET ASCII
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(c); } catch (e) { return String.fromCharCode.apply(null, c); }
+}
+function derTempo(no) {
+  const s = String.fromCharCode.apply(null, derConteudo(no));
+  const m = /^(\d{2}|\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})?(?:[.,]\d+)?(Z|[+-]\d{4})?$/.exec(s);
+  if (!m) return null;
+  let ano = +m[1]; if (m[1].length === 2) ano += ano < 50 ? 2000 : 1900;
+  let t = Date.UTC(ano, +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0));
+  if (m[7] && m[7] !== 'Z') { const sg = m[7][0] === '-' ? -1 : 1; t -= sg * (+m[7].slice(1, 3) * 60 + +m[7].slice(3, 5)) * 60000; }
+  return new Date(t);
+}
+// procura o 1º filho com a tag dada
+function derAchar(no, tag) { return derFilhos(no).find(f => f.tag === tag) || null; }
+
+// ---- escrita ----
+function derComp(n) {
+  if (n < 0x80) return Uint8Array.of(n);
+  const bs = []; while (n > 0) { bs.unshift(n & 0xff); n = Math.floor(n / 256); }
+  return Uint8Array.of(0x80 | bs.length, ...bs);
+}
+function derComparar(a, b) { const n = Math.min(a.length, b.length); for (let i = 0; i < n; i++) if (a[i] !== b[i]) return a[i] - b[i]; return a.length - b.length; }
+const DER = {
+  tlv(tag, ...partes) { const c = assJunta(partes.filter(Boolean)); return assJunta([Uint8Array.of(tag), derComp(c.length), c]); },
+  seq(...p) { return DER.tlv(0x30, ...p); },
+  set(...p) { return DER.tlv(0x31, ...p); },
+  setOrdenado(itens) { return DER.tlv(0x31, ...itens.filter(Boolean).slice().sort(derComparar)); }, // SET OF em DER: ordem das codificações
+  ctx(n, ...p) { return DER.tlv(0xa0 | n, ...p); },        // [n] construído (EXPLICIT ou IMPLICIT de SEQUENCE/SET)
+  ctxP(n, bytes) { return DER.tlv(0x80 | n, bytes); },     // [n] primitivo
+  int(v) {
+    let b;
+    if (v instanceof Uint8Array) { b = v; let i = 0; while (i < b.length - 1 && b[i] === 0 && !(b[i + 1] & 0x80)) i++; b = b.subarray(i); }
+    else { const bs = []; let n = v; do { bs.unshift(n & 0xff); n = Math.floor(n / 256); } while (n > 0); b = Uint8Array.from(bs); }
+    if (!b.length) b = Uint8Array.of(0);
+    if (b[0] & 0x80) b = assJunta([Uint8Array.of(0), b]);
+    return DER.tlv(0x02, b);
+  },
+  oid(s) {
+    const p = s.split('.').map(Number); const out = [40 * p[0] + p[1]];
+    for (let i = 2; i < p.length; i++) { let v = p[i]; const t = [v & 0x7f]; v = Math.floor(v / 128); while (v > 0) { t.unshift((v & 0x7f) | 0x80); v = Math.floor(v / 128); } out.push(...t); }
+    return DER.tlv(0x06, Uint8Array.from(out));
+  },
+  nulo() { return Uint8Array.of(0x05, 0x00); },
+  bool(v) { return Uint8Array.of(0x01, 0x01, v ? 0xff : 0x00); },
+  octet(b) { return DER.tlv(0x04, b); },
+  bits(b) { return DER.tlv(0x03, Uint8Array.of(0), b); },
+  utf8(s) { return DER.tlv(0x0c, assTxt(s)); },
+  printable(s) { return DER.tlv(0x13, assTxt(s)); },
+  ia5(s) { return DER.tlv(0x16, assTxt(s)); },
+  utc(d) { const z = n => String(n).padStart(2, '0'); return DER.tlv(0x17, assTxt(z(d.getUTCFullYear() % 100) + z(d.getUTCMonth() + 1) + z(d.getUTCDate()) + z(d.getUTCHours()) + z(d.getUTCMinutes()) + z(d.getUTCSeconds()) + 'Z')); },
+  gen(d) { const z = n => String(n).padStart(2, '0'); return DER.tlv(0x18, assTxt(d.getUTCFullYear() + z(d.getUTCMonth() + 1) + z(d.getUTCDate()) + z(d.getUTCHours()) + z(d.getUTCMinutes()) + z(d.getUTCSeconds()) + 'Z')); },
+  alg(oid, nulo) { return nulo ? DER.seq(DER.oid(oid), DER.nulo()) : DER.seq(DER.oid(oid)); },
+};
+
+/* ---------- 10 — certificado X.509 e campos ICP-Brasil ---------- */
+const ASS_NOMES_ATTR = { [OID.cn]: 'CN', [OID.o]: 'O', [OID.ou]: 'OU', [OID.c]: 'C', [OID.l]: 'L', [OID.st]: 'ST', [OID.serialNumber]: 'SERIALNUMBER', [OID.email]: 'E', [OID.sobrenome]: 'SN' };
+
+function assNomeLer(no) {
+  const attrs = [];
+  for (const rdn of derFilhos(no)) for (const atv of derFilhos(rdn)) {
+    const [t, v] = derFilhos(atv);
+    attrs.push({ oid: derOid(t), valor: derTexto(v) });
+  }
+  const um = oid => { const a = attrs.find(x => x.oid === oid); return a ? a.valor : ''; };
+  const todos = oid => attrs.filter(x => x.oid === oid).map(x => x.valor);
+  const texto = attrs.slice().reverse().map(a => (ASS_NOMES_ATTR[a.oid] || a.oid) + '=' + a.valor).join(', ');
+  return { attrs, CN: um(OID.cn), O: um(OID.o), OU: todos(OID.ou), C: um(OID.c), serialNumber: um(OID.serialNumber), email: um(OID.email), texto };
+}
+
+function assCpfFormatado(c) { c = String(c || '').replace(/\D/g, ''); return c.length === 11 ? c.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : c; }
+function assCnpjFormatado(c) { c = String(c || '').replace(/\D/g, ''); return c.length === 14 ? c.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5') : c; }
+function assCpfMascarado(c) { c = String(c || '').replace(/\D/g, ''); return c.length === 11 ? '***.' + c.slice(3, 6) + '.' + c.slice(6, 9) + '-**' : ''; } // padrão de mascaramento da LGPD usado pelo gov.br
+function assDigitosValidos(s) { return /^\d+$/.test(s) && !/^0+$/.test(s); }
+
+// otherName ICP-Brasil (DOC-ICP-04): valor em OCTET STRING ou PrintableString; campo indisponível = zeros
+function assIcpDeOutrosNomes(outros, titular) {
+  const icp = { cpf: '', nascimento: '', nis: '', rg: '', rgOrgao: '', cnpj: '', responsavel: '', responsavelCpf: '', tituloEleitor: '', razaoSocial: '' };
+  const pf = outros[OID.icpPfDados] || outros[OID.icpPjResponsavelDados];
+  if (pf && pf.length >= 19) {
+    const nasc = pf.slice(0, 8), cpf = pf.slice(8, 19);
+    if (assDigitosValidos(nasc)) icp.nascimento = nasc.slice(0, 2) + '/' + nasc.slice(2, 4) + '/' + nasc.slice(4, 8);
+    if (assDigitosValidos(cpf)) { if (outros[OID.icpPfDados]) icp.cpf = cpf; else icp.responsavelCpf = cpf; }
+    const nis = pf.slice(19, 30); if (assDigitosValidos(nis)) icp.nis = nis;
+    const rg = pf.slice(30, 45).replace(/^0+/, ''); if (rg) { icp.rg = rg; icp.rgOrgao = pf.slice(45).trim(); }
+  }
+  if (outros[OID.icpPjCnpj] && assDigitosValidos(outros[OID.icpPjCnpj].slice(0, 14))) icp.cnpj = outros[OID.icpPjCnpj].slice(0, 14);
+  if (outros[OID.icpPjResponsavel]) icp.responsavel = outros[OID.icpPjResponsavel].trim();
+  if (outros[OID.icpPjNome]) icp.razaoSocial = outros[OID.icpPjNome].trim();
+  if (outros[OID.icpTituloEleitor] && assDigitosValidos(outros[OID.icpTituloEleitor].slice(0, 12))) icp.tituloEleitor = outros[OID.icpTituloEleitor].slice(0, 12);
+  // DOC-ICP-04 v8.3: CPF/CNPJ no serialNumber do titular; formato antigo: "NOME:CPF" no CN
+  const sn = String(titular.serialNumber || '').replace(/\D/g, '');
+  if (!icp.cpf && !icp.cnpj) { if (sn.length === 11) icp.cpf = sn; else if (sn.length === 14) icp.cnpj = sn; }
+  const m = /:(\d{11}|\d{14})\s*$/.exec(titular.CN || '');
+  if (m && !icp.cpf && !icp.cnpj) { if (m[1].length === 11) icp.cpf = m[1]; else icp.cnpj = m[1]; }
+  return icp;
+}
+
+function assCertLer(der) {
+  if (!(der instanceof Uint8Array)) der = new Uint8Array(der);
+  const raiz = derLer(der);
+  const [tbs, algSigNo, sigNo] = derFilhos(raiz);
+  const f = derFilhos(tbs); let i = 0, versao = 1;
+  if (f[0].tag === 0xa0) { versao = derIntNum(derFilhos(f[0])[0]) + 1; i = 1; }
+  const serialNo = f[i++]; i++; // algoritmo repetido no TBS
+  const emissorNo = f[i++], validadeNo = f[i++], titularNo = f[i++], spkiNo = f[i++];
+  const [naoAntesNo, naoDepoisNo] = derFilhos(validadeNo);
+  const cert = {
+    der: der.subarray(0, raiz.fim), versao, tbsBruto: derBruto(tbs), algAssinatura: derOid(derFilhos(algSigNo)[0]), assinatura: derConteudo(sigNo).subarray(1),
+    serialBytes: derConteudo(serialNo), serialHex: assHex(derIntBytes(serialNo)).toUpperCase(),
+    emissorBruto: derBruto(emissorNo), titularBruto: derBruto(titularNo), emissor: assNomeLer(emissorNo), titular: assNomeLer(titularNo),
+    naoAntes: derTempo(naoAntesNo), naoDepois: derTempo(naoDepoisNo), spkiBruto: derBruto(spkiNo),
+    chave: { alg: '', curva: '', bits: 0 }, usoChave: [], usoEstendido: [], ac: false, ski: null, aki: null, outrosNomes: {}, emails: [], politicas: [], urlsCrl: [], urlsAia: [],
+  };
+  // chave pública
+  const [algChaveNo, bitsChaveNo] = derFilhos(spkiNo);
+  const algChave = derFilhos(algChaveNo);
+  const oidChave = derOid(algChave[0]);
+  if (oidChave === OID.rsa) {
+    cert.chave.alg = 'RSA';
+    try { const rsa = derLer(derConteudo(bitsChaveNo).subarray(1)); const n = derIntBytes(derFilhos(rsa)[0]); cert.chave.bits = n.length * 8 - Math.clz32(n[0]) + 24; } catch (e) { }
+  } else if (oidChave === OID.ecPublicKey) {
+    cert.chave.alg = 'EC';
+    const curva = algChave[1] && algChave[1].tag === 0x06 ? derOid(algChave[1]) : '';
+    cert.chave.curva = curva === OID.p256 ? 'P-256' : curva === OID.p384 ? 'P-384' : curva === OID.p521 ? 'P-521' : curva;
+    cert.chave.bits = { 'P-256': 256, 'P-384': 384, 'P-521': 521 }[cert.chave.curva] || 0;
+  } else cert.chave.alg = oidChave;
+  // extensões
+  const extsNo = f.slice(i).find(x => x.tag === 0xa3);
+  if (extsNo) for (const ext of derFilhos(derFilhos(extsNo)[0])) {
+    const ef = derFilhos(ext); const oid = derOid(ef[0]); const valor = derLer(derConteudo(ef[ef.length - 1]));
+    try {
+      if (oid === OID.keyUsage) {
+        const c = derConteudo(valor); const nomes = ['digitalSignature', 'nonRepudiation', 'keyEncipherment', 'dataEncipherment', 'keyAgreement', 'keyCertSign', 'cRLSign', 'encipherOnly', 'decipherOnly'];
+        for (let k = 0; k < nomes.length; k++) { const byte = c[1 + (k >> 3)]; if (byte != null && (byte & (0x80 >> (k & 7)))) cert.usoChave.push(nomes[k]); }
+      } else if (oid === OID.basicConstraints) {
+        const bf = derFilhos(valor); cert.ac = !!(bf[0] && bf[0].tag === 0x01 && derConteudo(bf[0])[0]);
+      } else if (oid === OID.extKeyUsage) cert.usoEstendido = derFilhos(valor).map(derOid);
+      else if (oid === OID.ski) cert.ski = derConteudo(valor);
+      else if (oid === OID.aki) { const k = derFilhos(valor).find(x => x.tag === 0x80); if (k) cert.aki = derConteudo(k); }
+      else if (oid === OID.san) {
+        for (const gn of derFilhos(valor)) {
+          if (gn.tag === 0xa0) { // otherName: type-id, [0] EXPLICIT valor
+            const [tipo, v] = derFilhos(gn); const interno = derFilhos(v)[0];
+            cert.outrosNomes[derOid(tipo)] = interno ? derTexto(interno) : '';
+          } else if (gn.tag === 0x81) cert.emails.push(String.fromCharCode.apply(null, derConteudo(gn)));
+        }
+      } else if (oid === OID.certPolicies) cert.politicas = derFilhos(valor).map(p => derOid(derFilhos(p)[0]));
+      else if (oid === OID.crlDp) {
+        for (const dp of derFilhos(valor)) { const s = derBruto(dp); const t = String.fromCharCode.apply(null, s); const m = t.match(/https?:\/\/[\x21-\x7e]+/g); if (m) cert.urlsCrl.push(...m.map(u => u.replace(/[^\x21-\x7e].*$/, ''))); }
+      } else if (oid === OID.aia) {
+        for (const ad of derFilhos(valor)) { const [metodo, loc] = derFilhos(ad); if (loc.tag === 0x86) cert.urlsAia.push({ metodo: derOid(metodo), url: String.fromCharCode.apply(null, derConteudo(loc)) }); }
+      }
+    } catch (e) { /* extensão malformada: ignora só ela */ }
+  }
+  cert.icp = assIcpDeOutrosNomes(cert.outrosNomes, cert.titular);
+  cert.nome = String(cert.titular.CN || cert.titular.O || '').replace(/:\d{11}$|:\d{14}$/, '').trim();
+  cert.autoAssinado = assIguais(cert.emissorBruto, cert.titularBruto);
+  return cert;
+}
+
+// uma linha para listas: "NOME — CPF ***.456.789-** — AC XYZ — válido até 03/05/2027"
+function assCertResumo(c) {
+  const doc = c.icp.cpf ? 'CPF ' + assCpfMascarado(c.icp.cpf) : c.icp.cnpj ? 'CNPJ ' + assCnpjFormatado(c.icp.cnpj) : '';
+  return [c.nome, doc, c.emissor.CN, 'válido até ' + (c.naoDepois ? c.naoDepois.toLocaleDateString('pt-BR') : '?')].filter(Boolean).join(' — ');
+}
+function assCertValidoAgora(c, quando) { const t = (quando || new Date()).getTime(); return c.naoAntes && c.naoDepois && t >= c.naoAntes.getTime() && t <= c.naoDepois.getTime(); }
+function assCertPodeAssinar(c) { return !c.usoChave.length || c.usoChave.includes('digitalSignature') || c.usoChave.includes('nonRepudiation'); }
+
+/* ---------- 20 — CMS SignedData (CAdES) destacado: montagem e leitura ---------- */
+// Política de assinatura PAdES AD-RB da ICP-Brasil (DOC-ICP-15.03; IN ITI 34/2025). O hash vai o INTERNO da política
+// (Nota 2 do Anexo 1), não o hash do arquivo publicado na LPA.
+const ASS_POLITICA_AD_RB = {
+  nome: 'PA_PAdES_AD_RB v1.3 (ICP-Brasil)',
+  oid: '2.16.76.1.7.1.11.1.3',
+  hashOid: OID.sha256,
+  hash: '23E4BE4B9B362172E4EBB0E72B86A133ECE5AAD843D8651C6E38A0BA3F08FC60',
+  uri: 'http://politicas.icpbrasil.gov.br/PA_PAdES_AD_RB_v1_3.der',
+};
+
+function assAtributo(oid, ...valores) { return DER.seq(DER.oid(oid), DER.setOrdenado(valores)); }
+
+// signingCertificateV2 (RFC 5035): ESSCertIDv2 com SHA-256 (padrão, por isso o algoritmo é omitido) + emissor/serial
+async function assAttrCertificadoV2(cert) {
+  const hash = await assHash('SHA-256', cert.der);
+  const emissorSerial = DER.seq(DER.seq(DER.ctx(4, cert.emissorBruto)), DER.tlv(0x02, cert.serialBytes));
+  return assAtributo(OID.signingCertificateV2, DER.seq(DER.seq(DER.seq(DER.octet(hash), emissorSerial))));
+}
+function assAttrPolitica(p) {
+  return assAtributo(OID.sigPolicyId, DER.seq(
+    DER.oid(p.oid),
+    DER.seq(DER.alg(p.hashOid), DER.octet(assDeHex(p.hash))),
+    DER.seq(DER.seq(DER.oid(OID.spUri), DER.ia5(p.uri))),
+  ));
+}
+
+// atributos assinados (SET em DER, tag 0x31 — é sobre ESTES bytes que a assinatura é calculada)
+async function assAtributosAssinados(cert, digestConteudo, opcoes) {
+  opcoes = opcoes || {};
+  const attrs = [
+    assAtributo(OID.contentType, DER.oid(OID.data)),
+    assAtributo(OID.messageDigest, DER.octet(digestConteudo)),
+    await assAttrCertificadoV2(cert),
+  ];
+  if (opcoes.politica) attrs.push(assAttrPolitica(opcoes.politica));
+  if (opcoes.horaAssinatura) attrs.push(assAtributo(OID.signingTime, DER.utc(opcoes.horaAssinatura))); // proibido na AD-RB; só sem política
+  return DER.setOrdenado(attrs);
+}
+
+// assinatura ECDSA "r||s" (WebCrypto/.NET) → ECDSA-Sig-Value DER exigido no CMS
+function assEcdsaParaDer(raw) {
+  const m = raw.length / 2;
+  return DER.seq(DER.int(raw.subarray(0, m)), DER.int(raw.subarray(m)));
+}
+function assEcdsaDeDer(der, tam) {
+  const [r, s] = derFilhos(derLer(der)).map(derIntBytes);
+  const out = new Uint8Array(tam * 2); out.set(r.subarray(Math.max(0, r.length - tam)), tam - Math.min(tam, r.length)); out.set(s.subarray(Math.max(0, s.length - tam)), 2 * tam - Math.min(tam, s.length));
+  return out;
+}
+
+// monta o ContentInfo(SignedData) destacado; `assinatura` já calculada sobre `atributosDer`
+function assCmsMontar(cert, cadeia, atributosDer, assinatura, algChave) {
+  const ec = algChave === 'EC' || algChave === 'ECDSA';
+  const sigAlg = ec ? DER.alg(OID.ecdsaSha256) : DER.alg(OID.sha256Rsa, true);
+  const sig = ec ? (assinatura[0] === 0x30 ? assinatura : assEcdsaParaDer(assinatura)) : assinatura;
+  const attrsImplicitos = assJunta([Uint8Array.of(0xa0), atributosDer.subarray(1)]); // SET (0x31) → [0] IMPLICIT
+  const signerInfo = DER.seq(
+    DER.int(1),
+    DER.seq(cert.emissorBruto, DER.tlv(0x02, cert.serialBytes)),
+    DER.alg(OID.sha256),
+    attrsImplicitos,
+    sigAlg,
+    DER.octet(sig),
+  );
+  const vistos = new Set(); const certs = [];
+  for (const c of [cert].concat(cadeia || [])) { const k = assHex(c.der.subarray(0, 64)) + c.der.length; if (!vistos.has(k)) { vistos.add(k); certs.push(c.der); } }
+  const signedData = DER.seq(
+    DER.int(1),
+    DER.set(DER.alg(OID.sha256)),
+    DER.seq(DER.oid(OID.data)),
+    DER.ctx(0, ...certs),
+    DER.set(signerInfo),
+  );
+  return DER.seq(DER.oid(OID.signedData), DER.ctx(0, signedData));
+}
+
+/* ---- leitura (validação) ---- */
+function assCmsLer(der) {
+  const ci = derLer(der);
+  const [tipo, conteudo] = derFilhos(ci);
+  if (derOid(tipo) !== OID.signedData) throw new Error('não é um CMS SignedData');
+  const sd = derFilhos(conteudo)[0];
+  const f = derFilhos(sd); let i = 1; // versão
+  const algsDigest = derFilhos(f[i++]).map(a => derOid(derFilhos(a)[0]));
+  const encap = f[i++]; const encapF = derFilhos(encap);
+  const eContent = encapF[1] ? derConteudo(derFilhos(encapF[1])[0]) : null;
+  const certs = [];
+  while (i < f.length && (f[i].tag === 0xa0 || f[i].tag === 0xa1)) {
+    if (f[i].tag === 0xa0) for (const c of derFilhos(f[i])) { if (c.tag === 0x30) { try { certs.push(assCertLer(derBruto(c))); } catch (e) { } } }
+    i++;
+  }
+  const signerInfos = derFilhos(f[i]).map(si => {
+    const sf = derFilhos(si); let k = 1;
+    const sid = sf[k++]; let emissorBruto = null, serialBytes = null, ski = null;
+    if (sid.tag === 0x30) { const [e, s] = derFilhos(sid); emissorBruto = derBruto(e); serialBytes = derIntBytes(s); }
+    else if (sid.tag === 0x80) ski = derConteudo(sid);
+    const algDigest = derOid(derFilhos(sf[k++])[0]);
+    let attrsBrutos = null; const attrs = {};
+    if (sf[k].tag === 0xa0) {
+      attrsBrutos = assJunta([Uint8Array.of(0x31), derBruto(sf[k]).subarray(1)]);
+      for (const a of derFilhos(sf[k])) { const [t, vs] = derFilhos(a); attrs[derOid(t)] = derFilhos(vs); }
+      k++;
+    }
+    const algAssNo = derFilhos(sf[k++]); const algAss = derOid(algAssNo[0]);
+    const assinatura = derConteudo(sf[k++]);
+    const naoAssinados = {};
+    if (sf[k] && sf[k].tag === 0xa1) for (const a of derFilhos(sf[k])) { const [t, vs] = derFilhos(a); naoAssinados[derOid(t)] = derFilhos(vs); }
+    return { emissorBruto, serialBytes, ski, algDigest, attrsBrutos, attrs, algAss, algAssParams: algAssNo[1] || null, assinatura, naoAssinados };
+  });
+  return { algsDigest, eContent, certs, signerInfos };
+}
+
+function assCmsCertDoSignatario(cms, si) {
+  return cms.certs.find(c => (si.serialBytes && assIguais(derIntBytes(derLer(DER.tlv(0x02, c.serialBytes))), si.serialBytes) && assIguais(c.emissorBruto, si.emissorBruto))
+    || (si.ski && c.ski && assIguais(c.ski, si.ski))) || null;
+}
+
+// verifica a assinatura criptográfica de `dados` com a chave pública do certificado
+async function assVerificarAssinatura(cert, algAss, algDigest, dados, assinatura, algAssParams) {
+  const hashNome = ASS_HASH_OID[algDigest] || { [OID.sha1Rsa]: 'SHA-1', [OID.sha256Rsa]: 'SHA-256', [OID.sha384Rsa]: 'SHA-384', [OID.sha512Rsa]: 'SHA-512', [OID.ecdsaSha256]: 'SHA-256', [OID.ecdsaSha384]: 'SHA-384', [OID.ecdsaSha512]: 'SHA-512', [OID.ecdsaSha1]: 'SHA-1' }[algAss] || 'SHA-256';
+  if (cert.chave.alg === 'RSA') {
+    if (algAss === OID.rsaPss) {
+      let sal = 20; try { const p = derFilhos(algAssParams); const s = p.find(x => x.tag === 0xa2); if (s) sal = derIntNum(derFilhos(s)[0]); } catch (e) { }
+      const k = await crypto.subtle.importKey('spki', cert.spkiBruto, { name: 'RSA-PSS', hash: hashNome }, false, ['verify']);
+      return crypto.subtle.verify({ name: 'RSA-PSS', saltLength: sal }, k, assinatura, dados);
+    }
+    const k = await crypto.subtle.importKey('spki', cert.spkiBruto, { name: 'RSASSA-PKCS1-v1_5', hash: hashNome }, false, ['verify']);
+    return crypto.subtle.verify('RSASSA-PKCS1-v1_5', k, assinatura, dados);
+  }
+  if (cert.chave.alg === 'EC') {
+    const k = await crypto.subtle.importKey('spki', cert.spkiBruto, { name: 'ECDSA', namedCurve: cert.chave.curva }, false, ['verify']);
+    const tam = Math.ceil(cert.chave.bits / 8);
+    return crypto.subtle.verify({ name: 'ECDSA', hash: hashNome }, k, assEcdsaDeDer(assinatura, tam), dados);
+  }
+  throw new Error('algoritmo de chave não suportado: ' + cert.chave.alg);
+}
+
+// o certificado `filho` foi assinado pela chave de `pai`?
+async function assCertAssinadoPor(filho, pai) {
+  try {
+    const alg = filho.algAssinatura;
+    const hashNome = { [OID.sha1Rsa]: 'SHA-1', [OID.sha256Rsa]: 'SHA-256', [OID.sha384Rsa]: 'SHA-384', [OID.sha512Rsa]: 'SHA-512', [OID.ecdsaSha256]: 'SHA-256', [OID.ecdsaSha384]: 'SHA-384', [OID.ecdsaSha512]: 'SHA-512' }[alg];
+    if (!hashNome) return false;
+    return await assVerificarAssinatura(pai, alg, null, filho.tbsBruto, filho.assinatura);
+  } catch (e) { return false; }
+}
+
+/* ---------- 30 — PDF: campo de assinatura por atualização incremental (PAdES), carimbo visível ---------- */
+function assLatin1(s) { const o = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) o[i] = s.charCodeAt(i) & 0xff; return o; }
+function assDeLatin1(u8) { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return s; }
+
+// WinAnsi (fontes padrão Helvetica): Latin-1 + faixa 0x80–0x9F do Windows-1252
+const ASS_WINANSI = { 0x20ac: 0x80, 0x201a: 0x82, 0x0192: 0x83, 0x201e: 0x84, 0x2026: 0x85, 0x2020: 0x86, 0x2021: 0x87, 0x02c6: 0x88, 0x2030: 0x89, 0x0160: 0x8a, 0x2039: 0x8b, 0x0152: 0x8c, 0x017d: 0x8e, 0x2018: 0x91, 0x2019: 0x92, 0x201c: 0x93, 0x201d: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97, 0x02dc: 0x98, 0x2122: 0x99, 0x0161: 0x9a, 0x203a: 0x9b, 0x0153: 0x9c, 0x017e: 0x9e, 0x0178: 0x9f };
+function assWinAnsiCodigo(ch) { const c = ch.codePointAt(0); if ((c >= 0x20 && c < 0x7f) || (c >= 0xa0 && c <= 0xff)) return c; return ASS_WINANSI[c] || 0; }
+function assWinAnsiLimpo(s) { return Array.from(String(s == null ? '' : s).normalize('NFC')).map(ch => assWinAnsiCodigo(ch) ? ch : (ch === '\t' ? ' ' : '?')).join(''); }
+function assPdfLiteralBytes(bytes) {
+  let s = '(';
+  for (const b of bytes) {
+    if (b === 0x28 || b === 0x29 || b === 0x5c) s += '\\' + String.fromCharCode(b);
+    else if (b < 0x20 || b > 0x7e) s += '\\' + b.toString(8).padStart(3, '0');
+    else s += String.fromCharCode(b);
+  }
+  return s + ')';
+}
+function assPdfWinAnsi(s) { return assPdfLiteralBytes(Uint8Array.from(Array.from(assWinAnsiLimpo(s)).map(assWinAnsiCodigo))); }
+// "text string" do PDF (Name/Reason/Location): ASCII literal ou UTF-16BE com BOM
+function assPdfTexto(s) {
+  s = String(s == null ? '' : s);
+  if (/^[\x20-\x7e]*$/.test(s)) return assPdfLiteralBytes(assTxt(s));
+  let h = 'FEFF'; for (const ch of s) { const c = ch.codePointAt(0); if (c > 0xffff) { const v = c - 0x10000; h += (0xd800 + (v >> 10)).toString(16).padStart(4, '0') + (0xdc00 + (v & 0x3ff)).toString(16).padStart(4, '0'); } else h += c.toString(16).padStart(4, '0'); }
+  return '<' + h.toUpperCase() + '>';
+}
+function assPdfData(d) {
+  const z = n => String(n).padStart(2, '0');
+  const off = -d.getTimezoneOffset(); const sg = off >= 0 ? '+' : '-'; const a = Math.abs(off);
+  return 'D:' + d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + z(d.getHours()) + z(d.getMinutes()) + z(d.getSeconds()) + sg + z(Math.floor(a / 60)) + "'" + z(a % 60) + "'";
+}
+function assDataHumana(d) {
+  const z = n => String(n).padStart(2, '0');
+  const off = -d.getTimezoneOffset(); const sg = off >= 0 ? '+' : '-'; const a = Math.abs(off);
+  return z(d.getDate()) + '/' + z(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()) + ':' + z(d.getSeconds()) + ' ' + sg + z(Math.floor(a / 60)) + ':' + z(a % 60);
+}
+
+// última seção de referências cruzadas: posição, tipo (tabela/fluxo) e /Size
+function assUltimoXref(b) {
+  const cauda = assDeLatin1(b.subarray(Math.max(0, b.length - 4096)));
+  const i = cauda.lastIndexOf('startxref');
+  if (i < 0) throw new Error('PDF sem "startxref" — arquivo danificado; use "Compactar" ou "Organizar" para regravá-lo antes de assinar');
+  const off = parseInt(cauda.slice(i + 9).trim(), 10);
+  if (!(off >= 0 && off < b.length)) throw new Error('posição de referências cruzadas inválida');
+  const inicio = assDeLatin1(b.subarray(off, Math.min(b.length, off + 64)));
+  const tabela = /^\s*xref/.test(inicio);
+  let size = 0;
+  if (tabela) { const t = cauda.lastIndexOf('trailer'); const m = t >= 0 ? /\/Size\s+(\d+)/.exec(cauda.slice(t)) : null; if (m) size = +m[1]; }
+  else { const trecho = assDeLatin1(b.subarray(off, Math.min(b.length, off + 4096))); const m = /\/Size\s+(\d+)/.exec(trecho.slice(0, trecho.indexOf('stream') > 0 ? trecho.indexOf('stream') : trecho.length)); if (m) size = +m[1]; }
+  return { off, tabela, size };
+}
+
+// campos do formulário (com herança de /FT e nome completo)
+function assCamposDoForm(doc) {
+  const ctx = doc.context, N = PDFLib.PDFName.of;
+  const afRaw = doc.catalog.get(N('AcroForm')); const af = afRaw ? ctx.lookup(afRaw) : null;
+  const campos = [];
+  const andar = (ref, pai, ftHerdado, prof) => {
+    if (prof > 20) return;
+    const d = ref instanceof PDFLib.PDFRef ? ctx.lookup(ref) : ref;
+    if (!(d instanceof PDFLib.PDFDict)) return;
+    const t = d.get(N('T')); const nomeParcial = t ? (t.decodeText ? t.decodeText() : String(t)) : '';
+    const nome = [pai, nomeParcial].filter(Boolean).join('.');
+    const ftNo = d.get(N('FT')); const ft = ftNo ? ftNo.asString().replace('/', '') : ftHerdado;
+    const kids = ctx.lookup(d.get(N('Kids')));
+    const kidsCampo = kids instanceof PDFLib.PDFArray ? kids.asArray().filter(k => { const kd = ctx.lookup(k); return kd instanceof PDFLib.PDFDict && kd.get(N('T')); }) : [];
+    if (kidsCampo.length) for (const k of kidsCampo) andar(k, nome, ft, prof + 1);
+    else campos.push({ ref: ref instanceof PDFLib.PDFRef ? ref : null, dict: d, nome, ft, v: d.get(N('V')) });
+  };
+  const fields = af ? ctx.lookup(af.get(N('Fields'))) : null;
+  if (fields instanceof PDFLib.PDFArray) for (const r of fields.asArray()) andar(r, '', '', 0);
+  return { afRaw, af, campos };
+}
+
+// posição visual (origem no canto superior esquerdo da página COMO APARECE, y para baixo) → espaço do usuário
+function assVisualParaUsuario(crop, rot, u, v) {
+  const { x: cx, y: cy, width: cw, height: ch } = crop;
+  if (rot === 90) return [cx + v, cy + u];
+  if (rot === 180) return [cx + cw - u, cy + v];
+  if (rot === 270) return [cx + cw - v, cy + ch - u];
+  return [cx + u, cy + ch - v];
+}
+function assPaginaGeometria(page) {
+  let rot = ((page.getRotation().angle % 360) + 360) % 360; if (rot % 90) rot = 0;
+  const crop = page.getCropBox ? page.getCropBox() : page.getMediaBox();
+  const vw = rot % 180 ? crop.height : crop.width, vh = rot % 180 ? crop.width : crop.height;
+  return { rot, crop, vw, vh };
+}
+
+let __assFontes = null;
+async function assMetricas() {
+  if (!__assFontes) { const d = await PDFLib.PDFDocument.create(); __assFontes = { n: await d.embedFont(PDFLib.StandardFonts.Helvetica), b: await d.embedFont(PDFLib.StandardFonts.HelveticaBold) }; }
+  return __assFontes;
+}
+function assNum(n) { return (Math.round(n * 1000) / 1000).toString(); }
+
+// conteúdo do carimbo (em coordenadas visuais do carimbo: 0..W × 0..H, origem embaixo à esquerda)
+async function assConteudoCarimbo(W, H, linhas, img) {
+  const f = await assMetricas();
+  const pad = Math.min(5, Math.max(2, H * 0.06));
+  let xTexto = pad, largTexto = W - 2 * pad;
+  let cmdImg = '';
+  if (img) {
+    const ih = H - 2 * pad, iw = Math.min(W * 0.34, ih * img.largura / img.altura), ihFinal = iw * img.altura / img.largura;
+    cmdImg = 'q ' + [iw, 0, 0, ihFinal, pad, (H - ihFinal) / 2].map(assNum).join(' ') + ' cm /Im1 Do Q\n';
+    xTexto = pad * 2 + iw; largTexto = W - xTexto - pad;
+  }
+  const limpas = linhas.map(l => ({ ...l, t: assWinAnsiLimpo(l.t) })).filter(l => l.t);
+  let sz = 11;
+  const cabe = s => limpas.every(l => (l.negrito ? f.b : f.n).widthOfTextAtSize(l.t, s * (l.escala || 1)) <= largTexto) && limpas.reduce((a, l) => a + s * (l.escala || 1) * 1.22, 0) <= H - 2 * pad;
+  while (sz > 4 && !cabe(sz)) sz -= 0.25;
+  const alturaTotal = limpas.reduce((a, l) => a + sz * (l.escala || 1) * 1.22, 0);
+  let y = H - (H - alturaTotal) / 2;
+  let txt = 'BT\n0 0 0 rg\n';
+  for (const l of limpas) {
+    const s = sz * (l.escala || 1); y -= s * 1.22;
+    txt += '/' + (l.negrito ? 'F2' : 'F1') + ' ' + assNum(s) + ' Tf\n1 0 0 1 ' + assNum(xTexto) + ' ' + assNum(y + s * 0.22) + ' Tm\n' + (l.cor ? l.cor + ' rg\n' : '') + assPdfWinAnsi(l.t) + ' Tj\n' + (l.cor ? '0 0 0 rg\n' : '');
+  }
+  txt += 'ET\n';
+  const borda = '0.55 0.55 0.55 RG 0.6 w ' + [0.3, 0.3, W - 0.6, H - 0.6].map(assNum).join(' ') + ' re S\n';
+  return 'q\n' + borda + cmdImg + txt + 'Q\n';
+}
+
+// imagem (PNG/JPEG do logotipo ou da rubrica) → XObject RGB + SMask, compactados com Flate
+async function assImagemParaXObject(bytes) {
+  const bmp = await createImageBitmap(new Blob([bytes]));
+  const max = 600, esc = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const w = Math.max(1, Math.round(bmp.width * esc)), h = Math.max(1, Math.round(bmp.height * esc));
+  const cv = criarCanvas(w, h); const cx = cv.getContext('2d'); cx.drawImage(bmp, 0, 0, w, h); bmp.close();
+  const px = cx.getImageData(0, 0, w, h).data; cv.width = cv.height = 0;
+  const rgb = new Uint8Array(w * h * 3), alfa = new Uint8Array(w * h); let temAlfa = false;
+  for (let i = 0, j = 0; i < px.length; i += 4, j++) { rgb[j * 3] = px[i]; rgb[j * 3 + 1] = px[i + 1]; rgb[j * 3 + 2] = px[i + 2]; alfa[j] = px[i + 3]; if (px[i + 3] < 255) temAlfa = true; }
+  const zlib = async u8 => new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new CompressionStream('deflate'))).arrayBuffer());
+  return { largura: w, altura: h, rgb: await zlib(rgb), alfa: temAlfa ? await zlib(alfa) : null };
+}
+
+/* Prepara a revisão assinada: devolve os bytes com /Contents reservado, o hash (SHA-256) do ByteRange e
+   `finalizar(cms)` que grava a assinatura. Opções:
+   { nomeCampo, visivel: { pagina (índice; -1 = última), u, v, w, h } | null, linhas: [{t, negrito, escala, cor}],
+     imagem: Uint8Array|null, motivo, local, contato, nomeSignatario, certificar: 0|1|2|3, reservaBytes, subFiltro, quando } */
+async function assPdfPreparar(bytes, op) {
+  op = op || {};
+  const PL = PDFLib, N = PL.PDFName.of;
+  if (!(bytes instanceof Uint8Array)) bytes = new Uint8Array(bytes);
+  let doc;
+  try { doc = await PL.PDFDocument.load(bytes, { updateMetadata: false, ignoreEncryption: true, throwOnInvalidObject: false }); }
+  catch (e) { throw new Error('não foi possível ler o PDF para assinar: ' + ((e && e.message) || e)); }
+  const ctx = doc.context;
+  if (doc.isEncrypted || ctx.trailerInfo.Encrypt) throw new Error('o PDF está protegido por senha/criptografia — remova a proteção (ferramenta "Proteger / remover senha") e assine a cópia sem senha');
+  const ult = assUltimoXref(bytes);
+  const size = Math.max(ult.size || 0, ctx.largestObjectNumber + 1);
+  const raizRef = ctx.trailerInfo.Root, infoRef = ctx.trailerInfo.Info, idArr = ctx.trailerInfo.ID;
+  if (!(raizRef instanceof PL.PDFRef)) throw new Error('catálogo do PDF não encontrado');
+
+  // assinaturas existentes e certificação (DocMDP)
+  const { afRaw, af, campos } = assCamposDoForm(doc);
+  const jaAssinado = campos.filter(c => c.ft === 'Sig' && c.v);
+  const perms = ctx.lookup(doc.catalog.get(N('Perms')));
+  if (perms instanceof PL.PDFDict && perms.get(N('DocMDP'))) {
+    const sd = ctx.lookup(perms.get(N('DocMDP')));
+    let p = 2;
+    try { const ref0 = ctx.lookup(ctx.lookup(sd.get(N('Reference'))).get(0)); const tp = ctx.lookup(ref0.get(N('TransformParams'))); const pn = tp.get(N('P')); if (pn) p = pn.asNumber(); } catch (e) { }
+    if (p === 1) throw new Error('o documento foi CERTIFICADO sem permitir alterações — nenhuma nova assinatura pode ser acrescentada sem invalidar a certificação');
+  }
+  if (op.certificar && jaAssinado.length) throw new Error('a certificação só pode ser a PRIMEIRA assinatura do documento; ele já tem ' + jaAssinado.length + ' assinatura(s)');
+  const nomes = new Set(campos.map(c => c.nome));
+  let nomeCampo = op.nomeCampo || 'Assinatura' + (jaAssinado.length + 1);
+  for (let k = 2; nomes.has(nomeCampo); k++) nomeCampo = (op.nomeCampo || 'Assinatura') + ' ' + k;
+
+  // página e retângulo
+  const paginas = doc.getPages();
+  let pagIdx = op.visivel ? op.visivel.pagina : paginas.length - 1;
+  if (pagIdx == null || pagIdx < 0) pagIdx = paginas.length - 1;
+  pagIdx = Math.min(paginas.length - 1, Math.max(0, pagIdx));
+  const pagina = paginas[pagIdx];
+  const geo = assPaginaGeometria(pagina);
+  let rect = [0, 0, 0, 0], W = 0, H = 0;
+  if (op.visivel) {
+    W = Math.min(op.visivel.w, geo.vw); H = Math.min(op.visivel.h, geo.vh);
+    // o carimbo nunca sai da folha (página girada tem largura/altura visuais trocadas)
+    op = { ...op, visivel: { ...op.visivel, u: Math.max(0, Math.min(geo.vw - W, op.visivel.u)), v: Math.max(0, Math.min(geo.vh - H, op.visivel.v)) } };
+    const a = assVisualParaUsuario(geo.crop, geo.rot, op.visivel.u, op.visivel.v), b = assVisualParaUsuario(geo.crop, geo.rot, op.visivel.u + W, op.visivel.v + H);
+    rect = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])];
+  }
+
+  // objetos novos
+  let prox = size; const aloca = () => prox++;
+  const nSig = aloca(), nCampo = aloca(), nAp = aloca(), nF1 = aloca(), nF2 = aloca();
+  const imgObj = op.visivel && op.imagem ? await assImagemParaXObject(op.imagem) : null;
+  const nImg = imgObj ? aloca() : 0, nMasc = imgObj && imgObj.alfa ? aloca() : 0;
+  let nAf = 0;
+  const quando = op.quando || new Date();
+  const reserva = Math.max(8192, op.reservaBytes || 16384);
+  const phBR = '[0 ' + '0'.repeat(10) + ' ' + '0'.repeat(10) + ' ' + '0'.repeat(10) + ']';
+  const refTxt = n => n + ' 0 R';
+  const docMdp = op.certificar ? ' /Reference [<< /Type /SigRef /TransformMethod /DocMDP /TransformParams << /Type /TransformParams /P ' + op.certificar + ' /V /1.2 >> >>]' : '';
+  const sigDict = '<< /Type /Sig /Filter /Adobe.PPKLite /SubFilter /' + (op.subFiltro || 'ETSI.CAdES.detached')
+    + ' /ByteRange ' + phBR + ' /Contents <' + '0'.repeat(reserva * 2) + '>'
+    + ' /M ' + assPdfTexto(assPdfData(quando))
+    + (op.nomeSignatario ? ' /Name ' + assPdfTexto(op.nomeSignatario) : '')
+    + (op.motivo ? ' /Reason ' + assPdfTexto(op.motivo) : '')
+    + (op.local ? ' /Location ' + assPdfTexto(op.local) : '')
+    + (op.contato ? ' /ContactInfo ' + assPdfTexto(op.contato) : '')
+    + docMdp
+    + ' /Prop_Build << /Filter << /Name /Adobe.PPKLite >> /App << /Name /GTFISC#20Ferramenta >> >> >>';
+  const objs = []; // {num, gen, corpo (Uint8Array)}
+  const add = (num, gen, corpo) => objs.push({ num, gen, corpo: corpo instanceof Uint8Array ? corpo : assLatin1(corpo) });
+  add(nSig, 0, sigDict);
+  const mk = geo.rot ? ' /MK << /R ' + geo.rot + ' >>' : '';
+  add(nCampo, 0, '<< /Type /Annot /Subtype /Widget /FT /Sig /T ' + assPdfTexto(nomeCampo) + ' /V ' + refTxt(nSig) + ' /F 132 /Rect [' + rect.map(assNum).join(' ') + '] /P ' + pagina.ref.toString() + ' /AP << /N ' + refTxt(nAp) + ' >>' + mk + ' >>');
+  // aparência (vazia se invisível)
+  let conteudo = '';
+  if (op.visivel) conteudo = await assConteudoCarimbo(W, H, op.linhas || [{ t: 'Assinado digitalmente', negrito: true }], imgObj);
+  const matriz = { 90: '[0 1 -1 0 0 0]', 180: '[-1 0 0 -1 0 0]', 270: '[0 -1 1 0 0 0]' }[geo.rot];
+  const recursos = '/Resources << /Font << /F1 ' + refTxt(nF1) + ' /F2 ' + refTxt(nF2) + ' >>' + (imgObj ? ' /XObject << /Im1 ' + refTxt(nImg) + ' >>' : '') + ' >>';
+  const cBytes = assLatin1(conteudo);
+  add(nAp, 0, assJunta([assLatin1('<< /Type /XObject /Subtype /Form /BBox [0 0 ' + assNum(W) + ' ' + assNum(H) + ']' + (matriz && op.visivel ? ' /Matrix ' + matriz : '') + ' ' + recursos + ' /Length ' + cBytes.length + ' >>\nstream\n'), cBytes, assLatin1('\nendstream')]));
+  add(nF1, 0, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+  add(nF2, 0, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+  if (imgObj) {
+    add(nImg, 0, assJunta([assLatin1('<< /Type /XObject /Subtype /Image /Width ' + imgObj.largura + ' /Height ' + imgObj.altura + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode' + (nMasc ? ' /SMask ' + refTxt(nMasc) : '') + ' /Length ' + imgObj.rgb.length + ' >>\nstream\n'), imgObj.rgb, assLatin1('\nendstream')]));
+    if (nMasc) add(nMasc, 0, assJunta([assLatin1('<< /Type /XObject /Subtype /Image /Width ' + imgObj.largura + ' /Height ' + imgObj.altura + ' /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length ' + imgObj.alfa.length + ' >>\nstream\n'), imgObj.alfa, assLatin1('\nendstream')]));
+  }
+  // página: /Annots recebe o widget (array indireto é atualizado no próprio objeto)
+  const campoRef = PL.PDFRef.of(nCampo);
+  const annotsRaw = pagina.node.get(N('Annots'));
+  if (op._semPagina) { /* só para testes de bissecção */ } else if (annotsRaw instanceof PL.PDFRef) {
+    const arr = ctx.lookup(annotsRaw); arr.push(campoRef);
+    add(annotsRaw.objectNumber, annotsRaw.generationNumber, arr.toString());
+  } else {
+    if (annotsRaw instanceof PL.PDFArray) annotsRaw.push(campoRef); else pagina.node.set(N('Annots'), ctx.obj([campoRef]));
+    add(pagina.ref.objectNumber, pagina.ref.generationNumber, pagina.node.toString());
+  }
+  // formulário: /Fields + /SigFlags 3
+  let catalogoMudou = false;
+  if (op._semForm) { /* só para testes de bissecção */ } else if (af) {
+    const fieldsRaw = af.get(N('Fields'));
+    if (fieldsRaw instanceof PL.PDFRef) { const arr = ctx.lookup(fieldsRaw); arr.push(campoRef); add(fieldsRaw.objectNumber, fieldsRaw.generationNumber, arr.toString()); }
+    else if (fieldsRaw instanceof PL.PDFArray) fieldsRaw.push(campoRef);
+    else af.set(N('Fields'), ctx.obj([campoRef]));
+    af.set(N('SigFlags'), PL.PDFNumber.of(3));
+    if (afRaw instanceof PL.PDFRef) add(afRaw.objectNumber, afRaw.generationNumber, af.toString());
+    else catalogoMudou = true; // AcroForm direto no catálogo
+  } else {
+    nAf = aloca();
+    add(nAf, 0, '<< /Fields [' + refTxt(nCampo) + '] /SigFlags 3 >>');
+    doc.catalog.set(N('AcroForm'), PL.PDFRef.of(nAf));
+    catalogoMudou = true;
+  }
+  // O Acrobat só consegue validar esta assinatura depois que OUTRAS forem acrescentadas se o catálogo tiver
+  // /Outlines (raiz de marcadores); sem ela, a assinatura anterior aparece como INVÁLIDA ("alterado ou corrompido").
+  // Constatado em testes com o Acrobat; uma raiz VAZIA basta e não aparece para o leitor.
+  if (!doc.catalog.get(N('Outlines')) && op.outlines !== false) { const nOl = aloca(); add(nOl, 0, '<< /Type /Outlines /Count 0 >>'); doc.catalog.set(N('Outlines'), PL.PDFRef.of(nOl)); catalogoMudou = true; }
+  if (op.certificar) { doc.catalog.set(N('Perms'), ctx.obj({ DocMDP: PL.PDFRef.of(nSig) })); catalogoMudou = true; }
+  if (catalogoMudou) add(raizRef.objectNumber, raizRef.generationNumber, doc.catalog.toString());
+
+  // montagem da seção incremental
+  const partes = [bytes]; let pos = bytes.length;
+  const empurra = u8 => { partes.push(u8); pos += u8.length; };
+  const ultimo = bytes[bytes.length - 1];
+  if (ultimo !== 0x0a && ultimo !== 0x0d) empurra(assLatin1('\n'));
+  const offsets = new Map(); let posSig = 0;
+  for (const o of objs) {
+    offsets.set(o.num, { pos, gen: o.gen });
+    if (o.num === nSig) posSig = pos;
+    empurra(assJunta([assLatin1(o.num + ' ' + o.gen + ' obj\n'), o.corpo, assLatin1('\nendobj\n')]));
+  }
+  const idTxt = idArr ? idArr.toString() : op.semIdNovo ? '' : (() => { const r = assHex(crypto.getRandomValues(new Uint8Array(16))).toUpperCase(); return '[<' + r + '> <' + r + '>]'; })();
+  const baseTrailer = '/Root ' + raizRef.toString() + (infoRef ? ' /Info ' + infoRef.toString() : '') + (idTxt ? ' /ID ' + idTxt : '') + ' /Prev ' + ult.off;
+  const faixas = nums => { const s = [...nums].sort((a, b) => a - b); const r = []; for (const n of s) { const u = r[r.length - 1]; if (u && u[0] + u[1] === n) u[1]++; else r.push([n, 1]); } return r; };
+  const usarTabela = op.forcarXref ? op.forcarXref === 'tabela' : ult.tabela;
+  if (usarTabela) {
+    const xrefPos = pos;
+    let t = 'xref\n0 1\n0000000000 65535 f \n'; // entrada do objeto 0 (iText/PDFBox fazem igual)
+    for (const [ini, qtd] of faixas(offsets.keys())) {
+      t += ini + ' ' + qtd + '\n';
+      for (let n = ini; n < ini + qtd; n++) { const e = offsets.get(n); t += String(e.pos).padStart(10, '0') + ' ' + String(e.gen).padStart(5, '0') + ' n \n'; }
+    }
+    t += 'trailer\n<< /Size ' + prox + ' ' + baseTrailer + ' >>\nstartxref\n' + xrefPos + '\n%%EOF\n';
+    empurra(assLatin1(t));
+  } else {
+    const nX = prox++; const xrefPos = pos;
+    offsets.set(nX, { pos: xrefPos, gen: 0 });
+    const ent = []; const idx = [];
+    for (const [ini, qtd] of faixas(offsets.keys())) {
+      idx.push(ini, qtd);
+      for (let n = ini; n < ini + qtd; n++) { const e = offsets.get(n); ent.push(1, (e.pos >>> 24) & 255, (e.pos >>> 16) & 255, (e.pos >>> 8) & 255, e.pos & 255, (e.gen >> 8) & 255, e.gen & 255); }
+    }
+    const dados = Uint8Array.from(ent);
+    empurra(assJunta([assLatin1(nX + ' 0 obj\n<< /Type /XRef /Size ' + prox + ' /W [1 4 2] /Index [' + idx.join(' ') + '] ' + baseTrailer + ' /Length ' + dados.length + ' >>\nstream\n'), dados, assLatin1('\nendstream\nendobj\nstartxref\n' + xrefPos + '\n%%EOF\n')]));
+  }
+  const saida = assJunta(partes);
+
+  // ByteRange e /Contents
+  const janela = assDeLatin1(saida.subarray(posSig, posSig + sigDict.length + 64));
+  const iBR = posSig + janela.indexOf('/ByteRange [') + 11;
+  const iC = posSig + janela.indexOf('/Contents <') + 10;
+  const fimC = iC + reserva * 2 + 2;
+  if (saida[iC] !== 0x3c || saida[fimC - 1] !== 0x3e) throw new Error('falha interna: marcador de /Contents fora do lugar');
+  const br = [0, iC, fimC, saida.length - fimC];
+  const brTxt = ('[' + br.join(' ') + ']').padEnd(phBR.length, ' ');
+  if (brTxt.length !== phBR.length) throw new Error('falha interna: ByteRange grande demais');
+  saida.set(assLatin1(brTxt), iBR);
+  const digest = await assHash('SHA-256', assJunta([saida.subarray(0, iC), saida.subarray(fimC)]));
+  return {
+    bytes: saida, digest, byteRange: br, nomeCampo, pagina: pagIdx, rect, reserva, quando,
+    finalizar(cms) {
+      const h = assHex(cms).toUpperCase();
+      if (h.length > reserva * 2) { const e = new Error('assinatura maior que o espaço reservado'); e.codigo = 'ESPACO'; e.necessario = cms.length; throw e; }
+      saida.set(assLatin1(h), iC + 1);
+      return saida;
+    },
+  };
+}
+
+// procura um espaço livre para o carimbo (renderiza a página em baixa resolução e acha um retângulo branco),
+// preferindo embaixo à direita; devolve {u, v} em coordenadas visuais ou null
+async function assEspacoLivre(pdfjsPage, w, h, margem) {
+  margem = margem == null ? 28 : margem;
+  const esc = 0.75;
+  const vp = pdfjsPage.getViewport({ scale: esc });
+  const cv = criarCanvas(Math.ceil(vp.width), Math.ceil(vp.height)); const cx = cv.getContext('2d');
+  cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+  await pdfjsPage.render({ canvasContext: cx, viewport: vp, intent: 'print' }).promise;
+  const W = cv.width, H = cv.height, px = cx.getImageData(0, 0, W, H).data; cv.width = cv.height = 0;
+  // soma acumulada de pixels "ocupados" (não brancos)
+  const S = new Int32Array((W + 1) * (H + 1));
+  for (let y = 0; y < H; y++) { let lin = 0; for (let x = 0; x < W; x++) { const i = (y * W + x) * 4; if (px[i] < 235 || px[i + 1] < 235 || px[i + 2] < 235) lin++; S[(y + 1) * (W + 1) + x + 1] = S[y * (W + 1) + x + 1] + lin; } }
+  const ocupado = (x0, y0, x1, y1) => S[y1 * (W + 1) + x1] - S[y0 * (W + 1) + x1] - S[y1 * (W + 1) + x0] + S[y0 * (W + 1) + x0];
+  const rw = Math.ceil(w * esc), rh = Math.ceil(h * esc), m = Math.round(margem * esc), folga = Math.round(4 * esc);
+  const passo = Math.max(2, Math.round(4 * esc));
+  for (let y = H - m - rh; y >= m; y -= passo) for (let x = W - m - rw; x >= m; x -= passo) {
+    if (ocupado(Math.max(0, x - folga), Math.max(0, y - folga), Math.min(W, x + rw + folga), Math.min(H, y + rh + folga)) === 0) return { u: x / esc, v: y / esc };
+  }
+  return null;
+}
+
+/* ---------- 40 — PKCS#12 (.pfx/.p12): certificado A1 lido no navegador ----------
+   Formatos: PBES2 (AES/PBKDF2 — Windows 10+ e OpenSSL 3) via WebCrypto; os antigos das ACs e do Windows
+   (pbeWithSHA1And3-KeyTripleDES-CBC, RC2-40/128, RC4) via implementações próprias abaixo (o WebCrypto não
+   oferece 3DES/RC2). A senha e a chave ficam só na memória; a chave vira CryptoKey NÃO exportável. */
+
+// ---- DES / 3DES (FIPS 46-3) — só decifração em CBC ----
+const __DES = (() => {
+  const PC1 = [57, 49, 41, 33, 25, 17, 9, 1, 58, 50, 42, 34, 26, 18, 10, 2, 59, 51, 43, 35, 27, 19, 11, 3, 60, 52, 44, 36, 63, 55, 47, 39, 31, 23, 15, 7, 62, 54, 46, 38, 30, 22, 14, 6, 61, 53, 45, 37, 29, 21, 13, 5, 28, 20, 12, 4];
+  const PC2 = [14, 17, 11, 24, 1, 5, 3, 28, 15, 6, 21, 10, 23, 19, 12, 4, 26, 8, 16, 7, 27, 20, 13, 2, 41, 52, 31, 37, 47, 55, 30, 40, 51, 45, 33, 48, 44, 49, 39, 56, 34, 53, 46, 42, 50, 36, 29, 32];
+  const ROT = [1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1];
+  const IP = [58, 50, 42, 34, 26, 18, 10, 2, 60, 52, 44, 36, 28, 20, 12, 4, 62, 54, 46, 38, 30, 22, 14, 6, 64, 56, 48, 40, 32, 24, 16, 8, 57, 49, 41, 33, 25, 17, 9, 1, 59, 51, 43, 35, 27, 19, 11, 3, 61, 53, 45, 37, 29, 21, 13, 5, 63, 55, 47, 39, 31, 23, 15, 7];
+  const FP = [40, 8, 48, 16, 56, 24, 64, 32, 39, 7, 47, 15, 55, 23, 63, 31, 38, 6, 46, 14, 54, 22, 62, 30, 37, 5, 45, 13, 53, 21, 61, 29, 36, 4, 44, 12, 52, 20, 60, 28, 35, 3, 43, 11, 51, 19, 59, 27, 34, 2, 42, 10, 50, 18, 58, 26, 33, 1, 41, 9, 49, 17, 57, 25];
+  const E = [32, 1, 2, 3, 4, 5, 4, 5, 6, 7, 8, 9, 8, 9, 10, 11, 12, 13, 12, 13, 14, 15, 16, 17, 16, 17, 18, 19, 20, 21, 20, 21, 22, 23, 24, 25, 24, 25, 26, 27, 28, 29, 28, 29, 30, 31, 32, 1];
+  const P = [16, 7, 20, 21, 29, 12, 28, 17, 1, 15, 23, 26, 5, 18, 31, 10, 2, 8, 24, 14, 32, 27, 3, 9, 19, 13, 30, 6, 22, 11, 4, 25];
+  const S = [
+    [14, 4, 13, 1, 2, 15, 11, 8, 3, 10, 6, 12, 5, 9, 0, 7, 0, 15, 7, 4, 14, 2, 13, 1, 10, 6, 12, 11, 9, 5, 3, 8, 4, 1, 14, 8, 13, 6, 2, 11, 15, 12, 9, 7, 3, 10, 5, 0, 15, 12, 8, 2, 4, 9, 1, 7, 5, 11, 3, 14, 10, 0, 6, 13],
+    [15, 1, 8, 14, 6, 11, 3, 4, 9, 7, 2, 13, 12, 0, 5, 10, 3, 13, 4, 7, 15, 2, 8, 14, 12, 0, 1, 10, 6, 9, 11, 5, 0, 14, 7, 11, 10, 4, 13, 1, 5, 8, 12, 6, 9, 3, 2, 15, 13, 8, 10, 1, 3, 15, 4, 2, 11, 6, 7, 12, 0, 5, 14, 9],
+    [10, 0, 9, 14, 6, 3, 15, 5, 1, 13, 12, 7, 11, 4, 2, 8, 13, 7, 0, 9, 3, 4, 6, 10, 2, 8, 5, 14, 12, 11, 15, 1, 13, 6, 4, 9, 8, 15, 3, 0, 11, 1, 2, 12, 5, 10, 14, 7, 1, 10, 13, 0, 6, 9, 8, 7, 4, 15, 14, 3, 11, 5, 2, 12],
+    [7, 13, 14, 3, 0, 6, 9, 10, 1, 2, 8, 5, 11, 12, 4, 15, 13, 8, 11, 5, 6, 15, 0, 3, 4, 7, 2, 12, 1, 10, 14, 9, 10, 6, 9, 0, 12, 11, 7, 13, 15, 1, 3, 14, 5, 2, 8, 4, 3, 15, 0, 6, 10, 1, 13, 8, 9, 4, 5, 11, 12, 7, 2, 14],
+    [2, 12, 4, 1, 7, 10, 11, 6, 8, 5, 3, 15, 13, 0, 14, 9, 14, 11, 2, 12, 4, 7, 13, 1, 5, 0, 15, 10, 3, 9, 8, 6, 4, 2, 1, 11, 10, 13, 7, 8, 15, 9, 12, 5, 6, 3, 0, 14, 11, 8, 12, 7, 1, 14, 2, 13, 6, 15, 0, 9, 10, 4, 5, 3],
+    [12, 1, 10, 15, 9, 2, 6, 8, 0, 13, 3, 4, 14, 7, 5, 11, 10, 15, 4, 2, 7, 12, 9, 5, 6, 1, 13, 14, 0, 11, 3, 8, 9, 14, 15, 5, 2, 8, 12, 3, 7, 0, 4, 10, 1, 13, 11, 6, 4, 3, 2, 12, 9, 5, 15, 10, 11, 14, 1, 7, 6, 0, 8, 13],
+    [4, 11, 2, 14, 15, 0, 8, 13, 3, 12, 9, 7, 5, 10, 6, 1, 13, 0, 11, 7, 4, 9, 1, 10, 14, 3, 5, 12, 2, 15, 8, 6, 1, 4, 11, 13, 12, 3, 7, 14, 10, 15, 6, 8, 0, 5, 9, 2, 6, 11, 13, 8, 1, 4, 10, 7, 9, 5, 0, 15, 14, 2, 3, 12],
+    [13, 2, 8, 4, 6, 15, 11, 1, 10, 9, 3, 14, 5, 0, 12, 7, 1, 15, 13, 8, 10, 3, 7, 4, 12, 5, 6, 11, 0, 14, 9, 2, 7, 11, 4, 1, 9, 12, 14, 2, 0, 6, 10, 13, 15, 3, 5, 8, 2, 1, 14, 7, 4, 10, 8, 13, 15, 12, 9, 0, 3, 5, 6, 11],
+  ];
+  // bits como arrays de 0/1 (clareza > velocidade: só decifra alguns KB de chave/certificado)
+  const bits = (bytes, n) => { const o = new Array(n); for (let i = 0; i < n; i++) o[i] = (bytes[i >> 3] >> (7 - (i & 7))) & 1; return o; };
+  const perm = (src, tab) => tab.map(k => src[k - 1]);
+  function subchaves(chave8) {
+    const k = perm(bits(chave8, 64), PC1); let c = k.slice(0, 28), d = k.slice(28);
+    const out = [];
+    for (const r of ROT) { c = c.slice(r).concat(c.slice(0, r)); d = d.slice(r).concat(d.slice(0, r)); out.push(perm(c.concat(d), PC2)); }
+    return out;
+  }
+  function bloco(b8, sk, decifrar) {
+    let x = perm(bits(b8, 64), IP); let l = x.slice(0, 32), r = x.slice(32);
+    for (let i = 0; i < 16; i++) {
+      const k = sk[decifrar ? 15 - i : i]; const e = perm(r, E).map((v, j) => v ^ k[j]);
+      const f = [];
+      for (let s = 0; s < 8; s++) { const b = e.slice(s * 6, s * 6 + 6); const v = S[s][(b[0] << 5) | (b[5] << 4) | (b[1] << 3) | (b[2] << 2) | (b[3] << 1) | b[4]]; f.push((v >> 3) & 1, (v >> 2) & 1, (v >> 1) & 1, v & 1); }
+      const pf = perm(f, P); const nl = r; r = l.map((v, j) => v ^ pf[j]); l = nl;
+    }
+    const y = perm(r.concat(l), FP); const o = new Uint8Array(8);
+    for (let i = 0; i < 64; i++) o[i >> 3] |= y[i] << (7 - (i & 7));
+    return o;
+  }
+  return {
+    cifrarBloco(chave8, b8) { return bloco(b8, subchaves(chave8), false); },
+    decifrar3desCbc(chave, iv, dados) {
+      const k1 = subchaves(chave.subarray(0, 8)), k2 = subchaves(chave.subarray(8, 16)), k3 = subchaves(chave.length >= 24 ? chave.subarray(16, 24) : chave.subarray(0, 8));
+      const out = new Uint8Array(dados.length); let ant = iv;
+      for (let i = 0; i < dados.length; i += 8) {
+        const c = dados.subarray(i, i + 8);
+        const p = bloco(bloco(bloco(c, k3, true), k2, false), k1, true);
+        for (let j = 0; j < 8; j++) out[i + j] = p[j] ^ ant[j];
+        ant = c;
+      }
+      return out;
+    },
+    decifrarDesCbc(chave, iv, dados) {
+      const k = subchaves(chave); const out = new Uint8Array(dados.length); let ant = iv;
+      for (let i = 0; i < dados.length; i += 8) { const c = dados.subarray(i, i + 8); const p = bloco(c, k, true); for (let j = 0; j < 8; j++) out[i + j] = p[j] ^ ant[j]; ant = c; }
+      return out;
+    },
+  };
+})();
+
+// ---- RC2 (RFC 2268) — só decifração em CBC ----
+const __RC2 = (() => {
+  const PI = [217, 120, 249, 196, 25, 221, 181, 237, 40, 233, 253, 121, 74, 160, 216, 157, 198, 126, 55, 131, 43, 118, 83, 142, 98, 76, 100, 136, 68, 139, 251, 162, 23, 154, 89, 245, 135, 179, 79, 19, 97, 69, 109, 141, 9, 129, 125, 50, 189, 143, 64, 235, 134, 183, 123, 11, 240, 149, 33, 34, 92, 107, 78, 130, 84, 214, 101, 147, 206, 96, 178, 28, 115, 86, 192, 20, 167, 140, 241, 220, 18, 117, 202, 31, 59, 190, 228, 209, 66, 61, 212, 48, 163, 60, 182, 38, 111, 191, 14, 218, 70, 105, 7, 87, 39, 242, 29, 155, 188, 148, 67, 3, 248, 17, 199, 246, 144, 239, 62, 231, 6, 195, 213, 47, 200, 102, 30, 215, 8, 232, 234, 222, 128, 82, 238, 247, 132, 170, 114, 172, 53, 77, 106, 42, 150, 26, 210, 113, 90, 21, 73, 116, 75, 159, 208, 94, 4, 24, 164, 236, 194, 224, 65, 110, 15, 81, 203, 204, 36, 145, 175, 80, 161, 244, 112, 57, 153, 124, 58, 133, 35, 184, 180, 122, 252, 2, 54, 91, 37, 85, 151, 49, 45, 93, 250, 152, 227, 138, 146, 174, 5, 223, 41, 16, 103, 108, 186, 201, 211, 0, 230, 207, 225, 158, 168, 44, 99, 22, 1, 63, 88, 226, 137, 169, 13, 56, 52, 27, 171, 51, 255, 176, 187, 72, 12, 95, 185, 177, 205, 46, 197, 243, 219, 71, 229, 165, 156, 119, 10, 166, 32, 104, 254, 127, 193, 173];
+  function expandir(chave, bitsEfetivos) {
+    const L = new Uint8Array(128); L.set(chave);
+    const T = chave.length, T8 = (bitsEfetivos + 7) >> 3, TM = 255 % Math.pow(2, 8 + bitsEfetivos - 8 * T8);
+    for (let i = T; i < 128; i++) L[i] = PI[(L[i - 1] + L[i - T]) & 255];
+    L[128 - T8] = PI[L[128 - T8] & TM];
+    for (let i = 127 - T8; i >= 0; i--) L[i] = PI[L[i + 1] ^ L[i + T8]];
+    const K = new Uint16Array(64); for (let i = 0; i < 64; i++) K[i] = L[2 * i] | (L[2 * i + 1] << 8);
+    return K;
+  }
+  const rotr = (x, s) => ((x >> s) | (x << (16 - s))) & 0xffff;
+  function decifrarBloco(K, b) {
+    const R = [b[0] | (b[1] << 8), b[2] | (b[3] << 8), b[4] | (b[5] << 8), b[6] | (b[7] << 8)];
+    let j = 63;
+    const mix = () => { for (let i = 3; i >= 0; i--) { R[i] = rotr(R[i], [1, 2, 3, 5][i]); R[i] = (R[i] - K[j--] - (R[(i + 3) & 3] & R[(i + 2) & 3]) - (~R[(i + 3) & 3] & R[(i + 1) & 3])) & 0xffff; } };
+    const mash = () => { for (let i = 3; i >= 0; i--) R[i] = (R[i] - K[R[(i + 3) & 3] & 63]) & 0xffff; };
+    for (let r = 0; r < 5; r++) mix(); mash(); for (let r = 0; r < 6; r++) mix(); mash(); for (let r = 0; r < 5; r++) mix();
+    const o = new Uint8Array(8); for (let i = 0; i < 4; i++) { o[2 * i] = R[i] & 255; o[2 * i + 1] = R[i] >> 8; }
+    return o;
+  }
+  function cifrarBloco(K, b) {
+    const R = [b[0] | (b[1] << 8), b[2] | (b[3] << 8), b[4] | (b[5] << 8), b[6] | (b[7] << 8)];
+    let j = 0; const rotl = (x, s) => ((x << s) | (x >> (16 - s))) & 0xffff;
+    const mix = () => { for (let i = 0; i < 4; i++) { R[i] = (R[i] + K[j++] + (R[(i + 3) & 3] & R[(i + 2) & 3]) + (~R[(i + 3) & 3] & R[(i + 1) & 3])) & 0xffff; R[i] = rotl(R[i], [1, 2, 3, 5][i]); } };
+    const mash = () => { for (let i = 0; i < 4; i++) R[i] = (R[i] + K[R[(i + 3) & 3] & 63]) & 0xffff; };
+    for (let r = 0; r < 5; r++) mix(); mash(); for (let r = 0; r < 6; r++) mix(); mash(); for (let r = 0; r < 5; r++) mix();
+    const o = new Uint8Array(8); for (let i = 0; i < 4; i++) { o[2 * i] = R[i] & 255; o[2 * i + 1] = R[i] >> 8; }
+    return o;
+  }
+  return {
+    cifrarBloco(chave, bitsEf, b) { return cifrarBloco(expandir(chave, bitsEf), b); },
+    decifrarCbc(chave, bitsEf, iv, dados) {
+      const K = expandir(chave, bitsEf); const out = new Uint8Array(dados.length); let ant = iv;
+      for (let i = 0; i < dados.length; i += 8) { const c = dados.subarray(i, i + 8); const p = decifrarBloco(K, c); for (let j = 0; j < 8; j++) out[i + j] = p[j] ^ ant[j]; ant = c; }
+      return out;
+    },
+  };
+})();
+
+function __rc4(chave, dados) {
+  const S = new Uint8Array(256); for (let i = 0; i < 256; i++) S[i] = i;
+  for (let i = 0, j = 0; i < 256; i++) { j = (j + S[i] + chave[i % chave.length]) & 255; const t = S[i]; S[i] = S[j]; S[j] = t; }
+  const out = new Uint8Array(dados.length);
+  for (let k = 0, i = 0, j = 0; k < dados.length; k++) { i = (i + 1) & 255; j = (j + S[i]) & 255; const t = S[i]; S[i] = S[j]; S[j] = t; out[k] = dados[k] ^ S[(S[i] + S[j]) & 255]; }
+  return out;
+}
+function __semPkcs7(u8) {
+  const n = u8[u8.length - 1];
+  if (!n || n > 16 || n > u8.length) throw new Error('SENHA');
+  for (let i = u8.length - n; i < u8.length; i++) if (u8[i] !== n) throw new Error('SENHA');
+  return u8.subarray(0, u8.length - n);
+}
+
+// senha como BMPString com terminador (RFC 7292, B.1)
+function __senhaBmp(s) { const o = new Uint8Array((s.length + 1) * 2); for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); o[2 * i] = c >> 8; o[2 * i + 1] = c & 255; } return o; }
+// derivação de chave do PKCS#12 (RFC 7292, apêndice B.2); id 1 = chave, 2 = IV, 3 = MAC
+async function assPkcs12Kdf(hashNome, senhaBmp, sal, iteracoes, id, n) {
+  const u = { 'SHA-1': 20, 'SHA-256': 32, 'SHA-384': 48, 'SHA-512': 64 }[hashNome], v = u > 32 ? 128 : 64;
+  const D = new Uint8Array(v).fill(id);
+  const rep = (x, len) => { const o = new Uint8Array(len); for (let i = 0; i < len && x.length; i++) o[i] = x[i % x.length]; return o; };
+  const S = rep(sal, v * Math.ceil(sal.length / v)), Pw = rep(senhaBmp, v * Math.ceil(senhaBmp.length / v));
+  let I = assJunta([S, Pw]);
+  const out = new Uint8Array(n); let feitos = 0;
+  while (feitos < n) {
+    let A = assJunta([D, I]);
+    for (let r = 0; r < iteracoes; r++) A = await assHash(hashNome, A);
+    out.set(A.subarray(0, Math.min(u, n - feitos)), feitos); feitos += u;
+    if (feitos >= n) break;
+    const B = rep(A, v);
+    for (let j = 0; j < I.length; j += v) { let c = 1; for (let k = v - 1; k >= 0; k--) { c += I[j + k] + B[k]; I[j + k] = c & 255; c >>= 8; } }
+  }
+  return out;
+}
+
+async function __decifrarPbe(algNo, cifrado, senha) {
+  const af = derFilhos(algNo); const oid = derOid(af[0]);
+  if (oid === OID.pbes2) {
+    const [kdf, esquema] = derFilhos(af[1]);
+    const [kdfOid, kdfParams] = derFilhos(kdf);
+    if (derOid(kdfOid) !== OID.pbkdf2) throw new Error('derivação de chave não suportada no .pfx: ' + derOid(kdfOid));
+    const kp = derFilhos(kdfParams);
+    const sal = derConteudo(kp[0]), iter = derIntNum(kp[1]);
+    let prf = 'SHA-1', compChave = 0;
+    for (const x of kp.slice(2)) { if (x.tag === 0x02) compChave = derIntNum(x); else if (x.tag === 0x30) prf = { [OID.hmacSha1]: 'SHA-1', [OID.hmacSha256]: 'SHA-256', [OID.hmacSha384]: 'SHA-384', [OID.hmacSha512]: 'SHA-512' }[derOid(derFilhos(x)[0])] || 'SHA-1'; }
+    const [encOid, encParams] = derFilhos(esquema); const eo = derOid(encOid);
+    const aes = { [OID.aes128cbc]: 16, [OID.aes192cbc]: 24, [OID.aes256cbc]: 32 }[eo];
+    const len = aes || (eo === OID.desEde3Cbc ? 24 : eo === OID.desCbc ? 8 : 0) || compChave;
+    if (!len) throw new Error('cifra não suportada no .pfx: ' + eo);
+    const base = await crypto.subtle.importKey('raw', assTxt(senha), 'PBKDF2', false, ['deriveBits']);
+    const chave = new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: sal, iterations: iter, hash: prf }, base, len * 8));
+    const iv = derConteudo(encParams);
+    if (aes) {
+      const k = await crypto.subtle.importKey('raw', chave, 'AES-CBC', false, ['decrypt']);
+      try { return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, k, cifrado)); } catch (e) { throw new Error('SENHA'); }
+    }
+    if (eo === OID.desEde3Cbc) return __semPkcs7(__DES.decifrar3desCbc(chave, iv, cifrado));
+    return __semPkcs7(__DES.decifrarDesCbc(chave, iv, cifrado));
+  }
+  const [salNo, iterNo] = derFilhos(af[1]); const sal = derConteudo(salNo), iter = derIntNum(iterNo); const bmp = __senhaBmp(senha);
+  const kdf = (id, n) => assPkcs12Kdf('SHA-1', bmp, sal, iter, id, n);
+  if (oid === OID.pbeSha1Des3 || oid === OID.pbeSha1Des2) { const k = await kdf(1, oid === OID.pbeSha1Des3 ? 24 : 16), iv = await kdf(2, 8); return __semPkcs7(__DES.decifrar3desCbc(k, iv, cifrado)); }
+  if (oid === OID.pbeSha1Rc2_40 || oid === OID.pbeSha1Rc2_128) { const nb = oid === OID.pbeSha1Rc2_40 ? 5 : 16; const k = await kdf(1, nb), iv = await kdf(2, 8); return __semPkcs7(__RC2.decifrarCbc(k, nb * 8, iv, cifrado)); }
+  if (oid === OID.pbeSha1Rc4_128 || oid === OID.pbeSha1Rc4_40) { const k = await kdf(1, oid === OID.pbeSha1Rc4_40 ? 5 : 16); return __rc4(k, cifrado); }
+  throw new Error('cifra do .pfx não suportada (' + oid + ')');
+}
+
+/* Lê um .pfx/.p12 → { chaves: [{pkcs8, idLocal}], certs: [cert X.509 lido], titular: cert, cadeia: [certs] } */
+async function assPfxLer(bytes, senha) {
+  if (!(bytes instanceof Uint8Array)) bytes = new Uint8Array(bytes);
+  const pfx = derLer(bytes);
+  const [versao, authSafe, macData] = derFilhos(pfx);
+  if (derIntNum(versao) !== 3) throw new Error('não é um arquivo PKCS#12 (.pfx/.p12) válido');
+  const [tipoAs, conteudoAs] = derFilhos(authSafe);
+  if (derOid(tipoAs) !== OID.data) throw new Error('.pfx protegido por chave pública (não por senha) não é suportado');
+  const dadosAs = derConteudo(derFilhos(conteudoAs)[0]);
+  // integridade (HMAC) — é aqui que a senha errada aparece
+  if (macData) {
+    const [dig, salNo, iterNo] = derFilhos(macData);
+    const [algNo, valorNo] = derFilhos(dig); const hashNome = ASS_HASH_OID[derOid(derFilhos(algNo)[0])] || 'SHA-1';
+    const nHash = { 'SHA-1': 20, 'SHA-256': 32, 'SHA-384': 48, 'SHA-512': 64 }[hashNome];
+    const chaveMac = await assPkcs12Kdf(hashNome, __senhaBmp(senha), derConteudo(salNo), iterNo ? derIntNum(iterNo) : 1, 3, nHash);
+    const k = await crypto.subtle.importKey('raw', chaveMac, { name: 'HMAC', hash: hashNome }, false, ['sign']);
+    const mac = new Uint8Array(await crypto.subtle.sign('HMAC', k, dadosAs));
+    if (!assIguais(mac, derConteudo(valorNo))) {
+      // alguns geradores usam senha vazia no MAC; e senha em branco = BMP vazia
+      const e = new Error('senha incorreta para este certificado'); e.codigo = 'SENHA'; throw e;
+    }
+  }
+  const chaves = [], certs = [];
+  const bolsa = async (sacos) => {
+    for (const bag of derFilhos(sacos)) {
+      const bf = derFilhos(bag); const tipo = derOid(bf[0]); const valor = derFilhos(bf[1])[0];
+      let idLocal = null;
+      if (bf[2]) for (const at of derFilhos(bf[2])) { const [t, vs] = derFilhos(at); if (derOid(t) === OID.localKeyId) idLocal = assHex(derConteudo(derFilhos(vs)[0])); }
+      if (tipo === OID.keyBag) chaves.push({ pkcs8: derBruto(valor), idLocal });
+      else if (tipo === OID.shroudedKeyBag) {
+        const [alg, cif] = derFilhos(valor);
+        let pk; try { pk = await __decifrarPbe(alg, derConteudo(cif), senha); } catch (e) { if (e.message === 'SENHA') { const x = new Error('senha incorreta para este certificado'); x.codigo = 'SENHA'; throw x; } throw e; }
+        chaves.push({ pkcs8: pk.subarray(0, derLer(pk).fim), idLocal });
+      } else if (tipo === OID.certBag) {
+        const [ct, cv] = derFilhos(valor);
+        if (derOid(ct) === OID.x509Certificate) { const c = assCertLer(derConteudo(derFilhos(cv)[0])); c.idLocal = idLocal; certs.push(c); }
+      }
+    }
+  };
+  for (const ci of derFilhos(derLer(dadosAs))) {
+    const [t, c] = derFilhos(ci); const tipo = derOid(t);
+    if (tipo === OID.data) await bolsa(derLer(derConteudo(derFilhos(c)[0])));
+    else if (tipo === OID.encryptedData) {
+      const ed = derFilhos(derFilhos(c)[0]); const eci = derFilhos(ed[1]);
+      let claro; try { claro = await __decifrarPbe(eci[1], derConteudo(eci[2]), senha); } catch (e) { if (e.message === 'SENHA') { const x = new Error('senha incorreta para este certificado'); x.codigo = 'SENHA'; throw x; } throw e; }
+      await bolsa(derLer(claro));
+    }
+  }
+  if (!chaves.length) throw new Error('o arquivo não contém a chave privada (é só o certificado público?)');
+  if (!certs.length) throw new Error('o arquivo não contém o certificado');
+  // titular: o certificado da chave (localKeyId) ou o que não é AC nem emissor de outro
+  let titular = certs.find(c => chaves[0].idLocal && c.idLocal === chaves[0].idLocal)
+    || certs.find(c => !c.ac && !certs.some(o => o !== c && assIguais(o.emissorBruto, c.titularBruto))) || certs[0];
+  // cadeia ordenada a partir do titular
+  const cadeia = []; let atual = titular;
+  for (let g = 0; g < 10; g++) { const pai = certs.find(o => o !== atual && !cadeia.includes(o) && assIguais(o.titularBruto, atual.emissorBruto)); if (!pai) break; cadeia.push(pai); if (pai.autoAssinado) break; atual = pai; }
+  return { chaves, certs, titular, cadeia, chavePkcs8: chaves[0].pkcs8 };
+}
+
+/* ---------- 50 — provedores de assinatura ----------
+   Todo provedor expõe: { tipo, rotulo, cert, cadeia, algChave: 'RSA'|'EC', assinarLote(atributosDer[], documentos[]) → assinaturas[] }
+   - 'pfx'   : arquivo A1 decifrado no navegador; chave importada no WebCrypto como NÃO exportável
+   - 'local' : certificado do Windows (A1 instalado, token/cartão A3, nuvem via aplicativo do provedor) —
+               o "Assinador GTFISC" (programa local, 127.0.0.1) assina o HASH; a chave nunca sai do Windows
+   - 'teste' : chave gerada na hora (autotestes)                                                          */
+
+async function assImportarChavePrivada(pkcs8, cert) {
+  if (cert.chave.alg === 'EC') return crypto.subtle.importKey('pkcs8', pkcs8, { name: 'ECDSA', namedCurve: cert.chave.curva }, false, ['sign']);
+  return crypto.subtle.importKey('pkcs8', pkcs8, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+}
+async function assAssinarWebCrypto(chave, algChave, dados) {
+  if (algChave === 'EC') return new Uint8Array(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, chave, dados));
+  return new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5', chave, dados));
+}
+
+async function assProvedorPfx(bytes, senha) {
+  const p = await assPfxLer(bytes, senha);
+  const chave = await assImportarChavePrivada(p.chavePkcs8, p.titular);
+  // confere que a chave é do certificado (assina e verifica um teste)
+  const prova = assTxt('GTFISC-prova-' + Date.now());
+  const sig = await assAssinarWebCrypto(chave, p.titular.chave.alg, prova);
+  if (!(await assVerificarAssinatura(p.titular, p.titular.chave.alg === 'EC' ? OID.ecdsaSha256 : OID.sha256Rsa, OID.sha256, prova, p.titular.chave.alg === 'EC' ? assEcdsaParaDer(sig) : sig)))
+    throw new Error('a chave privada do arquivo não corresponde ao certificado');
+  return {
+    tipo: 'pfx', rotulo: 'Arquivo A1: ' + assCertResumo(p.titular), cert: p.titular, cadeia: p.cadeia, algChave: p.titular.chave.alg,
+    async assinarLote(atributos) { const out = []; for (const a of atributos) out.push(await assAssinarWebCrypto(chave, this.algChave, a)); return out; },
+  };
+}
+
+/* ---- certificados de teste (autotestes e demonstração) ---- */
+function assNomeDer(pares) { return DER.seq(...pares.map(([oid, v]) => DER.set(DER.seq(DER.oid(oid), oid === OID.c ? DER.printable(v) : DER.utf8(v))))); }
+async function assGerarCert({ titular, emissor, chaveTitular, chaveEmissor, algEmissor, ac, cpf, dias, serial }) {
+  const spki = new Uint8Array(await crypto.subtle.exportKey('spki', chaveTitular.publicKey));
+  const algSig = algEmissor === 'EC' ? DER.alg(OID.ecdsaSha256) : DER.alg(OID.sha256Rsa, true);
+  const agora = Date.now();
+  const exts = [];
+  exts.push(DER.seq(DER.oid(OID.basicConstraints), DER.bool(true), DER.octet(ac ? DER.seq(DER.bool(true)) : DER.seq())));
+  exts.push(DER.seq(DER.oid(OID.keyUsage), DER.bool(true), DER.octet(ac ? DER.tlv(0x03, Uint8Array.of(1, 0x06)) : DER.tlv(0x03, Uint8Array.of(6, 0xc0)))));
+  if (cpf) exts.push(DER.seq(DER.oid(OID.san), DER.octet(DER.seq(DER.ctx(0, DER.oid(OID.icpPfDados), DER.ctx(0, DER.octet(assTxt('01011980' + cpf + '0'.repeat(32)))))))));
+  const tbs = DER.seq(
+    DER.ctx(0, DER.int(2)), DER.int(serial || crypto.getRandomValues(new Uint8Array(12))), algSig,
+    assNomeDer(emissor), DER.seq(DER.utc(new Date(agora - 86400000)), DER.utc(new Date(agora + (dias || 365) * 86400000))),
+    assNomeDer(titular), spki, DER.ctx(3, DER.seq(...exts)),
+  );
+  let sig = await assAssinarWebCrypto(chaveEmissor.privateKey, algEmissor, tbs);
+  if (algEmissor === 'EC') sig = assEcdsaParaDer(sig);
+  return assCertLer(DER.seq(tbs, algSig, DER.bits(sig)));
+}
+async function assProvedorTeste(algChave) {
+  algChave = algChave || 'RSA';
+  const gerar = alg => alg === 'EC' ? crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])
+    : crypto.subtle.generateKey({ name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: Uint8Array.of(1, 0, 1), hash: 'SHA-256' }, true, ['sign', 'verify']);
+  const kRaiz = await gerar('RSA'), kTit = await gerar(algChave);
+  const nRaiz = [[OID.c, 'BR'], [OID.o, 'ICP-Brasil TESTE'], [OID.cn, 'AC Raiz TESTE GTFISC']];
+  const raiz = await assGerarCert({ titular: nRaiz, emissor: nRaiz, chaveTitular: kRaiz, chaveEmissor: kRaiz, algEmissor: 'RSA', ac: true, dias: 3650 });
+  const tit = await assGerarCert({ titular: [[OID.c, 'BR'], [OID.o, 'ICP-Brasil TESTE'], [OID.ou, 'TESTE'], [OID.cn, 'SICRANO DE TESTE']], emissor: nRaiz, chaveTitular: kTit, chaveEmissor: kRaiz, algEmissor: 'RSA', cpf: '52998224725' });
+  return {
+    tipo: 'teste', rotulo: 'Certificado de TESTE (sem valor jurídico)', cert: tit, cadeia: [raiz], raiz, algChave,
+    async assinarLote(atributos) { const out = []; for (const a of atributos) out.push(await assAssinarWebCrypto(kTit.privateKey, algChave, a)); return out; },
+  };
+}
+
+/* ---- Assinador GTFISC (programa local no Windows) ---- */
+const AssLocal = {
+  portas: [47880, 47881, 47882],
+  base: null,
+  info: null,
+  async encontrar() {
+    const portas = (typeof window !== 'undefined' && window.__assPortaTeste) ? [window.__assPortaTeste] : this.portas;
+    for (const p of portas) {
+      try {
+        const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 2500);
+        const r = await fetch('http://127.0.0.1:' + p + '/status', { signal: ctl.signal, cache: 'no-store' });
+        clearTimeout(t);
+        if (!r.ok) continue;
+        const j = await r.json();
+        if (j && j.app === 'GTFISC Assinador') { this.base = 'http://127.0.0.1:' + p; this.info = j; return j; }
+      } catch (e) { /* porta livre ou bloqueada pelo navegador */ }
+    }
+    this.base = null; this.info = null; return null;
+  },
+  async chamar(caminho, corpo) {
+    if (!this.base && !(await this.encontrar())) { const e = new Error('Assinador GTFISC não encontrado neste computador'); e.codigo = 'SEM_ASSINADOR'; throw e; }
+    const r = await fetch(this.base + caminho, corpo ? { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify(corpo), cache: 'no-store' } : { cache: 'no-store' });
+    let j = null; try { j = await r.json(); } catch (e) { }
+    if (!r.ok || !j || j.erro) { const e = new Error((j && j.erro) || ('Assinador respondeu HTTP ' + r.status)); e.codigo = j && j.codigo; throw e; }
+    return j;
+  },
+  async certificados() {
+    const j = await this.chamar('/certificados');
+    return (j.certificados || []).map(c => {
+      const cert = assCertLer(assDeB64(c.der));
+      const cadeia = (c.cadeia || []).map(d => { try { return assCertLer(assDeB64(d)); } catch (e) { return null; } }).filter(Boolean).filter(x => !assIguais(x.der, cert.der));
+      return { id: c.id, cert, cadeia, provedor: c.provedor || '', tipo: c.tipo || '', repositorio: c.repositorio || '' };
+    });
+  },
+};
+function assProvedorLocal(item) {
+  return {
+    tipo: 'local', rotulo: 'Certificado do Windows: ' + assCertResumo(item.cert) + (item.tipo ? ' (' + item.tipo + ')' : ''), cert: item.cert, cadeia: item.cadeia, algChave: item.cert.chave.alg, id: item.id,
+    async assinarLote(atributos, documentos, motivo) {
+      const hashes = []; for (const a of atributos) hashes.push(assB64(await assHash('SHA-256', a)));
+      const j = await AssLocal.chamar('/assinar', { id: item.id, hashes, algoritmo: 'SHA-256', documentos: documentos || [], motivo: motivo || '' });
+      if (!Array.isArray(j.assinaturas) || j.assinaturas.length !== hashes.length) throw new Error('o Assinador devolveu um número de assinaturas diferente do pedido');
+      return j.assinaturas.map(assDeB64);
+    },
+  };
+}
+
+/* ---- orquestração: assina um lote de PDFs com UM pedido ao provedor (um PIN/uma confirmação) ---- */
+async function assAssinarPdfs(arquivos, provedor, opcoes, aoProgresso) {
+  opcoes = opcoes || {};
+  const politica = opcoes.icpBrasil === false ? null : ASS_POLITICA_AD_RB;
+  const reservaBase = 6000 + [provedor.cert].concat(provedor.cadeia || []).reduce((s, c) => s + c.der.length, 0) * 1.1;
+  const preparados = [];
+  for (let i = 0; i < arquivos.length; i++) {
+    const a = arquivos[i];
+    if (aoProgresso) aoProgresso('preparando', i, a.nome);
+    const op = { ...opcoes, reservaBytes: Math.ceil(reservaBase / 1024) * 1024 + 2048 };
+    if (typeof opcoes.porArquivo === 'function') Object.assign(op, await opcoes.porArquivo(a, i));
+    const prep = await assPdfPreparar(a.bytes, op);
+    const atributos = await assAtributosAssinados(provedor.cert, prep.digest, { politica, horaAssinatura: politica ? null : prep.quando });
+    preparados.push({ arquivo: a, prep, atributos });
+  }
+  if (aoProgresso) aoProgresso('assinando', arquivos.length, '');
+  const assinaturas = await provedor.assinarLote(preparados.map(p => p.atributos), arquivos.map(a => a.nome), opcoes.motivo);
+  const saidas = [];
+  for (let i = 0; i < preparados.length; i++) {
+    const { arquivo, prep, atributos } = preparados[i];
+    const cms = assCmsMontar(provedor.cert, provedor.cadeia, atributos, assinaturas[i], provedor.algChave);
+    saidas.push({ nome: arquivo.nome, bytes: prep.finalizar(cms), campo: prep.nomeCampo, pagina: prep.pagina, quando: prep.quando });
+  }
+  return saidas;
+}
+
+/* ---------- 60a — raízes da ICP-Brasil (exportadas do repositório de raízes do Windows; públicas) ---------- */
+const ASS_RAIZES_ICP = [
+  { nome: "Autoridade Certificadora Raiz Brasileira v2", validaAte: "2023-06-21", sha256: "FB47D92A9909FD4FA9BEC02737543E1F3514CED747407A8D9CFA397B0915067C",
+    der: "MIIGoTCCBImgAwIBAgIBATANBgkqhkiG9w0BAQ0FADCBlzELMAkGA1UEBhMCQlIxEzARBgNVBAoTCklDUC1CcmFzaWwxPTA7BgNVBAsTNEluc3RpdHV0byBOYWNpb25hbCBkZSBUZWNub2xvZ2lhIGRhIEluZm9ybWFjYW8gLSBJVEkxNDAyBgNVBAMTK0F1dG9yaWRhZGUgQ2VydGlmaWNhZG9yYSBSYWl6IEJyYXNpbGVpcmEgdjIwHhcNMTAwNjIxMTkwNDU3WhcNMjMwNjIxMTkwNDU3WjCBlzELMAkGA1UEBhMCQlIxEzARBgNVBAoTCklDUC1CcmFzaWwxPTA7BgNVBAsTNEluc3RpdHV0byBOYWNpb25hbCBkZSBUZWNub2xvZ2lhIGRhIEluZm9ybWFjYW8gLSBJVEkxNDAyBgNVBAMTK0F1dG9yaWRhZGUgQ2VydGlmaWNhZG9yYSBSYWl6IEJyYXNpbGVpcmEgdjIwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQC6RqQO3edA8rWgfFKVV0X8bYTzhgHJhQOtmKvS8l4Fmcm7b2Jn/XdEuQMHPNIbAGLUcCxCg3lmq5lWroG8akm983QPYrfrWwdmlEIknUasmkIYMPAkqFFB6quV8agrAnhptSknXpwuc8b+I6Xjps79bBtrAFTrAK1POkw85wqIW9pemgtW5LVUOB3yCpNkTsNBklMgKs/8dG7U2zM4YuT+jkxYHPePKk3/xZLZCVK9z3AAnWmaM2qIh0UhmRZRDTTfgr20aah8fNTd0/IVXEvFWBDqhRnLNiJYKnIMmpbeys8IUWG/tAUpBiuGkP7pTcMEBUfLz3bZf3Gmh3sVQOQzgHgHHaTyjptAO8lyUN9pvvAslh+QtdWudONltIwa6Wob+3JcxYJU6uBTB8TMEun33tcv1EgvRz8mYQSxEpoza7WGSxMr0IadR+1p+/yEEmb4VuUOimx2xGsaesKgWhLRI4lYAXwIWNoVjhXZfn03tqRF9QOFzEf6i3lFuGZiM9MmSt4c6dR/5m0muTx9zQ8oCikPm91jq7mmRxqE14WkA2UGBEtSjYM0Qn8xjhEu5rNnlUB+l3pAAPkRbIM4WK0DM1umxMHFsKwNqQbwpmkBNLbp+JRITz6mdQnsSsU74MlesDL/n2lZzzwwbw3OJ1fsWhto/+xPb3gyPnnFtF2VfwIDAQABo4H1MIHyME4GA1UdIARHMEUwQwYFYEwBAQAwOjA4BggrBgEFBQcCARYsaHR0cDovL2FjcmFpei5pY3BicmFzaWwuZ292LmJyL0RQQ2FjcmFpei5wZGYwPwYDVR0fBDgwNjA0oDKgMIYuaHR0cDovL2FjcmFpei5pY3BicmFzaWwuZ292LmJyL0xDUmFjcmFpenYyLmNybDAfBgNVHSMEGDAWgBQMOSA6twEfy9cofUGgx/pKrTIkvjAdBgNVHQ4EFgQUDDkgOrcBH8vXKH1BoMf6Sq0yJL4wDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwDQYJKoZIhvcNAQENBQADggIBAFmaFGkYbX0pQ3B9dpth33eOGnbkqdbLdqQWDEyUEsaQ0YEDxa0G2S1EvLIJdgmAOWcAGDRtBgrmtRBZSLp1YPw/jh0YVXArnkuVrImrCncke2HEx5EmjkYTUTe2jCcK0w3wmisig4OzvYM1rZs8vHiDKTVhNvgRcTMgVGNTRQHYE1qEO9dmEyS3xEbFIthzJO4cExeWyCXoGx7P34VQbTzq91CeG5fep2vb1nPSz3xQwLCM5VMSeoY5rDVbZ8fq1PvRwl3qDpdzmK4pv+Q68wQ2UCzt3h7bhegdhAnu86aDM1tvR3lPSLX8uCYTq6qz9GER+0Vn8x0+bv4qSyZEGp+xouA82uDkBTp4rPuooU2/XSx3KZDNEx3vBijYtxTzW8jJnqd+MRKKeGLE0QW8BgJjBCsNid3kXFsygETUQuwq8/JAhzHVPuIKMgwUjdVybQvm/Y3kqPMFjXUXd5sKufqQkplliDJnQwWOLQsVuzXxYejZZ3ftFuXoAS1rND+Og7P36g9KHj41hJ2MgDQ/qZXow63EzZ7KFBYsGZ7kNou5uaNCJQc+w+XVaE+gZhyms7ZzHJAaP0C5GlZCcIf/by0PEf0e//eFMBUO4xcx7ieVzMnpmR6Xx21bB7UFaj3yRd+6gnkkcC6bgh9mqaVtJ8z2KqLRX4Vv4EadqtKlTlUO" },
+  { nome: "Autoridade Certificadora Raiz Brasileira v5", validaAte: "2029-03-02", sha256: "CAA53FC6091C6951887C976E378F6EF89AA6377C55D97B6475422B71ED7E9B17",
+    der: "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" },
+];
+
+/* ---------- 60 — validação de assinaturas de um PDF (como o painel "Assinaturas" do Acrobat) ---------- */
+const ASS_POLITICAS_CONHECIDAS = {
+  '2.16.76.1.7.1.11.1.1': 'ICP-Brasil PAdES AD-RB v1.1', '2.16.76.1.7.1.11.1.2': 'ICP-Brasil PAdES AD-RB v1.2 (revogada em 23/07/2025)', '2.16.76.1.7.1.11.1.3': 'ICP-Brasil PAdES AD-RB v1.3',
+  '2.16.76.1.7.1.12.1.1': 'ICP-Brasil PAdES AD-RT v1.1', '2.16.76.1.7.1.12.1.2': 'ICP-Brasil PAdES AD-RT v1.2', '2.16.76.1.7.1.12.1.3': 'ICP-Brasil PAdES AD-RT v1.3',
+  '2.16.76.1.7.1.1.2.3': 'ICP-Brasil CAdES AD-RB v2.3', '2.16.76.1.7.1.2.2.3': 'ICP-Brasil CAdES AD-RT v2.3',
+};
+let __assRaizes = null;
+function assRaizesIcp() {
+  if (!__assRaizes) __assRaizes = (typeof ASS_RAIZES_ICP !== 'undefined' ? ASS_RAIZES_ICP : []).map(r => { try { return assCertLer(assDeB64(r.der)); } catch (e) { return null; } }).filter(Boolean);
+  return __assRaizes;
+}
+
+// monta e confere a cadeia do signatário com os certificados do CMS + raízes ICP-Brasil embutidas
+async function assConferirCadeia(cert, extras, quando) {
+  const pool = extras.concat(assRaizesIcp());
+  const cadeia = [cert]; let atual = cert; let assinaturasOk = true; let raizIcp = null;
+  for (let g = 0; g < 12; g++) {
+    if (atual.autoAssinado) { raizIcp = assRaizesIcp().find(r => assIguais(r.der, atual.der)) || null; if (!(await assCertAssinadoPor(atual, atual))) assinaturasOk = false; break; }
+    const candidatos = pool.filter(p => assIguais(p.titularBruto, atual.emissorBruto) && !cadeia.includes(p));
+    let pai = null;
+    for (const c of candidatos) if (await assCertAssinadoPor(atual, c)) { pai = c; break; }
+    if (!pai) { if (candidatos.length) assinaturasOk = false; break; }
+    cadeia.push(pai); atual = pai;
+  }
+  const topo = cadeia[cadeia.length - 1];
+  const completa = topo.autoAssinado;
+  const nomeTopoEmissor = topo.emissor.CN || '';
+  const pareceIcp = (/Autoridade Certificadora Raiz Brasileira/i.test(nomeTopoEmissor) && !/TESTE/i.test(nomeTopoEmissor)) || cadeia.some(c => /ICP-Brasil/i.test(c.titular.O || '') && !/TESTE/i.test(c.titular.O || ''));
+  const vencidos = cadeia.filter(c => !assCertValidoAgora(c, quando || new Date()));
+  let status, texto;
+  if (!assinaturasOk) { status = 'invalida'; texto = 'a cadeia de certificados não confere (assinatura de algum certificado inválida)'; }
+  else if (completa && raizIcp) { status = 'icp'; texto = 'cadeia completa até a ' + raizIcp.titular.CN + ' (ICP-Brasil)'; }
+  else if (!completa && pareceIcp) { status = 'icp-incompleta'; texto = 'declara ter sido emitido na ICP-Brasil (' + nomeTopoEmissor + '), mas a raiz ' + (/v\d+/.exec(nomeTopoEmissor) || [''])[0] + ' não está disponível aqui para conferir a cadeia completa'; }
+  else if (completa) { status = 'outra'; texto = 'cadeia termina em "' + topo.titular.CN + '" — raiz que NÃO é da ICP-Brasil'; }
+  else { status = 'incompleta'; texto = 'cadeia incompleta: faltam certificados de "' + nomeTopoEmissor + '"'; }
+  return { status, texto, certs: cadeia, vencidos, raizIcp };
+}
+
+function assDataPdf(s) {
+  const m = /D:(\d{4})(\d{2})?(\d{2})?(\d{2})?(\d{2})?(\d{2})?([Z+-])?(\d{2})?'?(\d{2})?/.exec(s || '');
+  if (!m) return null;
+  let t = Date.UTC(+m[1], (+m[2] || 1) - 1, +m[3] || 1, +m[4] || 0, +m[5] || 0, +m[6] || 0);
+  if (m[7] && m[7] !== 'Z') { const sg = m[7] === '-' ? -1 : 1; t -= sg * ((+m[8] || 0) * 60 + (+m[9] || 0)) * 60000; }
+  return new Date(t);
+}
+
+async function assValidarPdf(bytes) {
+  if (!(bytes instanceof Uint8Array)) bytes = new Uint8Array(bytes);
+  const PL = PDFLib, N = PL.PDFName.of;
+  const doc = await PL.PDFDocument.load(bytes, { updateMetadata: false, ignoreEncryption: true, throwOnInvalidObject: false });
+  const ctx = doc.context;
+  const { campos } = assCamposDoForm(doc);
+  const txt = o => { if (!o) return ''; try { return o.decodeText ? o.decodeText() : (o.asString ? o.asString() : String(o)); } catch (e) { return String(o); } };
+  // revisões (%%EOF) para dizer o que veio depois de cada assinatura
+  const revisoes = []; { const s = assDeLatin1(bytes); let i = -1; while ((i = s.indexOf('%%EOF', i + 1)) >= 0) revisoes.push(i + 5); }
+  const saida = [];
+  const sigs = campos.filter(c => c.ft === 'Sig' && c.v);
+  for (const c of sigs) {
+    const r = { campo: c.nome, alertas: [], status: 'indeterminada' };
+    saida.push(r);
+    try {
+      const sd = ctx.lookup(c.v);
+      const br = ctx.lookup(sd.get(N('ByteRange'))).asArray().map(n => n.asNumber());
+      const contObj = sd.get(N('Contents'));
+      let cont = contObj instanceof PL.PDFHexString ? assDeHex(contObj.asString()) : (contObj && contObj.asBytes ? contObj.asBytes() : new Uint8Array(0));
+      r.subFiltro = (sd.get(N('SubFilter')) || '').toString().replace('/', '');
+      r.filtro = (sd.get(N('Filter')) || '').toString().replace('/', '');
+      r.motivo = txt(sd.get(N('Reason'))); r.local = txt(sd.get(N('Location'))); r.nomeDeclarado = txt(sd.get(N('Name')));
+      r.quandoM = assDataPdf(txt(sd.get(N('M'))));
+      try { const ref0 = ctx.lookup(ctx.lookup(sd.get(N('Reference'))).get(0)); if (ref0 && txt(ref0.get(N('TransformMethod'))).includes('DocMDP')) { const tp = ctx.lookup(ref0.get(N('TransformParams'))); r.certificacao = tp && tp.get(N('P')) ? tp.get(N('P')).asNumber() : 2; } } catch (e) { }
+      // ByteRange: começa em 0, a lacuna é exatamente o /Contents, termina dentro do arquivo
+      const fimAssinado = br[2] + br[3];
+      const brOk = br.length === 4 && br[0] === 0 && br[1] > 0 && br[2] > br[1] && fimAssinado <= bytes.length && bytes[br[1]] === 0x3c && bytes[br[2] - 1] === 0x3e;
+      if (!brOk) { r.status = 'invalida'; r.alertas.push('ByteRange inconsistente — a assinatura não protege o documento corretamente'); }
+      r.cobreTudo = fimAssinado === bytes.length;
+      r.revisao = revisoes.filter(p => p <= fimAssinado + 2).length || 1;
+      r.revisoesDepois = revisoes.filter(p => p > fimAssinado + 2).length;
+      if (r.subFiltro === 'adbe.x509.rsa_sha1') { r.alertas.push('formato antigo adbe.x509.rsa_sha1 — não verificado'); continue; }
+      cont = cont.subarray(0, derLer(cont).fim);
+      const cms = assCmsLer(cont);
+      const si = cms.signerInfos[0];
+      const cert = assCmsCertDoSignatario(cms, si) || cms.certs[0];
+      if (!cert) throw new Error('certificado do signatário ausente na assinatura');
+      r.cert = cert; r.signatario = cert.nome; r.cpf = cert.icp.cpf; r.cnpj = cert.icp.cnpj; r.emissor = cert.emissor.CN;
+      // integridade: hash do conteúdo assinado
+      const dados = assJunta([bytes.subarray(0, br[1]), bytes.subarray(br[2], fimAssinado)]);
+      const hashNome = ASS_HASH_OID[si.algDigest] || 'SHA-256';
+      r.algHash = hashNome;
+      const hashDados = await assHash(hashNome, dados);
+      let integro = false;
+      const md = si.attrs[OID.messageDigest] ? derConteudo(si.attrs[OID.messageDigest][0]) : null;
+      if (cms.eContent && r.subFiltro === 'adbe.pkcs7.sha1') integro = assIguais(cms.eContent, await assHash('SHA-1', dados)) && (!md || assIguais(md, await assHash(hashNome, cms.eContent)));
+      else integro = md ? assIguais(md, hashDados) : true;
+      r.integro = integro && brOk;
+      // assinatura criptográfica
+      const alvo = si.attrsBrutos || (cms.eContent || dados);
+      r.assinaturaOk = await assVerificarAssinatura(cert, si.algAss, si.algDigest, alvo, si.assinatura, si.algAssParams).catch(() => false);
+      // atributos
+      if (si.attrs[OID.sigPolicyId]) { try { const p = derFilhos(si.attrs[OID.sigPolicyId][0]); r.politicaOid = derOid(p[0]); r.politica = ASS_POLITICAS_CONHECIDAS[r.politicaOid] || r.politicaOid; } catch (e) { } }
+      if (si.attrs[OID.signingTime]) r.quandoAtributo = derTempo(si.attrs[OID.signingTime][0]);
+      if (si.naoAssinados[OID.timeStampToken]) {
+        try { const tst = assCmsLer(derBruto(si.naoAssinados[OID.timeStampToken][0])); const info = derFilhos(derLer(tst.eContent)); const gt = info.find(x => x.tag === 0x18); r.carimboTempo = gt ? derTempo(gt) : null; r.carimboTempoTsa = tst.certs[0] ? tst.certs[0].titular.CN : ''; } catch (e) { r.alertas.push('carimbo do tempo ilegível'); }
+      }
+      r.temCertV2 = !!si.attrs[OID.signingCertificateV2];
+      const quando = r.carimboTempo || r.quandoAtributo || r.quandoM || new Date();
+      r.quando = quando;
+      r.certValidoNaData = assCertValidoAgora(cert, quando);
+      if (!r.certValidoNaData) r.alertas.push('o certificado não estava dentro da validade na data da assinatura (' + quando.toLocaleString('pt-BR') + ')');
+      if (!assCertPodeAssinar(cert)) r.alertas.push('o certificado não é de assinatura (uso de chave: ' + cert.usoChave.join(', ') + ')');
+      r.cadeia = await assConferirCadeia(cert, cms.certs.filter(x => x !== cert), quando);
+      if (r.revisoesDepois) r.alertas.push('o documento recebeu ' + r.revisoesDepois + ' atualização(ões) depois desta assinatura (normal quando há assinaturas posteriores; confira as demais)');
+      if (!r.integro || !r.assinaturaOk || r.cadeia.status === 'invalida') r.status = 'invalida';
+      else if (r.cadeia.status === 'icp' && r.certValidoNaData) r.status = 'valida-icp';
+      else r.status = 'valida-identidade-indeterminada';
+    } catch (e) { r.status = 'invalida'; r.alertas.push('não foi possível ler a assinatura: ' + ((e && e.message) || e)); }
+  }
+  return { assinaturas: saida, paginas: doc.getPageCount(), revisoes: revisoes.length };
+}
+
+function assRelatorioTexto(nome, v) {
+  const L = [];
+  L.push('Relatório de assinaturas — ' + nome);
+  L.push('Gerado por GTFISC — Ferramenta em ' + new Date().toLocaleString('pt-BR'));
+  L.push('Páginas: ' + v.paginas + ' · revisões do arquivo: ' + v.revisoes + ' · assinaturas: ' + v.assinaturas.length);
+  L.push('');
+  const st = { 'valida-icp': 'VÁLIDA — ICP-Brasil', 'valida-identidade-indeterminada': 'ÍNTEGRA, mas identidade não confirmada (cadeia não verificada até uma raiz ICP-Brasil)', invalida: 'INVÁLIDA', indeterminada: 'INDETERMINADA' };
+  v.assinaturas.forEach((a, i) => {
+    L.push((i + 1) + ') ' + (a.signatario || '(signatário desconhecido)') + ' — ' + (st[a.status] || a.status));
+    if (a.cpf) L.push('   CPF: ' + assCpfFormatado(a.cpf)); if (a.cnpj) L.push('   CNPJ: ' + assCnpjFormatado(a.cnpj));
+    if (a.emissor) L.push('   Emitido por: ' + a.emissor);
+    if (a.quando) L.push('   Data: ' + a.quando.toLocaleString('pt-BR') + (a.carimboTempo ? ' (carimbo do tempo de ' + a.carimboTempoTsa + ')' : a.quandoM ? ' (hora declarada pelo computador do signatário)' : ''));
+    if (a.subFiltro) L.push('   Formato: ' + a.subFiltro + (a.politica ? ' — política ' + a.politica : ''));
+    if (a.certificacao) L.push('   Assinatura de CERTIFICAÇÃO (DocMDP P=' + a.certificacao + ')');
+    if (a.integro != null) L.push('   Integridade do conteúdo: ' + (a.integro ? 'OK (não foi alterado depois de assinado)' : 'FALHOU — o conteúdo foi alterado'));
+    if (a.assinaturaOk != null) L.push('   Assinatura criptográfica: ' + (a.assinaturaOk ? 'OK' : 'FALHOU'));
+    if (a.cadeia) L.push('   Cadeia: ' + a.cadeia.texto);
+    if (a.cobreTudo != null) L.push('   Abrangência: ' + (a.cobreTudo ? 'documento inteiro' : 'revisão ' + a.revisao + ' (houve atualizações depois)'));
+    if (a.motivo) L.push('   Motivo: ' + a.motivo); if (a.local) L.push('   Local: ' + a.local);
+    for (const al of a.alertas) L.push('   ! ' + al);
+    L.push('');
+  });
+  L.push('Observação: a revogação (LCR/OCSP) não é consultada por esta ferramenta. Para validação oficial use https://validar.iti.gov.br');
+  return L.join('\r\n');
+}
+
+/* ---------- 80 — interface: "Assinar com certificado" e "Validar assinaturas" (registradas em FERRAMENTAS, no part2) ---------- */
+const AssUI = { provedor: null, locais: [], pfx: null, CARIMBO: { w: 200, h: 62 }, MARGEM: 28 };
+
+function assEl(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+function assTipoRotulo(item) {
+  const t = item.tipo || '';
+  if (/nuvem/i.test(t)) return 'nuvem'; if (/A3/.test(t)) return 'A3 · token/cartão'; if (/A1/.test(t)) return 'A1 · instalado';
+  return item.provedor ? item.provedor.replace(/Cryptographic Provider|Key Storage Provider/i, '').trim() : '';
+}
+function assCartaoCert(cert, rotuloTipo, selecionavel, aoEscolher) {
+  const vencido = !assCertValidoAgora(cert);
+  const lab = assEl('label', 'ass-cert' + (vencido ? ' vencido' : ''));
+  const r = document.createElement('input'); r.type = 'radio'; r.name = 'ass-cert-escolhido'; r.disabled = vencido || !selecionavel || !assCertPodeAssinar(cert);
+  const corpo = assEl('div');
+  const nome = assEl('div', 'ass-nome', cert.nome || cert.titular.texto);
+  if (rotuloTipo) nome.appendChild(assEl('span', 'ass-tag', rotuloTipo));
+  if (/ICP-Brasil/i.test(cert.titular.O || '') && !/TESTE/i.test(cert.titular.O || '')) nome.appendChild(assEl('span', 'ass-tag', 'ICP-Brasil'));
+  const partes = [];
+  if (cert.icp.cpf) partes.push('CPF ' + assCpfMascarado(cert.icp.cpf));
+  if (cert.icp.cnpj) partes.push('CNPJ ' + assCnpjFormatado(cert.icp.cnpj));
+  partes.push('emitido por ' + (cert.emissor.CN || '?'));
+  partes.push((vencido ? 'VENCIDO em ' : 'válido até ') + (cert.naoDepois ? cert.naoDepois.toLocaleDateString('pt-BR') : '?'));
+  if (!assCertPodeAssinar(cert)) partes.push('não é certificado de assinatura');
+  corpo.append(nome, assEl('div', 'ass-det', partes.join(' · ')));
+  lab.append(r, corpo);
+  r.addEventListener('change', () => { document.querySelectorAll('.ass-cert').forEach(x => x.classList.remove('sel')); lab.classList.add('sel'); aoEscolher(); });
+  return { lab, r };
+}
+
+function assAvisoSemAssinador(destino) {
+  const box = assEl('div', 'ass-aviso');
+  box.appendChild(assEl('strong', null, 'O Assinador GTFISC não foi encontrado neste computador.'));
+  box.appendChild(assEl('div', null, 'O navegador não tem acesso direto aos certificados do Windows. Todo assinador web precisa de um pequeno programa local, como fazem o Web PKI, o Assinador SERPRO e o PJeOffice. O nosso é o "Assinador GTFISC".'));
+  const ol = document.createElement('ol');
+  const li1 = document.createElement('li'); li1.append('Instale ou atualize com o '); const a = document.createElement('a'); a.href = 'https://abraaolotep.github.io/compacta-pdf/Instalador-CompactaPDF.exe'; a.textContent = 'instalador do GTFISC'; a.target = '_blank'; a.rel = 'noopener'; li1.append(a, ' (o Assinador vem junto).');
+  const li2 = assEl('li', null, 'Abra "Assinador GTFISC" no menu Iniciar. Ele fica perto do relógio e inicia sozinho com o Windows.');
+  const li3 = assEl('li', null, 'Clique de novo em "Buscar meus certificados". Se o navegador perguntar sobre acesso a dispositivos da rede local, clique em Permitir.');
+  ol.append(li1, li2, li3); box.appendChild(ol);
+  box.appendChild(assEl('div', 'note', 'Tem o certificado A1 em arquivo (.pfx/.p12)? Escolha a 2ª opção acima: funciona sem instalar nada.'));
+  destino.replaceChildren(box);
+}
+
+async function assBuscarLocais() {
+  const st = $('#ass-status-local'), lista = $('#ass-lista');
+  AssUI.provedor = null; lista.replaceChildren();
+  st.textContent = 'Procurando o Assinador GTFISC…';
+  const info = await AssLocal.encontrar();
+  if (!info) { st.textContent = ''; assAvisoSemAssinador(lista); return; }
+  st.textContent = 'Assinador GTFISC ' + info.versao + ' encontrado' + (info.teste ? ' (MODO TESTE)' : '') + '. Lendo os certificados… (o Windows pode pedir sua autorização)';
+  try {
+    AssUI.locais = await AssLocal.certificados();
+  } catch (e) {
+    st.textContent = '';
+    const msg = e.codigo === 'NAO_AUTORIZADO' ? 'Este site não foi autorizado no Assinador GTFISC. Clique de novo em "Buscar" e responda "Sim" na janela do Windows. Para revogar depois, use o menu do ícone perto do relógio.' : ('Não foi possível ler os certificados: ' + e.message);
+    lista.replaceChildren(assEl('div', 'msg-err', msg)); return;
+  }
+  if (!AssUI.locais.length) { st.textContent = ''; lista.replaceChildren(assEl('div', 'msg-warn', 'Nenhum certificado com chave privada foi encontrado. Token A3: conecte-o e instale o driver do fabricante. Nuvem: abra o aplicativo do provedor (VIDaaS Connect, BirdID Desktop, SafeID Desktop, SerproID…) e ative o certificado neste computador. Depois clique em "Buscar" de novo.')); return; }
+  st.textContent = AssUI.locais.length + ' certificado(s) encontrado(s). Escolha com qual assinar:';
+  const validos = [];
+  for (const item of AssUI.locais) {
+    const { lab, r } = assCartaoCert(item.cert, assTipoRotulo(item), true, () => { AssUI.provedor = assProvedorLocal(item); });
+    lista.appendChild(lab); if (!r.disabled) validos.push(r);
+  }
+  if (validos.length === 1) { validos[0].checked = true; validos[0].dispatchEvent(new Event('change')); }
+}
+
+async function assAbrirPfx() {
+  const f = $('#ass-pfx').files[0], senha = $('#ass-pfx-senha').value, info = $('#ass-pfx-info');
+  AssUI.provedor = null;
+  if (!f) { info.replaceChildren(assEl('div', 'msg-warn', 'Escolha o arquivo .pfx ou .p12.')); return; }
+  info.replaceChildren(assEl('div', 'note', 'Abrindo o certificado…'));
+  try {
+    const prov = await assProvedorPfx(new Uint8Array(await f.arrayBuffer()), senha);
+    const { lab, r } = assCartaoCert(prov.cert, 'A1 · arquivo', true, () => { AssUI.provedor = prov; });
+    info.replaceChildren(lab);
+    if (!r.disabled) { r.checked = true; lab.classList.add('sel'); AssUI.provedor = prov; }
+    $('#ass-pfx-senha').value = ''; // a senha não fica na tela; a chave já está na memória (não exportável)
+  } catch (e) {
+    info.replaceChildren(assEl('div', 'msg-err', e.codigo === 'SENHA' ? 'Senha incorreta para este certificado.' : ('Não foi possível abrir o certificado: ' + e.message)));
+  }
+}
+
+// dimensão visual (já girada) de cada página, pelo pdf.js
+async function assGeometriaPdfjs(bytes) {
+  const d = await abrirPdf(bytes.slice());
+  try {
+    const out = [];
+    for (let i = 1; i <= d.numPages; i++) { const p = await d.getPage(i); const vp = p.getViewport({ scale: 1 }); out.push({ vw: vp.width, vh: vp.height }); }
+    return { paginas: out, doc: d };
+  } catch (e) { d.destroy(); throw e; }
+}
+
+// posição do carimbo em coordenadas VISUAIS (origem no canto superior esquerdo da página como aparece na tela)
+// 'auto': procura espaço em branco na última página (e, se não houver, nas anteriores — até 4 páginas);
+// se não achar, usa o canto inferior direito da última e avisa (sobrepoe = true)
+async function assPosicaoAutomatica(bytes, modo) {
+  const { w, h } = AssUI.CARIMBO, m = AssUI.MARGEM;
+  const d = await abrirPdf(bytes.slice());
+  try {
+    const n = d.numPages;
+    const canto = async (idx, qual) => {
+      const vp = (await d.getPage(idx + 1)).getViewport({ scale: 1 });
+      const vw = vp.width, vh = vp.height;
+      if (qual === 'inf-esq') return { pagina: idx, u: m, v: vh - m - h, w, h };
+      if (qual === 'sup-dir') return { pagina: idx, u: vw - m - w, v: m, w, h };
+      return { pagina: idx, u: vw - m - w, v: vh - m - h, w, h };
+    };
+    if (modo === 'auto') {
+      for (let idx = n - 1; idx >= Math.max(0, n - 4); idx--) {
+        const livre = await assEspacoLivre(await d.getPage(idx + 1), w, h, m).catch(() => null);
+        if (livre) return { pagina: idx, u: livre.u, v: livre.v, w, h };
+      }
+      return { ...(await canto(n - 1, 'inf-dir')), sobrepoe: true };
+    }
+    return await canto(modo === 'sup-dir' ? 0 : n - 1, modo);
+  } finally { d.destroy(); }
+}
+
+// escolha manual: mostra a página e devolve {pagina, u, v, w, h} do clique
+function assEscolherNaPagina(bytes) {
+  return new Promise(async (resolver, rejeitar) => {
+    const painel = $('#ass-escolher'), cv = $('#ass-canvas'), rot = $('#ass-pag-rot');
+    let d;
+    try { d = await abrirPdf(bytes.slice()); } catch (e) { rejeitar(e); return; }
+    let pag = d.numPages, esc = 1, pos = null, vpAtual = null;
+    const { w, h } = AssUI.CARIMBO;
+    const desenhar = async () => {
+      const p = await d.getPage(pag); const vp1 = p.getViewport({ scale: 1 });
+      esc = Math.min(1.3, (painel.clientWidth - 40) / vp1.width) || 1;
+      vpAtual = p.getViewport({ scale: esc });
+      cv.width = Math.round(vpAtual.width); cv.height = Math.round(vpAtual.height);
+      const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+      await p.render({ canvasContext: cx, viewport: vpAtual, intent: 'print' }).promise;
+      if (pos && pos.pagina === pag - 1) { cx.strokeStyle = '#9c2129'; cx.lineWidth = 2; cx.setLineDash([6, 4]); cx.strokeRect(pos.u * esc, pos.v * esc, w * esc, h * esc); cx.fillStyle = 'rgba(156,33,41,.08)'; cx.fillRect(pos.u * esc, pos.v * esc, w * esc, h * esc); }
+      rot.textContent = 'página ' + pag + ' de ' + d.numPages;
+      $('#ass-confirmar-pos').disabled = !pos;
+    };
+    const fechar = () => { painel.classList.add('oculto'); cv.onclick = null; $('#ass-pag-ant').onclick = $('#ass-pag-prox').onclick = $('#ass-confirmar-pos').onclick = $('#ass-cancelar-pos').onclick = null; try { d.destroy(); } catch (e) { } };
+    cv.onclick = ev => {
+      const r = cv.getBoundingClientRect();
+      const x = (ev.clientX - r.left) * (cv.width / r.width) / esc, y = (ev.clientY - r.top) * (cv.height / r.height) / esc;
+      const vw = vpAtual.width / esc, vh = vpAtual.height / esc;
+      pos = { pagina: pag - 1, u: Math.max(0, Math.min(vw - w, x - w / 2)), v: Math.max(0, Math.min(vh - h, y - h / 2)), w, h };
+      desenhar();
+    };
+    $('#ass-pag-ant').onclick = () => { if (pag > 1) { pag--; desenhar(); } };
+    $('#ass-pag-prox').onclick = () => { if (pag < d.numPages) { pag++; desenhar(); } };
+    $('#ass-confirmar-pos').onclick = () => { if (!pos) return; fechar(); resolver(pos); };
+    $('#ass-cancelar-pos').onclick = () => { fechar(); const e = new Error('Cancelado pelo usuário.'); e.cancelado = true; rejeitar(e); };
+    painel.classList.remove('oculto');
+    painel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    desenhar();
+  });
+}
+
+function assLinhasCarimbo(cert, quando, motivo) {
+  const l = [{ t: 'Documento assinado digitalmente', negrito: true }, { t: cert.nome || cert.titular.CN }];
+  const doc = cert.icp.cpf ? 'CPF: ' + assCpfMascarado(cert.icp.cpf) : cert.icp.cnpj ? 'CNPJ: ' + assCnpjFormatado(cert.icp.cnpj) : '';
+  l.push({ t: 'Data: ' + assDataHumana(quando) + (doc ? '  ·  ' + doc : ''), escala: 0.9 });
+  if (motivo) l.push({ t: 'Motivo: ' + motivo, escala: 0.85 });
+  l.push({ t: 'Verifique em https://validar.iti.gov.br', escala: 0.82, cor: '0.35 0.35 0.35' });
+  return l;
+}
+
+function assMensagemErro(e) {
+  if (e && e.cancelado) return 'Cancelado pelo usuário.';
+  if (e && e.codigo === 'CANCELADO') return 'Assinatura cancelada (recusada na janela do Assinador GTFISC ou no PIN do token).';
+  if (e && e.codigo === 'SEM_ASSINADOR') return 'O Assinador GTFISC não está aberto neste computador. Abra-o pelo menu Iniciar e tente de novo.';
+  if (e && e.codigo === 'PIN') return 'O token não aceitou o PIN (ou foi bloqueado): ' + e.message;
+  return (e && e.message) || String(e);
+}
+
+async function assAssinarArquivos(files) {
+  const pdfs = files.filter(f => /\.pdf$/i.test(f.name) || f.type === 'application/pdf');
+  if (!pdfs.length) return;
+  const prov = AssUI.provedor;
+  if (!prov) { alert('Escolha primeiro o certificado (passo 1): clique em "Buscar meus certificados" ou abra o arquivo .pfx.'); return; }
+  if (!assCertValidoAgora(prov.cert)) { alert('O certificado escolhido está fora da validade (' + prov.cert.naoDepois.toLocaleDateString('pt-BR') + '). Uma assinatura com ele seria inválida.'); return; }
+  const visivel = $('#ass-visivel').checked, modoPos = $('#ass-posicao').value;
+  const motivo = $('#ass-motivo').value.trim(), local = $('#ass-local').value.trim();
+  let posManual = null;
+  if (visivel && modoPos === 'escolher') {
+    if (pdfs.length > 1) { alert('"Escolher na página" vale para um arquivo por vez. Para um lote, use a posição automática ou um dos cantos.'); return; }
+    try { posManual = await assEscolherNaPagina(new Uint8Array(await pdfs[0].arrayBuffer())); } catch (e) { return; }
+  }
+  const total = pdfs.reduce((s, f) => s + f.size, 0);
+  const card = makeCard(pdfs.length === 1 ? pdfs[0].name + ' → assinado' : 'Assinatura em lote: ' + pdfs.length + ' PDFs', total);
+  card.status('Na fila...');
+  enfileirar(async () => {
+    try {
+      const arquivos = [];
+      for (const f of pdfs) arquivos.push({ nome: f.name, bytes: new Uint8Array(await f.arrayBuffer()) });
+      const imagem = visivel && $('#ass-logo').checked && typeof logoBytesPng === 'function' ? logoBytesPng() : null;
+      const quando = new Date();
+      const sobrepostos = [];
+      const opcoes = {
+        motivo, local, nomeSignatario: prov.cert.nome, icpBrasil: $('#ass-icp').checked, certificar: $('#ass-certificar').checked ? 2 : 0, imagem, quando,
+        linhas: assLinhasCarimbo(prov.cert, quando, motivo),
+        porArquivo: async (a) => {
+          if (!visivel) return { visivel: null };
+          const pos = posManual || await assPosicaoAutomatica(a.bytes, modoPos);
+          if (pos.sobrepoe) sobrepostos.push(a.nome);
+          return { visivel: pos };
+        },
+      };
+      const aguardo = prov.tipo === 'local' ? 'Confirme a assinatura na janela do Assinador GTFISC' + (/A3|nuvem/.test(prov.rotulo) ? ' e digite o PIN do token / aprove no aplicativo do provedor, se pedido' : '') + '…' : 'Assinando…';
+      const saidas = await assAssinarPdfs(arquivos, prov, opcoes, (etapa, i, nome) => {
+        card.checar();
+        if (etapa === 'preparando') { card.status('Preparando ' + (i + 1) + '/' + arquivos.length + ': ' + nome); card.progress((i + 1) / (arquivos.length + 1)); }
+        else card.status(aguardo);
+      });
+      card.done();
+      const res = card.result();
+      const ok = assEl('div', 'msg-ok', saidas.length === 1 ? 'Documento assinado por ' + prov.cert.nome + '.' : saidas.length + ' documentos assinados por ' + prov.cert.nome + '.');
+      res.appendChild(ok);
+      if (sobrepostos.length) res.appendChild(assEl('div', 'msg-warn', 'Não havia espaço em branco para o carimbo em: ' + sobrepostos.join(', ') + '. Ele foi posto no canto inferior direito da última página e pode cobrir parte do texto — se preferir, assine o original de novo com "Escolher na página".'));
+      for (const s of saidas) {
+        const v = await assValidarPdf(s.bytes).catch(() => null);
+        const nossa = v && v.assinaturas[v.assinaturas.length - 1];
+        const conf = nossa && nossa.integro && nossa.assinaturaOk ? 'conferida' : 'NÃO conferida';
+        addDownloadRow(res, baseName(s.nome).replace(/_assinado$/i, '') + '_assinado.pdf', s.bytes, 'assinatura ' + conf + (v ? ' · ' + v.assinaturas.length + ' assinatura(s) no arquivo' : ''));
+      }
+      if (saidas.length > 1) addZipButton(res, () => 'documentos assinados');
+      window.__results && window.__results.push({ action: 'assinar', arquivos: saidas.length, signatario: prov.cert.nome });
+    } catch (e) {
+      console.error(e);
+      card.done();
+      card.result().replaceChildren(assEl('div', e && (e.cancelado || e.codigo === 'CANCELADO') ? 'msg-warn' : 'msg-err', assMensagemErro(e)));
+    }
+  }).catch(() => { });
+}
+
+function assRenderValidacao(res, nome, v) {
+  if (!v.assinaturas.length) {
+    res.appendChild(assEl('div', 'msg-warn', 'Este PDF não tem assinatura digital com certificado. Assinaturas "com senha" (PBdoc/SEI), carimbos e imagens de rubrica não são assinaturas digitais ICP-Brasil — confira pelo código de autenticidade do sistema que emitiu o documento.'));
+    return;
+  }
+  const rotulo = { 'valida-icp': ['ok', '✔ Válida — certificado ICP-Brasil'], 'valida-identidade-indeterminada': ['meio', '⚠ Íntegra, mas a identidade não foi confirmada'], invalida: ['ruim', '✖ INVÁLIDA'], indeterminada: ['meio', '? Indeterminada'] };
+  res.appendChild(assEl('div', 'note', v.assinaturas.length + ' assinatura(s) · ' + v.paginas + ' página(s) · ' + v.revisoes + ' revisão(ões) do arquivo'));
+  v.assinaturas.forEach((a, i) => {
+    const box = assEl('div', 'ass-sig');
+    const [cls, txt] = rotulo[a.status] || ['meio', a.status];
+    const cab = assEl('div'); cab.appendChild(assEl('span', 'ass-st ' + cls, txt)); cab.append(' — ' + (i + 1) + 'ª assinatura: ', assEl('strong', null, a.signatario || '(desconhecido)'));
+    box.appendChild(cab);
+    const ul = document.createElement('ul');
+    const item = t => ul.appendChild(assEl('li', null, t));
+    if (a.cpf) item('CPF: ' + assCpfMascarado(a.cpf)); if (a.cnpj) item('CNPJ: ' + assCnpjFormatado(a.cnpj));
+    if (a.emissor) item('Certificado emitido por ' + a.emissor + (a.cert ? ' (válido de ' + a.cert.naoAntes.toLocaleDateString('pt-BR') + ' a ' + a.cert.naoDepois.toLocaleDateString('pt-BR') + ')' : ''));
+    if (a.quando) item('Data da assinatura: ' + a.quando.toLocaleString('pt-BR') + (a.carimboTempo ? ' — carimbo do tempo (' + a.carimboTempoTsa + ')' : ' — hora do computador do signatário'));
+    if (a.integro != null) item('Conteúdo: ' + (a.integro ? 'íntegro, não foi alterado depois de assinado' : 'ALTERADO depois de assinado'));
+    if (a.assinaturaOk != null) item('Assinatura criptográfica: ' + (a.assinaturaOk ? 'confere com o certificado' : 'NÃO confere'));
+    if (a.cadeia) item('Cadeia: ' + a.cadeia.texto);
+    if (a.subFiltro) item('Formato: ' + a.subFiltro + (a.politica ? ' · política ' + a.politica : ''));
+    if (a.certificacao) item('Assinatura de CERTIFICAÇÃO (alterações permitidas: ' + ({ 1: 'nenhuma', 2: 'preencher formulários e assinar', 3: 'formulários, assinaturas e comentários' }[a.certificacao] || a.certificacao) + ')');
+    if (a.motivo) item('Motivo: ' + a.motivo); if (a.local) item('Local: ' + a.local);
+    for (const al of a.alertas) ul.appendChild(assEl('li', 'msg-warn', al));
+    box.appendChild(ul);
+    res.appendChild(box);
+  });
+  const rel = new TextEncoder().encode(String.fromCharCode(0xfeff) + assRelatorioTexto(nome, v));
+  addDownloadRow(res, baseName(nome) + '_relatorio-assinaturas.txt', rel, 'relatório', false, '', 'text/plain;charset=utf-8');
+}
+
+function assValidarArquivos(files) {
+  for (const f of files.filter(x => /\.pdf$/i.test(x.name) || x.type === 'application/pdf')) {
+    const card = makeCard(f.name + ' → validação das assinaturas', f.size);
+    card.status('Na fila...');
+    enfileirar(async () => {
+      try {
+        card.status('Conferindo as assinaturas…');
+        const bytes = new Uint8Array(await f.arrayBuffer());
+        const v = await assValidarPdf(bytes);
+        card.done();
+        assRenderValidacao(card.result(), f.name, v);
+        window.__results && window.__results.push({ action: 'validar', file: f.name, assinaturas: v.assinaturas.map(a => a.status) });
+      } catch (e) { falhaCard(card, e); }
+    }).catch(() => { });
+  }
+}
+
+(function assLigar() {
+  if (typeof document === 'undefined' || !document.getElementById('sec-assinar')) return;
+  const trocarOrigem = () => {
+    const pfx = $('#ass-origem-pfx').checked;
+    $('#ass-painel-pfx').classList.toggle('oculto', !pfx); $('#ass-painel-win').classList.toggle('oculto', pfx);
+    AssUI.provedor = null; document.querySelectorAll('.ass-cert').forEach(x => { x.classList.remove('sel'); const r = x.querySelector('input'); if (r) r.checked = false; });
+  };
+  document.querySelectorAll('input[name=ass-origem]').forEach(r => r.addEventListener('change', trocarOrigem));
+  $('#ass-buscar').addEventListener('click', () => assBuscarLocais());
+  $('#ass-pfx-abrir').addEventListener('click', () => assAbrirPfx());
+  $('#ass-pfx-senha').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); assAbrirPfx(); } });
+  $('#ass-visivel').addEventListener('change', () => { $('#ass-posicao').disabled = !$('#ass-visivel').checked; $('#ass-logo').disabled = !$('#ass-visivel').checked; });
+  ligarDropzone('#dz-assinar', '#input-assinar', assAssinarArquivos);
+  ligarDropzone('#dz-validar', '#input-validar', assValidarArquivos);
+})();
+
+/* ---------- 85 — certificados de TESTE para o autoteste (PKI fictícia "ICP-Brasil TESTE", sem valor jurídico; senha Teste@123) ----------
+   Gerados por tools/pki-teste (OpenSSL). legado = RC2-40 + 3DES + MAC SHA-1 (padrão antigo do Windows); aes = PBES2/AES-256 + MAC SHA-256. */
+const ASS_PFX_TESTE = {
+  senha: 'Teste@123',
+  legado: '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',
+  aes: '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',
+};
+
+/* ---------- 90 — autotestes do assinador (entram na bateria "?teste" do aplicativo) ----------
+   Nenhum teste depende da data de hoje: o certificado de TESTE vence em 08/2028, e o que se confere aqui
+   (integridade, assinatura criptográfica, estrutura) não muda com a validade dele. */
+async function __assinadorCasos(caso, afirmar) {
+  const PL = PDFLib, N = PL.PDFName.of;
+  const pdfSimples = async (paginas, rot) => {
+    const d = await PL.PDFDocument.create(); const f = await d.embedFont(PL.StandardFonts.Helvetica);
+    for (let i = 0; i < (paginas || 1); i++) {
+      const p = d.addPage([595, 842]); if (rot) p.setRotation(PL.degrees(rot));
+      p.drawText('Documento de teste do assinador - pagina ' + (i + 1), { x: 40, y: 800, size: 12, font: f });
+      for (let l = 0; l < 30; l++) p.drawText('Linha ' + (l + 1) + ' de texto corrido para ocupar a pagina de cima a baixo.', { x: 40, y: 760 - l * 20, size: 11, font: f });
+    }
+    return d.save({ useObjectStreams: false });
+  };
+  const assinar = async (bytes, prov, extra) => (await assAssinarPdfs([{ nome: 't.pdf', bytes }], prov, { linhas: assLinhasCarimbo(prov.cert, new Date(), extra && extra.motivo), visivel: { pagina: -1, u: 360, v: 740, w: 200, h: 62 }, ...(extra || {}) }))[0].bytes;
+  const ultima = v => v.assinaturas[v.assinaturas.length - 1];
+  let provPfx = null, pdfUma = null;
+
+  await caso('Assinador: DER, OID, SHA-256 e ECDSA (vetores conhecidos)', async () => {
+    afirmar(assHex(await assHash('SHA-256', assTxt('abc'))).toUpperCase() === 'BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD', 'SHA-256("abc")');
+    afirmar(assHex(DER.int(128)) === '02020080', 'INTEGER 128 deve ganhar o zero à esquerda: ' + assHex(DER.int(128)));
+    afirmar(assHex(DER.oid('1.2.840.113549.1.1.11')) === '06092a864886f70d01010b', 'codificação do OID sha256WithRSA');
+    afirmar(derOid(derLer(DER.oid('2.16.76.1.7.1.11.1.3'))) === '2.16.76.1.7.1.11.1.3', 'ida e volta do OID da política AD-RB');
+    const indef = Uint8Array.of(0x30, 0x80, 0x02, 0x01, 0x05, 0x00, 0x00);
+    const no = derLer(indef); afirmar(no.fim === indef.length && derIntNum(derFilhos(no)[0]) === 5, 'BER de comprimento indefinido');
+    const bruto = new Uint8Array(64); bruto[0] = 0x80; bruto[31] = 1; bruto[32] = 0; bruto[33] = 0x7f; bruto[63] = 2;
+    afirmar(assIguais(assEcdsaDeDer(assEcdsaParaDer(bruto), 32), bruto), 'conversão ECDSA r||s ↔ DER');
+  });
+
+  await caso('Assinador: abre .pfx antigo (RC2-40/3DES) e novo (AES-256), recusa senha errada', async () => {
+    let erro = null;
+    try { await assPfxLer(assDeB64(ASS_PFX_TESTE.legado), 'senha-errada'); } catch (e) { erro = e; }
+    afirmar(erro && erro.codigo === 'SENHA', 'senha errada deveria dar codigo SENHA, deu: ' + (erro && (erro.codigo || erro.message)));
+    for (const k of ['legado', 'aes']) {
+      const p = await assPfxLer(assDeB64(ASS_PFX_TESTE[k]), ASS_PFX_TESTE.senha);
+      afirmar(p.titular && p.titular.nome === 'FULANO DE TAL DA SILVA TESTE', k + ': titular lido: ' + (p.titular && p.titular.nome));
+      afirmar(p.titular.icp.cpf === '12345678909', k + ': CPF do otherName ICP-Brasil: ' + p.titular.icp.cpf);
+      afirmar(p.cadeia.length === 2, k + ': cadeia (AC + raiz) com ' + p.cadeia.length + ' certificado(s)');
+    }
+    provPfx = await assProvedorPfx(assDeB64(ASS_PFX_TESTE.aes), ASS_PFX_TESTE.senha);
+    afirmar(provPfx.algChave === 'RSA' && assCpfMascarado('12345678909') === '***.456.789-**', 'provedor PFX / máscara do CPF');
+  });
+
+  await caso('Assinador: assinatura PAdES ICP-Brasil (AD-RB v1.3) íntegra e conferida', async () => {
+    afirmar(!!provPfx, 'provedor PFX não foi criado no caso anterior');
+    const orig = await pdfSimples(2);
+    pdfUma = await assinar(orig, provPfx, { motivo: 'Aprovação — João Pessoa/PB', local: 'João Pessoa - PB' });
+    afirmar(assIguais(pdfUma.subarray(0, orig.length), orig), 'a assinatura deve ACRESCENTAR ao arquivo (atualização incremental), sem alterar os bytes originais');
+    const v = await assValidarPdf(pdfUma), a = ultima(v);
+    afirmar(v.assinaturas.length === 1 && a.integro && a.assinaturaOk, 'integridade/assinatura: ' + JSON.stringify({ n: v.assinaturas.length, integro: a.integro, ok: a.assinaturaOk, al: a.alertas }));
+    afirmar(a.status !== 'invalida', 'status: ' + a.status);
+    afirmar(a.politicaOid === '2.16.76.1.7.1.11.1.3' && a.subFiltro === 'ETSI.CAdES.detached' && a.temCertV2, 'política/formato: ' + a.politicaOid + ' ' + a.subFiltro + ' certV2=' + a.temCertV2);
+    afirmar(a.motivo === 'Aprovação — João Pessoa/PB' && a.local === 'João Pessoa - PB', 'motivo/local com acentos: ' + a.motivo + ' / ' + a.local);
+    afirmar(a.cobreTudo && a.cpf === '12345678909', 'abrangência/CPF');
+    afirmar(a.cadeia && a.cadeia.status !== 'icp', 'cadeia de TESTE nunca pode ser reconhecida como ICP-Brasil: ' + (a.cadeia && a.cadeia.status));
+    const d = await PL.PDFDocument.load(pdfUma, { updateMetadata: false });
+    afirmar(!!d.catalog.get(N('Outlines')), 'catálogo sem /Outlines (o Acrobat invalida assinaturas anteriores quando falta)');
+    const af = d.context.lookup(d.catalog.get(N('AcroForm')));
+    afirmar(af && af.get(N('SigFlags')) && af.get(N('SigFlags')).asNumber() === 3, 'AcroForm /SigFlags 3');
+  });
+
+  await caso('Assinador: 2ª assinatura (ECDSA) mantém a 1ª válida', async () => {
+    afirmar(!!pdfUma, 'PDF assinado do caso anterior ausente');
+    const provEc = await assProvedorTeste('EC');
+    const duas = await assinar(pdfUma, provEc, { visivel: { pagina: -1, u: 360, v: 660, w: 200, h: 62 }, nomeCampo: 'Assinatura2' });
+    afirmar(assIguais(duas.subarray(0, pdfUma.length), pdfUma), 'a 2ª assinatura alterou bytes da 1ª revisão');
+    const v = await assValidarPdf(duas);
+    afirmar(v.assinaturas.length === 2, 'esperava 2 assinaturas, veio ' + v.assinaturas.length);
+    const [a1, a2] = v.assinaturas;
+    afirmar(a1.integro && a1.assinaturaOk && a1.revisoesDepois === 1 && !a1.cobreTudo, '1ª assinatura: ' + JSON.stringify({ i: a1.integro, ok: a1.assinaturaOk, rd: a1.revisoesDepois }));
+    afirmar(a2.integro && a2.assinaturaOk && a2.cobreTudo, '2ª assinatura (ECDSA): ' + JSON.stringify({ i: a2.integro, ok: a2.assinaturaOk, al: a2.alertas }));
+    afirmar(a2.cadeia.status === 'outra', 'cadeia da 2ª (raiz de teste, fora da ICP): ' + a2.cadeia.status);
+  });
+
+  await caso('Assinador: alteração depois de assinado é detectada', async () => {
+    afirmar(!!pdfUma, 'PDF assinado ausente');
+    const s = assDeLatin1(pdfUma); const i = s.indexOf('/Producer');
+    afirmar(i > 0, '/Producer não encontrado no PDF de teste');
+    const alt = pdfUma.slice(); const j = s.indexOf('(', i) + 2; alt[j] = alt[j] === 0x41 ? 0x42 : 0x41;
+    const v = await assValidarPdf(alt), a = ultima(v);
+    afirmar(a.status === 'invalida' && a.integro === false, 'alteração não detectada: ' + a.status + ' integro=' + a.integro);
+    const cortado = pdfUma.slice(0, pdfUma.length - 40);
+    const v2 = await assValidarPdf(cortado).catch(() => null);
+    afirmar(!v2 || v2.assinaturas.every(x => x.status === 'invalida'), 'arquivo truncado não pode ser dado como válido');
+  });
+
+  await caso('Assinador: página girada (/Rotate 90) — carimbo dentro da página e na orientação de leitura', async () => {
+    const orig = await pdfSimples(1, 90);
+    const b = await assinar(orig, provPfx, { visivel: { pagina: 0, u: 600, v: 350, w: 200, h: 62 } });
+    const v = await assValidarPdf(b); const a = ultima(v);
+    afirmar(a.integro && a.assinaturaOk, 'assinatura na página girada');
+    const d = await PL.PDFDocument.load(b, { updateMetadata: false });
+    const pg = d.getPage(0); const mb = pg.getMediaBox();
+    const w = d.context.lookup(pg.node.Annots().get(0));
+    const r = d.context.lookup(w.get(N('Rect'))).asArray().map(n => n.asNumber());
+    afirmar(r[0] >= mb.x - 0.5 && r[1] >= mb.y - 0.5 && r[2] <= mb.x + mb.width + 0.5 && r[3] <= mb.y + mb.height + 0.5, 'retângulo fora da página: ' + r.join(','));
+    afirmar(Math.abs((r[2] - r[0]) - 62) < 1 && Math.abs((r[3] - r[1]) - 200) < 1, 'em página girada 90° o retângulo (no espaço do usuário) deve ser 62×200: ' + (r[2] - r[0]) + '×' + (r[3] - r[1]));
+    const ap = d.context.lookup(d.context.lookup(w.get(N('AP'))).get(N('N')));
+    const mt = ap.dict.get(N('Matrix'));
+    afirmar(mt && mt.toString().replace(/\s+/g, ' ') === '[ 0 1 -1 0 0 0 ]', 'aparência sem /Matrix de rotação: ' + (mt && mt.toString()));
+  });
+
+  await caso('Assinador: certificação (DocMDP) e recusas de segurança', async () => {
+    const orig = await pdfSimples(1);
+    const cert = await assinar(orig, provPfx, { certificar: 2 });
+    const v = await assValidarPdf(cert);
+    afirmar(ultima(v).certificacao === 2 && ultima(v).integro, 'certificação P=2 não reconhecida');
+    const d = await PL.PDFDocument.load(cert, { updateMetadata: false });
+    afirmar(!!d.catalog.get(N('Perms')), 'catálogo sem /Perms /DocMDP');
+    let e1 = null; try { await assinar(cert, provPfx, { certificar: 2 }); } catch (e) { e1 = e; }
+    afirmar(e1 && /PRIMEIRA assinatura/.test(e1.message), 'certificar documento já assinado deveria ser recusado');
+    const depois = await assinar(cert, provPfx, { visivel: null });
+    const v2 = await assValidarPdf(depois);
+    afirmar(v2.assinaturas.length === 2 && v2.assinaturas.every(a => a.integro && a.assinaturaOk), 'assinatura depois de certificar (P=2 permite)');
+    const trava = await assinar(orig, provPfx, { certificar: 1 });
+    let e2 = null; try { await assinar(trava, provPfx, {}); } catch (e) { e2 = e; }
+    afirmar(e2 && /sem permitir alterações/.test(e2.message), 'documento certificado com P=1 não pode receber nova assinatura');
+    let e3 = null; try { await assinar(assTxt('isto não é um PDF'), provPfx, {}); } catch (e) { e3 = e; }
+    afirmar(!!e3, 'arquivo que não é PDF deveria falhar com mensagem');
+  });
+
+  await caso('Assinador: lote com uma única chamada ao provedor; invisível; texto fora do WinAnsi', async () => {
+    let chamadas = 0;
+    const contador = { ...provPfx, async assinarLote(at, docs) { chamadas++; afirmar(docs.length === at.length, 'documentos ≠ atributos'); return provPfx.assinarLote(at); } };
+    const arqs = [];
+    for (let i = 0; i < 3; i++) arqs.push({ nome: 'lote' + i + '.pdf', bytes: await pdfSimples(1) });
+    const saidas = await assAssinarPdfs(arqs, contador, { linhas: [{ t: 'Assinado por Łukasz Ωmega 😀 — teste', negrito: true }], motivo: 'Lote', porArquivo: async (a, i) => ({ visivel: i === 1 ? null : { pagina: 0, u: 360, v: 20, w: 200, h: 62 } }) });
+    afirmar(chamadas === 1, 'o lote deve pedir UMA assinatura ao provedor (um PIN), pediu ' + chamadas);
+    afirmar(saidas.length === 3, 'saídas: ' + saidas.length);
+    for (const s of saidas) { const a = ultima(await assValidarPdf(s.bytes)); afirmar(a.integro && a.assinaturaOk, s.nome + ' não conferiu'); }
+    const d = await PL.PDFDocument.load(saidas[1].bytes, { updateMetadata: false });
+    const w = d.context.lookup(d.getPage(0).node.Annots().get(0));
+    const r = d.context.lookup(w.get(N('Rect'))).asArray().map(n => n.asNumber());
+    afirmar(r.every(x => x === 0), 'assinatura invisível deve ter /Rect [0 0 0 0]: ' + r.join(','));
+  });
+
+  await caso('Assinador: posição automática não cobre o texto', async () => {
+    const orig = await pdfSimples(1);
+    const pos = await assPosicaoAutomatica(orig, 'auto');
+    afirmar(!pos.sobrepoe, 'não achou espaço livre numa página com o rodapé em branco');
+    const d = await abrirPdf(orig.slice());
+    try {
+      const pg = await d.getPage(1); const vp = pg.getViewport({ scale: 1 });
+      const tc = await pg.getTextContent();
+      for (const it of tc.items) {
+        if (!it.str || !it.str.trim()) continue;
+        const [x, y] = vp.convertToViewportPoint(it.transform[4], it.transform[5]);
+        const topo = y - it.height, dir = x + it.width;
+        const cruza = !(dir < pos.u || x > pos.u + pos.w || y < pos.v || topo > pos.v + pos.h);
+        afirmar(!cruza, 'carimbo automático cobre o texto "' + it.str.slice(0, 30) + '"');
+      }
+      afirmar(pos.v + pos.h <= vp.height - AssUI.MARGEM + 1 && pos.u + pos.w <= vp.width - AssUI.MARGEM + 1, 'carimbo fora da margem');
+    } finally { d.destroy(); }
+  });
+
+  await caso('Assinador: Assinador GTFISC ausente é detectado rápido e sem erro', async () => {
+    // só em teste local: no site publicado, qualquer acesso a 127.0.0.1 faz o Chrome pedir permissão de rede local
+    if (!/^(127\.0\.0\.1|localhost)$/.test(location.hostname)) return;
+    const antes = window.__assPortaTeste; window.__assPortaTeste = 9;
+    const t0 = Date.now();
+    try {
+      const r = await AssLocal.encontrar();
+      afirmar(r === null && AssLocal.base === null, 'deveria informar que não encontrou');
+      afirmar(Date.now() - t0 < 4000, 'demorou ' + (Date.now() - t0) + ' ms');
+      let e = null; try { await AssLocal.certificados(); } catch (x) { e = x; }
+      afirmar(e && e.codigo === 'SEM_ASSINADOR', 'código do erro: ' + (e && e.codigo));
+    } finally { window.__assPortaTeste = antes; AssLocal.base = null; }
+  });
+
+  await caso('Validador: PDF sem assinatura e raízes ICP-Brasil embutidas', async () => {
+    const v = await assValidarPdf(await pdfSimples(1));
+    afirmar(v.assinaturas.length === 0 && v.paginas === 1, 'PDF sem assinatura');
+    const raizes = assRaizesIcp();
+    afirmar(raizes.length >= 2 && raizes.every(r => r.autoAssinado && /Raiz Brasileira/.test(r.titular.CN)), 'raízes ICP-Brasil: ' + raizes.map(r => r.titular.CN).join('; '));
+    for (const r of ASS_RAIZES_ICP) afirmar(assHex(await assHash('SHA-256', assDeB64(r.der))).toUpperCase() === r.sha256.toUpperCase(), 'impressão digital da raiz não confere: ' + r.nome);
   });
 }
 
