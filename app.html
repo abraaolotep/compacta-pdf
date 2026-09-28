@@ -578,13 +578,13 @@
         <div class="opt-row">
           <input type="radio" name="conv" id="conv-word" value="word" checked>
           <label for="conv-word">PDF → Word (.docx)
-            <small>Reconstrói parágrafos, títulos, listas, tabelas (com e sem bordas), imagens, brasões, cabeçalho/rodapé e o formato da página</small></label>
+            <small>Fiel (padrão): cada folha do PDF vira uma folha do Word, com o texto editável na mesma posição e imagens, QR, códigos de barras, carimbos e molduras no lugar. Fluido: texto corrido para reescrever.</small></label>
         </div>
         <div class="opt-sub" id="word-opts">
           <label for="word-modo">Modo
             <select id="word-modo">
-              <option value="fiel" selected>Fiel à página (mesma paginação)</option>
-              <option value="fluido">Fluido (para reeditar)</option>
+              <option value="fiel" selected>Fiel à página (igual ao PDF, como Acrobat/iLovePDF)</option>
+              <option value="fluido">Fluido (texto corrido, para reescrever)</option>
             </select></label>
           <label><input type="checkbox" id="word-colunas" checked> Colunas reais do Word</label>
           <label><input type="checkbox" id="word-scan"> Manter a imagem digitalizada atrás do texto (OCR)</label>
@@ -936,7 +936,7 @@ window.__results = []; // depuração/testes
 
 // Visualizador hospedado do claude.ai: o sandbox do iframe bloqueia downloads
 // (sem allow-downloads), popups e o seletor de arquivos — avisamos o usuário.
-const VERSAO = '3.0.1 — 27/09/2026';
+const VERSAO = '3.1.0 — 28/09/2026';
 const HOSTED = typeof window.claude !== 'undefined';
 // o rodapé lê a versão daqui — fonte única, sem data duplicada no HTML
 { const vr = document.getElementById('versao-rodape'); if (vr) vr.textContent = 'v' + VERSAO; }
@@ -2465,7 +2465,7 @@ async function pdfParaTexto(f) {
   try {
     const bytes = new Uint8Array(await f.arrayBuffer());
     const doc = await abrirPdf(bytes.slice());
-    const paginas = await extrairPaginasEstruturadas(doc, card, $('#opt-ocr').checked);
+    const paginas = await extrairPaginasEstruturadas(doc, card, $('#opt-ocr').checked, { modo: 'fluido' });
     doc.destroy();
     const texto = paginas.map(estruturaParaTexto).join('\n\n----- página seguinte -----\n\n');
     const achado = casarPadroes(texto);
@@ -5062,14 +5062,17 @@ async function autoteste() {
     afirmar(xml.includes('<w:b/>'), 'negrito do título não veio no docx');
     afirmar(xml.includes('w:val="center"'), 'centralização do título não veio no docx');
     afirmar(xml.includes('w:val="32"'), 'tamanho de 16pt do título não veio no docx');
-    afirmar(/Corpo um[^<]*linha seguinte/.test(xml), 'linhas do mesmo parágrafo não foram unidas');
+    { const iC = xml.indexOf('Corpo um'), iL = xml.indexOf('linha seguinte'), trecho = iC >= 0 && iL > iC ? xml.slice(iC, iL) : null;
+      afirmar(trecho != null && !trecho.includes('</w:p>'), 'linhas do mesmo parágrafo não foram unidas');
+      afirmar(trecho.includes('<w:br/>'), 'modo fiel (padrão): a quebra de linha do PDF deveria ser mantida'); }
     afirmar(xml.includes('Paragrafo final separado.'), 'parágrafo final ausente');
     afirmar(xml.includes('<w:drawing>') && !!(zipW.file('word/media/imagem1.jpg') || zipW.file('word/media/imagem1.png')), 'imagem embutida não foi reproduzida no docx');
     afirmar(xml.includes('<w:tbl>') && /<w:tc>[^]*?Celula B2[^]*?<\/w:tc>/.test(xml), 'tabela com bordas não foi reproduzida no docx');
     afirmar((xml.match(/<w:tr>/g) || []).length === 2 && (xml.match(/<w:gridCol /g) || []).length === 2, 'tabela deveria ter 2 linhas × 2 colunas');
     afirmar(/<w:pgSz w:w="119\d\d" w:h="168\d\d"/.test(xml), 'tamanho de página (595×842 pt) não veio do PDF');
     afirmar(xml.includes('w:ascii="Arial"') || (await zipW.file('word/styles.xml').async('string')).includes('w:ascii="Arial"'), 'família da fonte (Helvetica → Arial) não veio');
-    afirmar(/w:lineRule="atLeast"/.test(xml), 'entrelinha em altura absoluta (twips) ausente');
+    afirmar(/w:lineRule="(exact|atLeast)"/.test(xml), 'entrelinha em altura absoluta (twips) ausente');
+    afirmar(/w:lineRule="exact"/.test(xml) && (xml.match(/<w:sectPr>/g) || []).length === 1, 'modo fiel (padrão): entrelinha exata e uma seção por folha');
     afirmar(!/w:lineRule="auto"/.test(xml), 'entrelinha ainda em múltiplo "auto" do Word');
   });
 
@@ -5664,8 +5667,10 @@ function __pintarCaminho(cam, fn, gs, cena) {
   const esp = Math.max(0.3, (gs.lw || 1) * escala);
   const areaPag = cena.largura * cena.altura;
   const ord = cena.__ord = (cena.__ord || 0) + 1;
-  const addH = (y, xa, xb, e, cor) => { if (cena.hlin.length < 20000 && Math.abs(xb - xa) > 3) cena.hlin.push({ y, x1: Math.min(xa, xb), x2: Math.max(xa, xb), esp: e, cor }); };
-  const addV = (x, ya, yb, e, cor) => { if (cena.vlin.length < 20000 && Math.abs(yb - ya) > 3) cena.vlin.push({ x, y1: Math.min(ya, yb), y2: Math.max(ya, yb), esp: e, cor }); };
+  // traço BRANCO sobre papel branco não aparece: nunca vira borda de tabela nem moldura
+  const invisivel = cor => !!cor && luminancia(cor) > 0.97;
+  const addH = (y, xa, xb, e, cor) => { if (!invisivel(cor) && cena.hlin.length < 20000 && Math.abs(xb - xa) > 3) cena.hlin.push({ y, x1: Math.min(xa, xb), x2: Math.max(xa, xb), esp: e, cor }); };
+  const addV = (x, ya, yb, e, cor) => { if (!invisivel(cor) && cena.vlin.length < 20000 && Math.abs(yb - ya) > 3) cena.vlin.push({ x, y1: Math.min(ya, yb), y2: Math.max(ya, yb), esp: e, cor }); };
   const addSeg = (x1, y1, x2, y2, e, cor) => {
     const [ax, ay] = pt(x1, y1), [bx, by] = pt(x2, y2);
     if (Math.abs(ay - by) < 0.6) addH((ay + by) / 2, ax, bx, e, cor);
@@ -5705,11 +5710,46 @@ function __pintarCaminho(cam, fn, gs, cena) {
   if (pintaBorda) {
     for (const [x, y, w, h] of cam.rects) { addSeg(x, y, x + w, y, esp, gs.corS); addSeg(x + w, y, x + w, y + h, esp, gs.corS); addSeg(x + w, y + h, x, y + h, esp, gs.corS); addSeg(x, y + h, x, y, esp, gs.corS); }
     for (const sg of cam.segs) if (addSeg(sg[0], sg[1], sg[2], sg[3], esp, gs.corS)) diagonal = true;
-    if (!irregular) for (const r of retos) if (r.x1 - r.x0 > 120 && r.y1 - r.y0 > 24 && cena.molduras.length < 500) cena.molduras.push({ x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y1, larg: esp, cor: gs.corS || [0, 0, 0] });
+    if (!irregular && !invisivel(gs.corS)) for (const r of retos) if (r.x1 - r.x0 > 120 && r.y1 - r.y0 > 24 && cena.molduras.length < 500) cena.molduras.push({ x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y1, larg: esp, cor: gs.corS || [0, 0, 0] });
   }
   if ((cam.temCurva || diagonal) && cena.formas.length < 3000) {
     const bb = __bboxPontos(cam.pontos, m);
     if (bb && (bb.x1 - bb.x0) * (bb.y1 - bb.y0) < 0.6 * areaPag) cena.formas.push({ ...bb, cor: pintaFundo ? gs.corF : gs.corS });
+  }
+}
+
+// código de barras / hachura vetorial: ≥ 10 retas paralelas com as MESMAS pontas e vão pequeno entre si não são bordas
+// de tabela — viram uma forma (desenhada como imagem no lugar exato)
+function __codigosDeBarras(cena) {
+  for (const horiz of [true, false]) {
+    const lista = horiz ? cena.hlin : cena.vlin;
+    if (lista.length < 10) continue;
+    const ini = l => horiz ? l.x1 : l.y1, fim = l => horiz ? l.x2 : l.y2, nivel = l => horiz ? l.y : l.x;
+    const grupos = new Map();
+    for (const l of lista) {
+      if (fim(l) - ini(l) > 220) continue;
+      const k = Math.round(ini(l) * 2) + ':' + Math.round(fim(l) * 2);
+      if (!grupos.has(k)) grupos.set(k, []);
+      grupos.get(k).push(l);
+    }
+    const remover = new Set();
+    for (const g of grupos.values()) {
+      if (g.length < 10) continue;
+      g.sort((a, b) => nivel(a) - nivel(b));
+      let run = [];
+      const fechar = () => {
+        if (run.length >= 10) {
+          const e0 = (run[0].esp || 0.5) / 2, e1 = (run[run.length - 1].esp || 0.5) / 2;
+          const n0 = nivel(run[0]) - e0, n1 = nivel(run[run.length - 1]) + e1, a = minDe(run, ini), b = maxDe(run, fim);
+          for (const l of run) remover.add(l);
+          if (cena.formas.length < 3000) cena.formas.push(horiz ? { x0: a, x1: b, y0: n0, y1: n1, cor: run[0].cor, forcar: true, barras: true } : { x0: n0, x1: n1, y0: a, y1: b, cor: run[0].cor, forcar: true, barras: true });
+        }
+        run = [];
+      };
+      for (const l of g) { if (run.length && nivel(l) - nivel(run[run.length - 1]) > 6) fechar(); run.push(l); }
+      fechar();
+    }
+    if (remover.size) { if (horiz) cena.hlin = cena.hlin.filter(l => !remover.has(l)); else cena.vlin = cena.vlin.filter(l => !remover.has(l)); }
   }
 }
 
@@ -6286,9 +6326,33 @@ async function rasterizarRegioes(page, regioes, dpi, ctx, cena) {
     const rec = criarCanvas(pw, ph);
     const rc = rec.getContext('2d');
     rc.drawImage(canvas, px, py, pw, ph, 0, 0, pw, ph);
-    if (r.mascarar && r.mascarar.length) {
+    if (r.mascarar && r.mascarar.length && r.inpaint) {
+      // apaga o texto do desenho pintando o retângulo com a cor predominante logo em volta dele
+      try {
+        const im = rc.getImageData(0, 0, pw, ph), d = im.data;
+        const px = (x, y) => (y * pw + x) * 4;
+        for (const m of r.mascarar) {
+          const x0 = Math.max(0, Math.floor((m.x0 - r.x0) * escala) - 1), x1 = Math.min(pw - 1, Math.ceil((m.x1 - r.x0) * escala) + 1);
+          const y0 = Math.max(0, Math.floor((r.y1 - m.y1) * escala) - 1), y1 = Math.min(ph - 1, Math.ceil((r.y1 - m.y0) * escala) + 1);
+          if (x1 < x0 || y1 < y0) continue;
+          const cont = new Map();
+          const soma = (x, y) => { if (x < 0 || y < 0 || x >= pw || y >= ph) return; const k = px(x, y); const q = (d[k] >> 4) + ',' + (d[k + 1] >> 4) + ',' + (d[k + 2] >> 4); const c = cont.get(q) || { n: 0, r: 0, g: 0, b: 0 }; c.n++; c.r += d[k]; c.g += d[k + 1]; c.b += d[k + 2]; cont.set(q, c); };
+          const passo = Math.max(1, Math.floor(Math.max(x1 - x0, y1 - y0) / 60));
+          for (let x = x0 - 2; x <= x1 + 2; x += passo) { soma(x, y0 - 2); soma(x, y1 + 2); }
+          for (let y = y0 - 2; y <= y1 + 2; y += passo) { soma(x0 - 2, y); soma(x1 + 2, y); }
+          let melhor = null; for (const c of cont.values()) if (!melhor || c.n > melhor.n) melhor = c;
+          const cr = melhor ? Math.round(melhor.r / melhor.n) : 255, cg = melhor ? Math.round(melhor.g / melhor.n) : 255, cb = melhor ? Math.round(melhor.b / melhor.n) : 255;
+          for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const k = px(x, y); d[k] = cr; d[k + 1] = cg; d[k + 2] = cb; d[k + 3] = 255; }
+        }
+        rc.putImageData(im, 0, 0);
+      } catch (e) { }
+    } else if (r.mascarar && r.mascarar.length) {
       rc.fillStyle = '#FFFFFF';
       for (const m of r.mascarar) rc.fillRect((m.x0 - r.x0) * escala - 1, (r.y1 - m.y1) * escala - 1, (m.x1 - m.x0) * escala + 2, (m.y1 - m.y0) * escala + 2);
+    }
+    // o branco do papel vira transparente: a imagem ancorada não "apaga" o que estiver por baixo ou ao lado
+    if (r.transparente && r.fmt !== 'jpg') {
+      try { const im = rc.getImageData(0, 0, pw, ph), d = im.data; for (let i = 0; i < d.length; i += 4) if (d[i] >= 246 && d[i + 1] >= 246 && d[i + 2] >= 246) d[i + 3] = 0; rc.putImageData(im, 0, 0); } catch (e) { }
     }
     let blob;
     const png = r.fmt !== 'jpg';
@@ -6370,6 +6434,7 @@ async function cenaDaPagina(page, ctx) {
   if (ol) { try { await __aguardarFontes(page, ol, ctx); } catch (e) { } }
   if (ol) { try { __percorrerOperadores(page, ol, BASE, cena, ctx); } catch (e) { cena.avisos.push('cena: ' + ((e && e.message) || e)); } }
   try { __resolverSobreposicoes(cena); } catch (e) { }
+  try { __codigosDeBarras(cena); } catch (e) { }
   cena.fundos = __coalescerFundos(cena.fundos);
   cena.hlin = __fundirColineares(cena.hlin, true);
   cena.vlin = __fundirColineares(cena.vlin, false);
@@ -6464,7 +6529,7 @@ function tabelasDaCena(cena) {
         }
       }
       const nr = i1 - i0 + 1, nc = j1 - j0 + 1;
-      if ((nr >= 2 && nc >= 2) || (nr >= 3 && nc === 1) || (nc >= 3 && nr === 1))
+      if ((nr >= 2 && nc >= 2) || (nr >= 3 && nc === 1) || (nc >= 2 && nr === 1))
         tabelas.push({ xs: xs.slice(j0, j1 + 2), ys: ys.slice(i0, i1 + 2), existe: (ri, cj) => !!cel[(i0 + ri) * C + (j0 + cj)], hAt: (ri, x1, x2) => hAt(i0 + ri, x1, x2), vAt: (cj, y1, y2) => vAt(j0 + cj, y1, y2), hlUsadas: [] });
     }
   }
@@ -6479,7 +6544,31 @@ function __celulaParagrafos(itens, x1, x2, pad) {
   const ls = montarLinhas(itens, { semTabs: true });
   let dirCel = Math.min(x2 - 2, Math.max(maxDe(ls, l => l.x1) + 0.5, x2 - 8)), esqCel = Math.max(x1 + 2, Math.min(minDe(ls, l => l.x0) - 0.5, x1 + 8));
   if (pad != null) { esqCel = x1 + pad; dirCel = x2 - pad; } // caixa de conteúdo REAL da célula (mesma margem interna que o Word vai usar)
+  if (__modoFiel) return montarParagrafos(ls, { esq: esqCel, dir: dirCel }).map(p => ({ ...p, espacoAntes: 0, esqGrupo: x1 + 2, dirGrupo: x2 - 2, esqCel, dirCel }));
   return montarParagrafos(ls, { esq: esqCel, dir: dirCel }).map(p => ({ ...p, espacoAntes: 0, recuoEsq: Math.min(p.recuoEsq || 0, 20), recuoPrimeira: 0, recuoPend: p.lista ? p.recuoPend : 0, justificado: false, esqGrupo: x1 + 2, dirGrupo: x2 - 2 }));
+}
+// fiel: espaço entre os parágrafos de uma célula (e do topo da célula à 1ª linha, se alinhada ao topo) igual ao do PDF
+function __espacosCelulaFiel(c) {
+  const ps = (c.paragrafos || []).filter(p => p.tipo === 'p');
+  let cursor = null, ant = null;
+  ps.forEach((p, k) => {
+    const n = Math.max(1, (p.linhas || []).length), base1 = p.linhas && p.linhas[0] ? p.linhas[0].y : p.yBase, d = 0.25 * (p.szPt || 11);
+    if (ant && n === 1 && !p.entrelinha && ant.linhas && ant.linhas.length) {
+      const g = ant.linhas[ant.linhas.length - 1].y - base1;
+      if (g > 0 && g < __passoFiel(p)) p.passoFixo = Math.max(g, 0.95 * (p.szPt || 11), 0.85 * (p.szMax || p.szPt || 11));
+    }
+    const pitch = __passoFiel(p);
+    if (k === 0) {
+      const antes = c.vAlign === 'top' && c.y2 != null ? c.y2 - (base1 + pitch - d) - 0.5 : 0;
+      p.espacoAntes = antes < 0.3 ? 0 : antes;
+      cursor = (c.vAlign === 'top' && c.y2 != null ? c.y2 - 0.5 - p.espacoAntes : base1 + pitch - d) - n * pitch;
+    } else {
+      const antes = cursor - base1 - (pitch - d);
+      p.espacoAntes = antes < 0.3 ? 0 : antes;
+      cursor = cursor - p.espacoAntes - n * pitch;
+    }
+    ant = p;
+  });
 }
 
 function __montarTabela(tb, itens, cena, emUso) {
@@ -6531,6 +6620,7 @@ function __montarTabela(tb, itens, cena, emUso) {
       const h = c.y2 - c.y1, rel = ((topoT + baseT) / 2 - c.y1) / h;
       if (topoT - baseT < 0.6 * h) c.vAlign = rel < 0.38 ? 'bottom' : rel <= 0.62 ? 'center' : 'top';
     }
+    if (__modoFiel) __espacosCelulaFiel(c);
   }
   // colunas numéricas alinhadas à direita
   for (let j = 0; j < nc; j++) {
@@ -6732,20 +6822,26 @@ function tabelasPorAlinhamento(linhas, geo, cena) {
 }
 
 function __componentesFormas(formas) {
-  const cx = formas.slice(0, 800).map(f => ({ x0: f.x0, y0: f.y0, x1: f.x1, y1: f.y1, n: 1, forcar: !!f.forcar, cor: f.cor }));
-  const dist = (a, b) => Math.max(0, Math.max(a.x0, b.x0) - Math.min(a.x1, b.x1)) + Math.max(0, Math.max(a.y0, b.y0) - Math.min(a.y1, b.y1));
-  let mudou = true, voltas = 0;
-  while (mudou && voltas++ < 200) {
-    mudou = false;
-    for (let i = 0; i < cx.length && !mudou; i++) for (let j = i + 1; j < cx.length; j++) {
-      if (dist(cx[i], cx[j]) <= 4) {
-        const a = cx[i], b = cx[j];
-        a.x0 = Math.min(a.x0, b.x0); a.y0 = Math.min(a.y0, b.y0); a.x1 = Math.max(a.x1, b.x1); a.y1 = Math.max(a.y1, b.y1); a.n += b.n; a.forcar = a.forcar || b.forcar;
-        cx.splice(j, 1); mudou = true; break;
-      }
+  const fs = formas.slice(0, 4000).map(f => ({ x0: f.x0, y0: f.y0, x1: f.x1, y1: f.y1, forcar: !!f.forcar, deco: !!f.deco, cor: f.cor }));
+  const pai = fs.map((_, i) => i);
+  const achar = i => { while (pai[i] !== i) { pai[i] = pai[pai[i]]; i = pai[i]; } return i; };
+  const ord = fs.map((_, i) => i).sort((a, b) => fs[a].x0 - fs[b].x0);
+  for (let a = 0; a < ord.length; a++) {
+    const A = fs[ord[a]];
+    for (let b = a + 1; b < ord.length; b++) {
+      const B = fs[ord[b]];
+      if (B.x0 > A.x1 + 4) break;
+      if (Math.max(0, Math.max(A.x0, B.x0) - Math.min(A.x1, B.x1)) + Math.max(0, Math.max(A.y0, B.y0) - Math.min(A.y1, B.y1)) <= 4) { const r1 = achar(ord[a]), r2 = achar(ord[b]); if (r1 !== r2) pai[r1] = r2; }
     }
   }
-  return cx;
+  const comps = new Map();
+  fs.forEach((f, i) => {
+    const r = achar(i);
+    const c = comps.get(r);
+    if (!c) comps.set(r, { x0: f.x0, y0: f.y0, x1: f.x1, y1: f.y1, n: 1, forcar: f.forcar, deco: f.deco, cor: f.cor });
+    else { c.x0 = Math.min(c.x0, f.x0); c.y0 = Math.min(c.y0, f.y0); c.x1 = Math.max(c.x1, f.x1); c.y1 = Math.max(c.y1, f.y1); c.n++; c.forcar = c.forcar || f.forcar; c.deco = c.deco || f.deco; }
+  });
+  return [...comps.values()];
 }
 
 const PALAVRAS_COMUNS = new Set('de da do das dos a o as os e é em no na nos nas um uma para por com que se ao à às ou mais não nº art lei sobre como the of and to in for on is by with'.split(' '));
@@ -6767,11 +6863,39 @@ function __textoIlegivel(itens) {
   return comuns < 0.03 && (simbolos > 0.06 || pua > 0.05);
 }
 
+// caixa de um item de texto girado (q = 1: sobe; -1: desce; 2: de cabeça para baixo) no referencial da página
+function __bboxGirado(it) {
+  const s = it.szPt || 10;
+  if (it.q === 1) return { x0: it.x - 0.8 * s, x1: it.x + 0.25 * s, y0: it.y, y1: it.y + it.larg };
+  if (it.q === -1) return { x0: it.x - 0.25 * s, x1: it.x + 0.8 * s, y0: it.y - it.larg, y1: it.y };
+  if (it.q === 2) return { x0: it.x - it.larg, x1: it.x, y0: it.y - 0.8 * s, y1: it.y + 0.25 * s };
+  return __bboxDeItem(it);
+}
+// itens girados → blocos separados por proximidade (folga de 0,6 corpo em volta de cada item)
+function __agruparGirados(its) {
+  const bbs = its.map(it => { const b = __bboxGirado(it), e = 0.6 * (it.szPt || 10); return { x0: b.x0 - e, x1: b.x1 + e, y0: b.y0 - e, y1: b.y1 + e }; });
+  const pai = its.map((_, i) => i);
+  const achar = i => { while (pai[i] !== i) { pai[i] = pai[pai[i]]; i = pai[i]; } return i; };
+  const n = Math.min(its.length, 3000);
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const a = bbs[i], b = bbs[j]; if (a.x0 <= b.x1 && b.x0 <= a.x1 && a.y0 <= b.y1 && b.y0 <= a.y1) { const r1 = achar(i), r2 = achar(j); if (r1 !== r2) pai[r1] = r2; } }
+  const grupos = new Map();
+  its.forEach((it, i) => { const r = achar(i); if (!grupos.has(r)) grupos.set(r, []); grupos.get(r).push(it); });
+  return [...grupos.values()];
+}
+
 function __resumo(itens, n) { return itens.slice(0, n || 6).map(i => i.texto.trim()).join(' ').slice(0, 60); }
 
-// cena → página estruturada
+// modo "fiel à página" (padrão): cada linha do PDF vira uma linha do Word; o que não é texto corrido fica ancorado
+let __modoFiel = false;
 async function segmentarPagina(cena, ctx, opcoes) {
+  const antes = __modoFiel;
+  __modoFiel = !opcoes || opcoes.modo !== 'fluido';
+  try { return await __segmentarPagina(cena, ctx, opcoes); } finally { __modoFiel = antes; }
+}
+// cena → página estruturada
+async function __segmentarPagina(cena, ctx, opcoes) {
   opcoes = opcoes || {};
+  const fiel = __modoFiel;
   const L = cena.largura, A = cena.altura, areaPag = L * A;
   const pag = { blocos: [], chars: cena.chars, pagina: { largura: L, altura: A, rotacao: cena.rotacao }, limites: null, cobertura: 0, fluxoEsq: null, candidatos: { lateral: [] }, colunas: null, ocr: false, pesquisavel: false, fallbackTexto: cena.fallbackTexto, avisos: cena.avisos.slice(), descartados: [], fontes: cena.fontes, tags: cena.tags };
   const todos = cena.itens.filter(it => it.texto.trim());
@@ -6782,13 +6906,35 @@ async function segmentarPagina(cena, ctx, opcoes) {
   pag.pesquisavel = cena.chars > 0 && charsInv >= 0.5 * cena.chars;
   if (!pag.pesquisavel && charsInv) { for (const it of todos) if (it.invisivel) emUso.add(it); if (charsInv > 20) pag.descartados.push('texto invisível descartado (' + charsInv + ' caracteres)'); }
   // 1. diagonais e girados
+  const regioesGiradas = [];
   const diag = todos.filter(it => it.diagonal && !emUso.has(it));
   if (diag.length) { diag.forEach(it => emUso.add(it)); pag.descartados.push('texto diagonal (marca d\'água/carimbo): ' + __resumo(diag)); }
-  for (const q of [1, -1, 2]) {
-    const grupo = todos.filter(it => !emUso.has(it) && !it.diagonal && it.q === q);
+  const itCol = todos.filter(it => it.q === 0 && !it.diagonal && !it.invisivel);
+  const colX0 = itCol.length ? minDe(itCol, it => it.x) : 0, colX1 = itCol.length ? maxDe(itCol, it => it.x + it.larg) : L;
+  const gruposGirados = [];
+  for (const q of [1, -1, 2]) { const its = todos.filter(it => !emUso.has(it) && !it.diagonal && it.q === q); if (its.length) for (const g of __agruparGirados(its)) gruposGirados.push([q, g]); }
+  for (const [q, grupo] of gruposGirados) {
     if (!grupo.length) continue;
     grupo.forEach(it => emUso.add(it));
     const chars = grupo.reduce((s, it) => s + it.texto.replace(/\s+/g, '').length, 0);
+    const gx0 = q === 2 ? minDe(grupo, i => i.x - i.larg) : minDe(grupo, i => i.x - i.szPt * 0.8), gx1 = q === 2 ? maxDe(grupo, i => i.x) : maxDe(grupo, i => i.x + i.szPt * 0.8);
+    const txtG = grupo.map(t => t.texto).join(' '), padG = txtG.replace(/\d/g, '#'), xmG = grupo.reduce((s, it) => s + it.x, 0) / grupo.length;
+    const lateralPadrao = (/num\.?\s*#+.*p[áa]g/i.test(padG) || /fls?\.?\s*#+/i.test(padG) || /assinado (eletronicamente|digitalmente)/i.test(txtG)) && (xmG < 0.12 * L || xmG > 0.88 * L);
+    const foraDaColuna = gx0 >= colX1 - 1 || gx1 <= colX0 + 1;
+    if ((fiel || (foraDaColuna && !lateralPadrao)) && chars <= Math.max(300, 0.2 * cena.chars)) {
+      // fiel: texto girado (carimbo lateral, nº junto ao código de barras) vira imagem no lugar exato da folha
+      let x0, x1, y0, y1;
+      if (q === 1) { x0 = minDe(grupo, i => i.x - i.szPt * 0.8); x1 = maxDe(grupo, i => i.x + i.szPt * 0.25); y0 = minDe(grupo, i => i.y); y1 = maxDe(grupo, i => i.y + i.larg); }
+      else if (q === -1) { x0 = minDe(grupo, i => i.x - i.szPt * 0.25); x1 = maxDe(grupo, i => i.x + i.szPt * 0.8); y0 = minDe(grupo, i => i.y - i.larg); y1 = maxDe(grupo, i => i.y); }
+      else { x0 = minDe(grupo, i => i.x - i.larg); x1 = maxDe(grupo, i => i.x); y0 = minDe(grupo, i => i.y - i.szPt * 0.8); y1 = maxDe(grupo, i => i.y + i.szPt * 0.25); }
+      const Rg = { x0: Math.max(0, x0 - 1), y0: Math.max(0, y0 - 1), x1: Math.min(L, x1 + 1), y1: Math.min(A, y1 + 1) };
+      const doGrupo = new Set(grupo);
+      const mascarar = todos.filter(it => !doGrupo.has(it) && !it.invisivel && it.q === 0 && __bboxInter(__bboxDeItem(it), Rg) > 0).map(__bboxDeItem);
+      const rotF = grupo.map(it => ({ ...it, x: q === 1 ? it.y : q === -1 ? -it.y : -it.x, y: q === 1 ? -it.x : q === -1 ? it.x : -it.y, q: 0 }));
+      let psF = [];
+      try { psF = montarParagrafos(montarLinhas(rotF, { semTabs: true }), { esq: minDe(rotF, i => i.x), dir: maxDe(rotF, i => i.x + i.larg) }); } catch (e) { psF = []; }
+      if (Rg.x1 - Rg.x0 >= 2 && Rg.y1 - Rg.y0 >= 2) { regioesGiradas.push({ ...Rg, comTexto: true, itens: grupo, mascarar, girado: true, q, paragrafos: psF }); continue; }
+    }
     if (chars <= 0.05 * Math.max(cena.chars, 1) && maxDe(grupo, i => i.szPt) >= 30) { pag.descartados.push('carimbo girado: ' + __resumo(grupo)); continue; }
     const texto = grupo.map(t => t.texto).join(' ');
     const padrao = texto.replace(/\d/g, '#');
@@ -6829,8 +6975,8 @@ async function segmentarPagina(cena, ctx, opcoes) {
   let maiorScan = null;
   for (const im of cena.imagens) {
     const w = im.x1 - im.x0, h = im.y1 - im.y0;
-    if (w < 6 || h < 6) continue;
-    if (!im.mascara && (w < 12 || h < 12)) continue;
+    if (fiel ? (w < 2 || h < 2) : (w < 6 || h < 6)) continue;
+    if (!fiel && !im.mascara && (w < 12 || h < 12)) continue;
     const chave = (im.objId || 'inl') + ':' + Math.round(im.x0) + ':' + Math.round(im.y0) + ':' + Math.round(w) + ':' + Math.round(h);
     if (vistas.has(chave)) continue; vistas.add(chave);
     let midia = null;
@@ -6871,6 +7017,8 @@ async function segmentarPagina(cena, ctx, opcoes) {
       }
     }
   }
+  // fiel: toda imagem fora de tabela fica fixa na posição da folha (não ocupa linhas do texto)
+  if (fiel) for (const b of imgBlocos) if (!b.ancorado) { b.ancorado = { x: b.x0, y: b.yTopo, atras: b.origem === 'scan' && pag.pesquisavel }; b.w = b.x1 - b.x0; b.h = b.yTopo - b.yBase; }
   for (let k = blocos.length - 1; k >= 0; k--) { const t = blocos[k]; if (t.tipo === 'tbl' && !t.girado && !t.linhas.some(r => r.some(c => (c.paragrafos || []).length))) blocos.splice(k, 1); }
   // 5. zonas de leitura → grupos → tabelas por alinhamento → parágrafos
   const fluxo = todos.filter(it => !emUso.has(it) && it.q === 0 && !it.diagonal);
@@ -6907,20 +7055,30 @@ async function segmentarPagina(cena, ctx, opcoes) {
   // 6. molduras → borda de parágrafo; fundos → sombreamento
   const tabelasBB = blocos.filter(b => b.tipo === 'tbl' && !b.girado).map(__bboxDeBloco);
   const caixasPag = (cena.caixas || []).concat(cena.molduras.map(m => ({ x0: m.x0, x1: m.x1, y0: m.y0, y1: m.y1, lados: { top: { larg: m.larg, cor: m.cor }, bottom: { larg: m.larg, cor: m.cor }, left: { larg: m.larg, cor: m.cor }, right: { larg: m.larg, cor: m.cor } } })));
-  for (const m of caixasPag) {
+  const decoFiel = [];
+  if (fiel) {
+    const dentroTabela = r => { const a = Math.max(0.01, (r.x1 - r.x0) * (r.y1 - r.y0)); return tabelasBB.some(t => __bboxInter(t, r) >= 0.5 * a); };
+    for (const m of caixasPag) { const r = { x0: m.x0 - 1.5, y0: m.y0 - 1.5, x1: m.x1 + 1.5, y1: m.y1 + 1.5 }; if (!dentroTabela(r)) decoFiel.push(r); }
+    for (const f of cena.fundos) { if (f.__ignorar || f.__borda) continue; const r = { x0: f.x0, y0: f.y0, x1: f.x1, y1: f.y1 }; if (!dentroTabela(r)) { decoFiel.push(r); f.__usado = true; } }
+    for (const l of cena.hlin) { if (l.__usada || usadasH.has(l) || l.sint) continue; const e = Math.max(0.5, l.esp || 0.5) / 2 + 0.75; const r = { x0: l.x1 - 0.5, x1: l.x2 + 0.5, y0: l.y - e, y1: l.y + e }; if (!dentroTabela(r)) decoFiel.push(r); }
+    for (const l of cena.vlin) { if (l.sint) continue; const e = Math.max(0.5, l.esp || 0.5) / 2 + 0.75; const r = { x0: l.x - e, x1: l.x + e, y0: l.y1 - 0.5, y1: l.y2 + 0.5 }; if (!dentroTabela(r)) decoFiel.push(r); }
+    // texto branco sobre faixa escura continua branco no Word
+    for (const p of paragrafosFluxo) { const bb = __bboxDeBloco(p), cxp = (bb.x0 + bb.x1) / 2, cyp = (bb.y0 + bb.y1) / 2; if (cena.fundos.some(f => f.cor && luminancia(f.cor) < 0.55 && cxp >= f.x0 && cxp <= f.x1 && cyp >= f.y0 && cyp <= f.y1)) p.sobreEscuro = true; }
+  }
+  if (!fiel) for (const m of caixasPag) {
     if (tabelasBB.some(t => __bboxInter(t, m) > 0)) continue;
     const dentro = paragrafosFluxo.filter(p => !p.caixa && (() => { const bb = __bboxDeBloco(p); return bb.x0 >= m.x0 - 3 && bb.x1 <= m.x1 + 3 && bb.y0 >= m.y0 - 3 && bb.y1 <= m.y1 + 3; })());
     if (!dentro.length) continue;
     const caixa = { x0: m.x0, x1: m.x1, y0: m.y0, y1: m.y1, lados: m.lados, textoEsq: minDe(dentro, p => p.x0), textoDir: maxDe(dentro, p => p.x1) };
     for (const p of dentro) p.caixa = caixa;
   }
-  for (const f of cena.fundos) {
+  if (!fiel) for (const f of cena.fundos) {
     if (f.__ignorar || f.__borda) continue;
     const dentro = paragrafosFluxo.filter(p => { const bb = __bboxDeBloco(p); return bb.x0 >= f.x0 - 3 && bb.x1 <= f.x1 + 3 && bb.y0 >= f.y0 - 3 && bb.y1 <= f.y1 + 3; });
     if (dentro.length) { for (const p of dentro) if (!p.fundo) p.fundo = f.cor; f.__usado = true; }
   }
   // 6b. filetes soltos (linha horizontal isolada: sob o título, separador do timbre/rodapé) → borda do parágrafo vizinho
-  {
+  if (!fiel) {
     const vistosY = [];
     const soltos = cena.hlin.filter(l => !l.__usada && !usadasH.has(l) && (l.x2 - l.x1) >= 60 && !l.sint
       && !tabelasBB.some(t => l.y >= t.y0 - 2 && l.y <= t.y1 + 2 && l.x1 >= t.x0 - 4 && l.x2 <= t.x1 + 4)
@@ -6942,40 +7100,54 @@ async function segmentarPagina(cena, ctx, opcoes) {
     }
   }
   // 7. formas vetoriais → imagem sem duplicar texto
-  const candidatasFormas = cena.formas.concat(cena.fundos.filter(f => !f.__ignorar && !f.__borda && !f.__usado && (f.x1 - f.x0) >= 12 && (f.y1 - f.y0) >= 12));
+  const candidatasFormas = cena.formas.concat(cena.fundos.filter(f => !f.__ignorar && !f.__borda && !f.__usado && (f.x1 - f.x0) >= 12 && (f.y1 - f.y0) >= 12), decoFiel.map(r => ({ ...r, forcar: true, deco: true })));
   const comps = candidatasFormas.length ? __componentesFormas(candidatasFormas) : [];
   const regioes = [];
   for (const G of comps) {
     const W = G.x1 - G.x0, H = G.y1 - G.y0;
-    if ((G.n < 2 && !G.forcar) || W < 12 || H < 12 || W * H >= 0.3 * areaPag) continue;
-    if (tabelasBB.some(t => __bboxInter(t, G) > 0)) continue;
+    if (G.deco) { if (W < 0.5 || H < 0.5 || W * H >= 0.98 * areaPag || tabelasBB.some(t => __bboxInter(t, G) >= 0.5 * W * H)) continue; }
+    else {
+      if ((G.n < 2 && !G.forcar) || W < 12 || H < 12 || W * H >= 0.3 * areaPag) continue;
+      if (tabelasBB.some(t => __bboxInter(t, G) > 0)) continue;
+    }
     if (imgBlocos.some(b => __bboxInter(__bboxDeBloco(b), G) >= 0.8 * W * H)) continue;
     const dentro = [], cruzam = [];
     for (const it of todos) {
-      if (emUso.has(it)) continue;
+      if (emUso.has(it) && !G.deco) continue;
+      if (G.deco && (it.invisivel || it.q !== 0 || it.diagonal)) continue;
       const bb = __bboxDeItem(it), inter = __bboxInter(bb, G), ar = (bb.x1 - bb.x0) * (bb.y1 - bb.y0);
+      if (it.q !== 0) continue;
       if (!inter) continue;
       if (inter >= 0.9 * ar) dentro.push(it); else cruzam.push(it);
     }
     const chars = dentro.reduce((s, it) => s + it.texto.replace(/\s+/g, '').length, 0);
-    if (chars <= 80 && !cruzam.length) {
-      regioes.push({ x0: G.x0, y0: G.y0, x1: G.x1, y1: G.y1, comTexto: true, itens: dentro });
+    if (!G.deco && chars <= 80 && !cruzam.length) {
+      const mascG = todos.filter(it => it.q !== 0 && !it.diagonal && !it.invisivel && __bboxInter(__bboxGirado(it), G) > 0).map(it => { const b = __bboxGirado(it); return { x0: b.x0 - 0.5, x1: b.x1 + 0.5, y0: b.y0 - 0.5, y1: b.y1 + 0.5 }; });
+      regioes.push({ x0: G.x0, y0: G.y0, x1: G.x1, y1: G.y1, comTexto: true, itens: dentro, mascarar: mascG, inpaint: mascG.length > 0 });
     } else {
-      const mascarar = dentro.concat(cruzam).map(__bboxDeItem);
+      // desenho (fiel): o texto sai do desenho com folga para acentos; o buraco recebe a cor do entorno
+      const mascarar = (G.deco ? dentro.concat(cruzam).map(it => ({ x0: it.x - 0.5, x1: it.x + it.larg + 0.5, y0: it.y - 0.3 * it.szPt, y1: it.y + 0.92 * it.szPt })) : dentro.concat(cruzam).map(__bboxDeItem))
+        .concat(todos.filter(it => it.q !== 0 && !it.diagonal && !it.invisivel && __bboxInter(__bboxGirado(it), G) > 0).map(it => { const b = __bboxGirado(it); return { x0: b.x0 - 0.5, x1: b.x1 + 0.5, y0: b.y0 - 0.5, y1: b.y1 + 0.5 }; }));
       const areaTexto = mascarar.reduce((s, b) => s + (b.x1 - b.x0) * (b.y1 - b.y0), 0);
-      regioes.push({ x0: G.x0, y0: G.y0, x1: G.x1, y1: G.y1, comTexto: false, mascarar, ancorar: areaTexto >= 0.3 * W * H && opcoes.modo !== 'fluido' });
+      regioes.push({ x0: G.x0, y0: G.y0, x1: G.x1, y1: G.y1, comTexto: false, mascarar, inpaint: !!G.deco, ancorar: areaTexto >= 0.3 * W * H && opcoes.modo !== 'fluido' });
     }
   }
+  for (const r of regioesGiradas) regioes.unshift(r);
+  for (const r of regioes) r.transparente = true;
   if (regioes.length) {
     let midias = [];
-    try { midias = await cena.rasterizar(regioes.slice(0, 60), 300); } catch (e) { pag.avisos.push('formas vetoriais não rasterizadas: ' + ((e && e.message) || e)); }
+    try { midias = await cena.rasterizar(regioes.slice(0, 250), 300); } catch (e) { pag.avisos.push('formas vetoriais não rasterizadas: ' + ((e && e.message) || e)); }
     midias.forEach((m, k) => {
       const r = regioes[k];
       if (!m) return;
       if (r.comTexto) for (const it of r.itens) { emUso.add(it); }
       const centro = (r.x0 + r.x1) / 2;
       const b = { tipo: 'img', midia: m, w: r.x1 - r.x0, h: r.y1 - r.y0, alin: Math.abs(centro - L / 2) < 0.06 * L ? 'center' : (r.x0 > L / 2 ? 'right' : 'left'), x0: r.x0, x1: r.x1, yTopo: r.y1, yBase: r.y0, ordem: 0, espacoAntes: 0, quebraAntes: false, fracao: ((r.x1 - r.x0) * (r.y1 - r.y0)) / areaPag, origem: 'vetor' };
-      if (r.ancorar) b.ancorado = { x: r.x0, y: r.y1, atras: true };
+      if (fiel) b.ancorado = { x: r.x0, y: r.y1, atras: !r.comTexto };
+      if (!fiel && r.girado) b.ancorado = { x: r.x0, y: r.y1, atras: false };
+      if (r.girado && r.paragrafos && r.paragrafos.length) b.caixaTexto = { q: r.q, paragrafos: r.paragrafos };
+      else if (r.ancorar) b.ancorado = { x: r.x0, y: r.y1, atras: true };
+      else if (r.x0 >= txtX1 - 1 || r.x1 <= txtX0 + 1) { b.ancorado = { x: r.x0, y: r.y1, atras: false }; b.naMargem = true; } // código de barras/selo na margem
       imgBlocos.push(b);
     });
     // itens absorvidos pelas formas saem dos parágrafos já montados
@@ -7077,7 +7249,14 @@ async function analisarPagina(page, ctx, opcoes) {
 const RX_MARC = /^(?:[•·▪■●○◦»›•▪●○‣⁃\-–—*]|\(?(?:\d{1,3}|[a-z]|[ivxlc]{1,6}|[IVXLC]{1,6})[.)]|\d{1,2}(?:\.\d{1,2})+\.?|Art\.(?:\s?\d+[ºo°]?\.?)?|§(?:\s?\d+[ºo°]?\.?)?|Par[áa]grafo [úu]nico\.?|[IVXLC]{1,6}\s?[–-])$/;
 const RX_PREFIXO_HIFEN = /(^|[\s(])(vice|ex|pré|pre|pós|pos|pró|pro|anti|auto|contra|sub|super|semi|recém|recem|além|alem|aquém|aquem|bem|mal|sem|sócio|socio|pan|sobre|infra|ultra|não|nao)-$/i;
 
+const __BALAS_PUA = new Map([[0xF0B7, '•'], [0xF06C, '●'], [0xF0A7, '▪'], [0xF06E, '■'], [0xF071, '❑'], [0xF076, '❖'], [0xF0D8, '➢'], [0xF0E8, '➔'], [0xF0FC, '✓'], [0xF0A8, '□'], [0xF06F, '○'], [0xF0A1, '○'], [0xF075, '◆'], [0xF02D, '-']]);
+const RX_BALA_EXTRA = /^[➢➤►▶✓✔❖◆◇□■▪▫●○◦•‣⁃❑➔]$/;
+function __balaNormal(t) {
+  if (t && t.length === 1) { const c = t.charCodeAt(0); if (c >= 0xF000 && c <= 0xF0FF) return __BALAS_PUA.get(c) || '•'; }
+  return t;
+}
 function __tipoMarcador(t, it) {
+  if (RX_BALA_EXTRA.test(t)) return 'bullet';
   if (/^[•·▪■●○◦»›•▪●○‣⁃\-–—*]$/.test(t)) return 'bullet';
   if (it && t.length === 1 && /symbol|wingdings|dingbats/i.test(it.nomeF || '')) return 'bullet';
   if (/^\(?\d{1,3}[.)]$/.test(t)) return 'decimal';
@@ -7121,8 +7300,8 @@ function __fecharLinha(l, opts) {
   l.tabs = []; l.sumario = false; l.marcador = null;
   // marcador de lista: 1º item casa o padrão e o texto começa a > 0,35·sz do fim do marcador
   let inicioTexto = 0;
-  const p0 = l.itens[0], t0 = p0.texto.trim();
-  if (l.itens.length > 1 && (RX_MARC.test(t0) || (t0.length === 1 && /symbol|wingdings|dingbats/i.test(p0.nomeF || ''))) && l.itens[1].x - (p0.x + p0.larg) > 0.35 * l.szDom) {
+  const p0 = l.itens[0], t0 = __balaNormal(p0.texto.trim());
+  if (l.itens.length > 1 && (RX_MARC.test(t0) || (t0.length === 1 && (/symbol|wingdings|dingbats/i.test(p0.nomeF || '') || RX_BALA_EXTRA.test(t0)))) && l.itens[1].x - (p0.x + p0.larg) > 0.35 * l.szDom) {
     l.marcador = { t: t0, x: p0.x, x1: p0.x + p0.larg, xTexto: l.itens[1].x, tipo: __tipoMarcador(t0, p0), runs: [__runDe(p0, t0)] };
     inicioTexto = 1;
   } else {
@@ -7143,7 +7322,7 @@ function __fecharLinha(l, opts) {
     if (fimX != null) {
       const fecha = /^\s*[.,;:!?)\]}»”’%]/.test(texto);
       if (fecha && vao < 0.35 * sz) { texto = texto.replace(/^\s+/, ''); const u = runs[runs.length - 1]; if (u) u.t = u.t.replace(/ +$/, ''); }
-      else if (vao >= 1.5 * sz && !(opts && opts.semTabs)) { l.tabs.push(it.x); texto = '\t' + texto.replace(/^\s+/, ''); }
+      else if (vao >= (it.ocr ? 2.5 : 1.5) * sz && !(opts && opts.semTabs)) { l.tabs.push(it.x); texto = '\t' + texto.replace(/^\s+/, ''); }
       else if (vao > 0.16 * sz || (it.espacoAntesItem && vao > -0.1 * sz)) { const u = runs[runs.length - 1]; if (u && !u.t.endsWith(' ') && !texto.startsWith(' ')) texto = ' ' + texto; }
     }
     __anexarRun(runs, __runDe(it, texto));
@@ -7152,7 +7331,7 @@ function __fecharLinha(l, opts) {
   l.runs = runs;
   l.texto = runs.map(r => r.t).join('');
   // sumário: "texto ..... 12"
-  if (/(\.\s?){5,}\s*\d+\s*$/.test(l.texto) || (l.tabs.length === 1 && /\s\d{1,4}\s*$/.test(l.texto) && l.larg > 0.5 * (opts && opts.largUtil || l.larg))) l.sumario = true;
+  if (/(\.\s?){5,}\s*\d+\s*$/.test(l.texto) || (l.tabs.length === 1 && /\s\d{1,4}\s*$/.test(l.texto) && !/(?:\bde|\bof|\/)\s*\d{1,4}\s*$/i.test(l.texto) && l.larg > 0.5 * (opts && opts.largUtil || l.larg))) l.sumario = true;
   l.artefato = l.itens.every(i => i.artefato);
   l.invisivel = l.itens.every(i => i.invisivel);
   l.tag = l.itens[0].tag || null;
@@ -7194,6 +7373,37 @@ function __unirHifen(a, b) {
   }
   if (a.endsWith(' ') || b.startsWith(' ') || b.startsWith('\t')) return a + b;
   return a + ' ' + b;
+}
+
+// marcador reconhecido tarde: a linha seguinte começa exatamente onde começa o texto depois de "10." / "a)" / "•"
+function __marcadorTardio(l, xAlvo) {
+  const it0 = l.itens[0];
+  if (!it0) return null;
+  const t0 = it0.texto.trim();
+  const lista = (t, xm, x1m, xt) => { const tipo = __tipoMarcador(t, it0); return { tipo, inicio: __numeroMarcador(t, tipo), nivel: 0, xMarc: xm, x1Marc: x1m, xTexto: xt, marcador: t, runs: [__runDe(it0, t)] }; };
+  if (l.itens[1] && RX_MARC.test(t0) && Math.abs(l.itens[1].x - xAlvo) <= 2.5) return { t: t0, lista: lista(t0, it0.x, it0.x + it0.larg, l.itens[1].x) };
+  const m = /^(\S{1,8})(\s+)(\S.*)$/.exec(it0.texto);
+  if (m && RX_MARC.test(m[1]) && it0.texto.length) {
+    const fr = (m[1].length + m[2].length) / it0.texto.length, xT = it0.x + it0.larg * fr;
+    if (Math.abs(xT - xAlvo) <= 4) return { t: m[1], lista: lista(m[1], it0.x, it0.x + it0.larg * m[1].length / it0.texto.length, xAlvo) };
+  }
+  return null;
+}
+// tira o texto do marcador (e o espaço depois dele) do começo dos runs do parágrafo
+function __tirarMarcador(p, t) {
+  let alvo = t;
+  for (const r of p.runs) {
+    if (r.campo) break;
+    let s = alvo ? r.t.replace(/^\s+/, '') : r.t;
+    const n = Math.min(alvo.length, s.length);
+    if (s.slice(0, n) !== alvo.slice(0, n)) return false;
+    s = s.slice(n); alvo = alvo.slice(n);
+    if (!alvo) s = s.replace(/^\s+/, '');
+    r.t = s;
+    if (s) break;
+  }
+  p.runs = p.runs.filter(r => r.t || r.campo);
+  return !alvo;
 }
 
 // linhas (já na ordem de leitura) → parágrafos com medidas em pontos visuais; `geo` = limites do grupo
@@ -7255,7 +7465,7 @@ function montarParagrafos(linhas, geo, opts) {
     return it.larg * Math.min(1, (w.length + 0.5) / Math.max(1, t.length));
   };
   const alinhamentoDe = l => {
-    if (l.tabs.length) return 'left';
+    if (l.tabs.length || l.marcador) return 'left';
     if (l.local || l.x0Compartilhado) return 'left';
     const centro = (l.x0 + l.x1) / 2, centroBloco = (esq + dir) / 2;
     if (l.larg < 0.8 * largBloco && (Math.abs(centro - centroBloco) < 0.06 * largBloco || Math.abs(centro - centroPagina) < 0.04 * largPagina)) return 'center';
@@ -7263,9 +7473,19 @@ function montarParagrafos(linhas, geo, opts) {
     return 'left';
   };
   const paragrafos = [];
-  let prev = null;
-  for (const linha of linhas) {
-    const alin = alinhamentoDe(linha);
+  let prev = null, linhaAnt = null;
+  // recuo deslocado sem marcador: esta linha está recuada, vai até a margem direita e a próxima começa no mesmo recuo
+  const deslocado = li => {
+    const l = linhas[li], nx = linhas[li + 1];
+    if (!nx || nx.marcador || Math.abs(nx.x0 - l.x0) > 2.5 || Math.abs(nx.szDom - l.szDom) >= 1) return false;
+    const vao = l.y - nx.y;
+    if (!(vao > 0) || vao > limiteVao(Math.max(l.szDom, nx.szDom))) return false;
+    return (l.dirL - l.x1) < primeiraPalavra(nx) + 0.35 * nx.szDom;
+  };
+  for (let li = 0; li < linhas.length; li++) {
+    const linha = linhas[li];
+    let alin = alinhamentoDe(linha);
+    if (alin === 'center' && prev && prev.lista && Math.abs(linha.x0 - prev.lista.xTexto) <= 2.5 && !linha.marcador) alin = 'left'; // continuação de item
     let continua = false;
     if (prev && !linha.marcador && !linha.tabs.length && !linha.sumario && !prev.tabs && !prev.sumario && !opts.semJuncao) {
       const vao = prev.y - linha.y;
@@ -7282,7 +7502,12 @@ function montarParagrafos(linhas, geo, opts) {
       }
       if (continua && /^\s*(?:(?:[IVXLC]{1,7}|\d{1,3}|[a-z])\s*[-–—.)]\s+\S|Art\.\s|§\s?\d|Par[áa]grafo [úu]nico)/.test(linha.texto)) continua = false;
       // recuo novo à direita do corpo do parágrafo = começo de outro parágrafo (texto sem linha em branco entre parágrafos)
-      if (continua && !prev.lista && linha.x0 - (prev.x0Cont != null ? prev.x0Cont : prev.x0) > 3) continua = false;
+      if (continua && !prev.lista && linha.x0 - (prev.x0Cont != null ? prev.x0Cont : prev.x0) > 3) {
+        const pAnt = paragrafos[paragrafos.length - 1];
+        const conv = pAnt && pAnt.linhas.length === 1 && !pAnt.lista && !pAnt.tabs && linhaAnt ? __marcadorTardio(linhaAnt, linha.x0) : null;
+        if (conv && __tirarMarcador(pAnt, conv.t)) { pAnt.lista = conv.lista; prev.lista = pAnt.lista; }
+        else if (!(pAnt && pAnt.linhas.length === 1 && !pAnt.lista && !pAnt.tabs && deslocado(li))) continua = false;
+      }
       if (continua && (alin === 'right') !== (prev.alin === 'right')) continua = false;
       if (continua && prev.tag && linha.tag && /^H/.test(prev.tag) !== /^H/.test(linha.tag)) continua = false;
     }
@@ -7290,7 +7515,11 @@ function montarParagrafos(linhas, geo, opts) {
       const p = paragrafos[paragrafos.length - 1];
       const u = p.runs[p.runs.length - 1];
       const primeiro = linha.runs[0];
-      if (u && primeiro) {
+      if (opts.manterQuebras != null ? opts.manterQuebras : __modoFiel) {
+        // fiel: a quebra de linha do PDF fica (hífen incluído) — o Word não decide sozinho onde cada linha termina
+        if (u) u.t = u.t.replace(/ +$/, '') + '\n';
+        linha.runs.forEach((r, k) => __anexarRun(p.runs, k === 0 ? { ...r, t: r.t.replace(/^ +/, '') } : r));
+      } else if (u && primeiro) {
         const unido = __unirHifen(u.t, primeiro.t);
         if (unido.startsWith(u.t) && __chaveRun(u) !== __chaveRun(primeiro)) { u.t = unido.slice(0, u.t.length + (unido.length - u.t.length - primeiro.t.length)); __anexarRun(p.runs, primeiro); }
         else if (__chaveRun(u) === __chaveRun(primeiro)) u.t = unido;
@@ -7313,6 +7542,7 @@ function montarParagrafos(linhas, geo, opts) {
       });
     }
     const p = paragrafos[paragrafos.length - 1];
+    linhaAnt = linha;
     prev = { y: linha.y, szDom: linha.szDom, larg: linha.larg, x0: linha.x0, x1: linha.x1, x0Cont: p.linhas.length > 1 ? p.linhas[1].x0 : null, esqL: linha.esqL, dirL: linha.dirL, alin: p.alin, tabs: linha.tabs.length > 0, sumario: linha.sumario, lista: p.lista, artefato: linha.artefato, tag: linha.tag };
   }
   for (const p of paragrafos) {
@@ -7412,7 +7642,7 @@ function __seccionar(doc, pags) {
   let sec = null;
   for (const p of pags) {
     const L = p.pagina.largura, A = p.pagina.altura;
-    if (!sec || Math.abs(sec.larg - L) > 1 || Math.abs(sec.alt - A) > 1) {
+    if (!sec || doc.modo === 'fiel' || Math.abs(sec.larg - L) > 1 || Math.abs(sec.alt - A) > 1) {
       sec = { chave: Math.round(L) + 'x' + Math.round(A), larg: L, alt: A, paisagem: L > A, pags: [], cab: { padrao: [], primeira: null }, rod: { padrao: [], primeira: null }, colunas: null, distCab: 35.4, distRod: 35.4, margens: null, titlePg: false };
       doc.secoes.push(sec);
     }
@@ -7514,6 +7744,13 @@ function __cabecalhoRodape(doc, sec) {
     const paraCab = b => __paraCabecalho(b, analiseDe(b), sec);
     const qualifica = b => b.zona === zona && !b.ancorado && coerente(b) && (b.naFaixaTimbre ||(cont.get(__chaveBloco(b)) || 0) >= minRep || (b.tipo === 'p' && b.artefato) || (b.tipo === 'p' && b.naBorda && b.chars <= 24 && __pareceNumeroPagina(b.texto)));
     const porPagina = sec.pags.map(p => p.blocos.filter(qualifica));
+    // imagem do timbre ACIMA do texto que foi para o cabeçalho vai junto (senão fica no corpo, depois dele)
+    if (zona === 'cab') sec.pags.forEach((p, i) => {
+      const ps = porPagina[i].filter(b => b.tipo === 'p');
+      if (!ps.length) return;
+      const piso = minDe(ps, b => __bboxDeBloco(b).y0);
+      for (const b of p.blocos) if (b.tipo === 'img' && !b.ancorado && b.zona === 'cab' && !porPagina[i].includes(b) && __bboxDeBloco(b).y0 >= piso - 2) porPagina[i].push(b);
+    });
     sec.pags.forEach((p, i) => { const set = new Set(porPagina[i]); p.blocos = p.blocos.filter(b => !set.has(b)); });
     const chavesDe = bs => bs.map(__chaveBloco).join('\n');
     let idxPadrao = 0;
@@ -7554,8 +7791,69 @@ function __cabecalhoRodape(doc, sec) {
   if (sec.titlePg) doc.diagnostico.primeiraDistinta = true;
 }
 
-function __margensSecao(sec) {
+// entrelinha EXATA de um parágrafo no modo fiel: a medida do PDF, nunca menor que o corpo da letra (o Word cortaria o topo)
+function __passoFiel(p) {
+  if (p.passoFixo) return p.passoFixo;
+  const sz = p.szPt || 11;
+  return Math.max(p.entrelinha || sz * 1.2, 0.95 * sz, 0.85 * (p.szMax || sz));
+}
+// altura que uma borda de parágrafo acrescenta no Word (espaço + traço), como o emissor a escreve
+function __alturaBordaP(b) { return b ? Math.max(0, Math.min(31, Math.round(b.espaco || 1))) + Math.max(2, Math.min(96, Math.round((b.larg || 0.5) * 8))) / 8 : 0; }
+// fiel: espaço antes de cada bloco medido contra o CURSOR (onde o Word de fato está), não contra o fim do bloco anterior
+// no PDF — o que um bloco cresceu no Word (borda, entrelinha mínima, separador de tabela) sai do próximo espaço em branco
+function __espacosFiel(p, A, margTopo) {
+  let cursor = A - margTopo, anterior = null;
+  const vis = p.blocos.filter(x => !x.ancorado);
+  for (let i = 0; i < vis.length; i++) {
+    const b = vis[i], prox = vis[i + 1];
+    if (b.tipo === 'p') {
+      if (b.vazio) { b.espacoAntes = 0; cursor -= b.minusculo ? 1 : __passoFiel(b); anterior = b; continue; }
+      const n = Math.max(1, (b.linhas || []).length);
+      const base1 = b.linhas && b.linhas[0] ? b.linhas[0].y : b.yBase;
+      const d = 0.25 * (b.szPt || 11);
+      if (n === 1 && !b.entrelinha && anterior && anterior.tipo === 'p' && !anterior.vazio && anterior.linhas && anterior.linhas.length && !b.caixa && !anterior.caixa) {
+        const g = anterior.linhas[anterior.linhas.length - 1].y - base1;
+        if (g > 0 && g < __passoFiel(b)) b.passoFixo = Math.max(g, 0.95 * (b.szPt || 11), 0.85 * (b.szMax || b.szPt || 11));
+      }
+      const pitch = __passoFiel(b);
+      let extraTop = 0, extraBot = 0, before;
+      const cx = b.caixa || null;
+      if (cx) {
+        const primeiro = !(anterior && anterior.caixa === cx), ultimo = !(prox && prox.caixa === cx);
+        const lado = k => cx.lados && cx.lados[k] ? Math.max(2, Math.min(96, Math.round(cx.lados[k].larg * 8))) / 8 : 0;
+        if (primeiro) { cx.espTopo = Math.max(0, Math.min(31, cx.y1 - (base1 + pitch - d))); extraTop = Math.round(cx.espTopo) + lado('top'); before = cursor - cx.y1; }
+        else before = cursor - base1 - (pitch - d);
+        if (ultimo) { cx.espBase = Math.max(0, Math.min(31, (b.yBase - d) - cx.y0)); extraBot = Math.round(cx.espBase) + lado('bottom'); }
+      } else {
+        if (b.borda) { const e = 4 + Math.max(2, Math.min(48, Math.round(b.borda.larg * 8))) / 8; extraTop = extraBot = e; }
+        else { extraTop = __alturaBordaP(b.bordaSuperior); extraBot = __alturaBordaP(b.bordaInferior); }
+        before = cursor - base1 - (pitch - d) - extraTop;
+      }
+      b.espacoAntes = before < 0.3 ? 0 : before;
+      cursor = cursor - b.espacoAntes - extraTop - n * pitch - extraBot;
+    } else if (b.tipo === 'tbl') {
+      const before = cursor - b.yTopo;
+      b.espacoAntes = before < 0.3 ? 0 : before;
+      cursor = cursor - b.espacoAntes - (b.yTopo - b.yBase) - 1; // 1 pt: parágrafo separador depois da tabela
+    } else {
+      const before = cursor - b.yTopo;
+      b.espacoAntes = before < 0.3 ? 0 : before;
+      cursor = cursor - b.espacoAntes - (b.h || (b.yTopo - b.yBase));
+    }
+    anterior = b;
+  }
+}
+function __topoFluxo(b, fiel) { return b.tipo === 'p' && b.linhas && b.linhas[0] ? b.linhas[0].y + ((fiel ? __passoFiel(b) : (b.entrelinha || b.szPt * 1.2)) - 0.25 * b.szPt) : b.yTopo; }
+function __margensSecao(sec, fiel) {
   const L = sec.larg, A = sec.alt;
+  if (fiel) {
+    // uma seção por folha: margens = limites exatos do conteúdo desta folha; base com folga (métrica do Word ≠ PDF)
+    const bs = [].concat(...sec.pags.map(p => p.blocos.filter(b => !b.ancorado && !b.vazio)));
+    if (!bs.length) { sec.margens = { esq: 56.7, dir: 56.7, topo: 56.7, base: 28 }; return; }
+    const lim = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    sec.margens = { esq: lim(minDe(bs, b => __bboxDeBloco(b).x0), 4, 0.4 * L), dir: lim(L - maxDe(bs, b => __bboxDeBloco(b).x1), 4, 0.4 * L), topo: lim(A - maxDe(bs, b => __topoFluxo(b, true)), 2, 0.7 * A), base: lim(minDe(bs, b => __bboxDeBloco(b).y0) - 24, 4, 72) };
+    return;
+  }
   const esq = [], dir = [], topo = [], base = [];
   for (const p of sec.pags) {
     const bs = p.blocos.filter(b => !b.ancorado && !b.vazio);
@@ -7569,7 +7867,7 @@ function __margensSecao(sec) {
   const clamp = (v, lo, hi, def) => v.length ? Math.max(lo, Math.min(hi, v.length >= 4 ? quartil(v) : minDe(v))) : def;
   // topo/base pelo MÍNIMO (o que o conteúdo realmente alcança): área útil menor que a de alguma página faz a página transbordar
   const minimo = (v, lo, hi, def) => v.length ? Math.max(lo, Math.min(hi, minDe(v))) : def;
-  sec.margens = { esq: clamp(esq, 18, 144, 56.7), dir: clamp(dir, 18, 144, 56.7), topo: minimo(topo, 18, temCab ? 300 : 144, 56.7), base: minimo(base.map(v => v - 8), 18, temRod ? 300 : 144, 56.7) }; // 8 pt de folga: pequenas diferenças de métrica do Word não empurram a última linha
+  sec.margens = { esq: minimo(esq, 18, 144, 56.7), dir: minimo(dir, 18, 144, 56.7), topo: minimo(topo, 18, temCab ? 300 : 144, 56.7), base: minimo(base.map(v => v - 8), 18, temRod ? 300 : 144, 56.7) }; // 8 pt de folga: pequenas diferenças de métrica do Word não empurram a última linha
   if (temCab) sec.distCab = Math.min(sec.distCab, Math.max(18, sec.margens.topo - 6));
   if (temRod) sec.distRod = Math.min(sec.distRod, Math.max(18, sec.margens.base - 6));
 }
@@ -7590,8 +7888,12 @@ function __titulos(doc, pags, outline) {
   try { andar(outline, 1); } catch (e) { }
   const cands = [];
   let total = 0;
+  // fiel: o timbre/rodapé fica no corpo de cada folha — texto repetido em 2+ folhas não é título
+  const repetidos = new Map();
+  if (doc.modo === 'fiel') for (const pag of pags) { const vistos = new Set(); for (const p of __paragrafosDaPagina(pag, false)) { const k = __normTitulo(p.texto); if (k && !vistos.has(k)) { vistos.add(k); repetidos.set(k, (repetidos.get(k) || 0) + 1); } } }
   for (const pag of pags) for (const p of __paragrafosDaPagina(pag, false)) {
     if (p.lateral || p.vazio) continue;
+    if (doc.modo === 'fiel' && (repetidos.get(__normTitulo(p.texto)) || 0) >= 2) { total++; continue; }
     total++;
     const k = __normTitulo(p.texto);
     let nivel = 0;
@@ -7638,7 +7940,8 @@ function __unirParagrafos(ua, pb) {
 }
 
 function __costuraEQuebras(doc, pags) {
-  for (let i = 0; i + 1 < pags.length; i++) {
+  const fiel = doc.modo === 'fiel'; // fiel: cada folha é uma seção (quebra própria); nada é costurado entre folhas
+  for (let i = 0; !fiel && i + 1 < pags.length; i++) {
     const a = pags[i], b = pags[i + 1];
     if (a.secao !== b.secao) continue;
     const ua = a.blocos[a.blocos.length - 1], pb = b.blocos[0];
@@ -7657,7 +7960,7 @@ function __costuraEQuebras(doc, pags) {
   pags.forEach((p, i) => {
     const sec = p.secao, A = p.pagina.altura;
     const margTopo = sec.margens.topo, margBase = sec.margens.base;
-    if (i > 0) {
+    if (i > 0 && !fiel) {
       const ant = pags[i - 1];
       const ub = ant.blocos.filter(b => !b.ancorado).slice(-1)[0];
       const brancoAnt = ub ? (__bboxDeBloco(ub).y0 - margBase) / ant.pagina.altura : 1;
@@ -7679,6 +7982,7 @@ function __costuraEQuebras(doc, pags) {
         } else p.blocos.unshift(__pVazio(p, true));
       }
     }
+    if (fiel) { __espacosFiel(p, A, margTopo); return; }
     // página cujo 1º parágrafo foi costurado à anterior: os espaços contam a partir do fim desse trecho, não do topo da folha
     let fundoAnt = p.costurou ? p.baseCosturada - 0.25 * p.szCosturada : A - margTopo;
     let anterior = p.costurou ? { tipo: 'p', yBase: p.baseCosturada, caixa: null } : null;
@@ -7688,7 +7992,7 @@ function __costuraEQuebras(doc, pags) {
       let before;
       if (b.tipo === 'p') {
         if (b.vazio) { b.espacoAntes = 0; continue; }
-        const pitch = b.entrelinha || b.szPt * 1.2;
+        const pitch = fiel ? __passoFiel(b) : (b.entrelinha || b.szPt * 1.2);
         const base1 = b.linhas[0] ? b.linhas[0].y : b.yBase;
         const cx = b.caixa || null;
         const primeiroDaCaixa = cx && !(anterior && anterior.caixa === cx), ultimoDaCaixa = cx && !(prox && prox.caixa === cx);
@@ -7697,17 +8001,17 @@ function __costuraEQuebras(doc, pags) {
           cx.espTopo = Math.max(0, Math.min(31, cx.y1 - (base1 + pitch - 0.25 * b.szPt)));
           before = fundoAnt - cx.y1 - larguraBorda + Math.max(0, (cx.y1 - (base1 + pitch - 0.25 * b.szPt)) - cx.espTopo);
         }
-        else if (anterior && anterior.tipo === 'p' && !(anterior.caixa && anterior.caixa !== cx)) before = anterior.yBase - base1 - pitch;
+        else if (!fiel && anterior && anterior.tipo === 'p' && !(anterior.caixa && anterior.caixa !== cx)) before = anterior.yBase - base1 - pitch;
         else before = fundoAnt - base1 - (pitch - 0.25 * b.szPt);
         if (doc.modo === 'fluido') before = Math.min(before, 2 * pitch);
-        b.espacoAntes = before < 2 ? 0 : before;
+        b.espacoAntes = before < (fiel ? 0.3 : 2) ? 0 : before;
         fundoAnt = b.yBase - 0.25 * b.szPt;
         if (ultimoDaCaixa) { cx.espBase = Math.max(0, Math.min(31, fundoAnt - cx.y0)); fundoAnt = Math.min(fundoAnt, cx.y0); }
       } else {
         before = fundoAnt - b.yTopo;
         if (doc.modo === 'fluido') before = Math.min(before, 24);
-        b.espacoAntes = before < 2 ? 0 : before;
-        fundoAnt = b.yBase;
+        b.espacoAntes = before < (fiel ? 0.3 : 2) ? 0 : before;
+        fundoAnt = b.yBase - (fiel && b.tipo === 'tbl' ? 1 : 0); // fiel: o parágrafo de 1 pt que separa tabelas
       }
       anterior = b;
     }
@@ -7820,7 +8124,8 @@ async function montarDocumento(paginas, opcoes) {
   doc.pags = pags;
   doc.estilos = __estilosDoDocumento(pags);
   __seccionar(doc, pags);
-  for (const sec of doc.secoes) { __cabecalhoRodape(doc, sec); __margensSecao(sec); }
+  if (modo === 'fiel') for (const p of pags) for (const l of p.candidatos.lateral || []) p.blocos.push({ ...l, alin: 'right', artefato: false, zona: null });
+  for (const sec of doc.secoes) { if (modo !== 'fiel') __cabecalhoRodape(doc, sec); __margensSecao(sec, modo === 'fiel'); }
   __titulos(doc, pags, opcoes.outline);
   __costuraEQuebras(doc, pags);
   __listas(doc, pags);
@@ -7843,8 +8148,10 @@ const NS_R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationship
 const NS_WP = 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
 const NS_A = 'http://schemas.openxmlformats.org/drawingml/2006/main';
 const NS_PIC = 'http://schemas.openxmlformats.org/drawingml/2006/picture';
+const NS_WPS = 'http://schemas.microsoft.com/office/word/2010/wordprocessingShape';
+const NS_MC = 'http://schemas.openxmlformats.org/markup-compatibility/2006';
 const XML_DECL = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
-const NS_RAIZ = 'xmlns:w="' + NS_W + '" xmlns:r="' + NS_R + '" xmlns:wp="' + NS_WP + '" xmlns:a="' + NS_A + '" xmlns:pic="' + NS_PIC + '"';
+const NS_RAIZ = 'xmlns:w="' + NS_W + '" xmlns:r="' + NS_R + '" xmlns:wp="' + NS_WP + '" xmlns:a="' + NS_A + '" xmlns:pic="' + NS_PIC + '" xmlns:wps="' + NS_WPS + '" xmlns:mc="' + NS_MC + '"';
 const REL = t => 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/' + t;
 
 function __novaParte(nome) { return { nome, rels: [], imgRel: new Map(), linkRel: new Map(), n: 0 }; }
@@ -7891,13 +8198,36 @@ function __pPrXml(p, ctxE) {
   const pitch = p.entrelinha || sz * 1.2;
   let linha = '';
   if (p.vazio) { if (p.minusculo) linha = ' w:line="20" w:lineRule="exact"'; }
+  else if (ctxE.doc && ctxE.doc.modo === 'fiel' && !ctxE.emCabecalho) linha = ' w:line="' + TW(__passoFiel(p)) + '" w:lineRule="exact"';
   else linha = ' w:line="' + TW(Math.max(sz, Math.min(4 * sz, pitch))) + '" w:lineRule="atLeast"';
   // dentro de colunas reais do Word (ou de célula) o recuo é relativo à própria coluna, não à margem da página
   const desloc = ctxE.emCelula || p.emColunasReais ? 0 : (p.esqGrupo != null ? p.esqGrupo : p.x0 || margEsq) - margEsq;
-  const indEsq = ctxE.emCelula ? (p.recuoEsq || 0) : Math.max(0, (p.recuoEsq || 0) + desloc);
+  let indEsq = ctxE.emCelula ? (p.recuoEsq || 0) : Math.max(0, (p.recuoEsq || 0) + desloc);
   let indDir = 0;
   const dirTexto = p.dirLocal != null ? p.dirLocal : p.dirGrupo;
   if (!ctxE.emCelula && !p.emColunasReais && (p.justificado || p.alin === 'right') && dirTexto != null) { indDir = (L - margDir) - dirTexto; if (indDir < 6) indDir = 0; }
+  const fiel = !!(ctxE.doc && ctxE.doc.modo === 'fiel');
+  let primeiraF = null;
+  if (fiel && !ctxE.emCelula && !p.emColunasReais && !p.caixa && !p.lista && p.linhas && p.linhas.length && !p.sintetico) {
+    // fiel: alinhado à direita termina onde terminava no PDF; centralizado fica centrado no MESMO eixo do PDF
+    if (p.alin === 'right') { indDir = Math.max(0, (L - margDir) - maxDe(p.linhas, l => l.x1)); if (indDir < 0.5) indDir = 0; }
+    else if (p.alin === 'center') {
+      const c = mediana(p.linhas.map(l => (l.x0 + l.x1) / 2));
+      const meia = Math.max(Math.min(c - margEsq, (L - margDir) - c), maxDe(p.linhas, l => l.larg) / 2 + 1);
+      indEsq = Math.max(0, c - meia - margEsq); indDir = Math.max(0, (L - margDir) - (c + meia));
+      if (indEsq < 0.5) indEsq = 0; if (indDir < 0.5) indDir = 0;
+    } else {
+      // esquerda/justificado: recuo = onde as linhas começam no PDF; 1ª linha diferente vira recuo de 1ª linha/deslocado
+      const ls = p.linhas, resto = ls.length > 1 ? minDe(ls.slice(1), l => l.x0) : ls[0].x0;
+      indEsq = Math.max(0, resto - margEsq); if (indEsq < 0.5) indEsq = 0;
+      primeiraF = ls[0].x0 - Math.max(resto, margEsq);
+    }
+  }
+  if (fiel && !ctxE.emCelula && !p.emColunasReais && !p.caixa && p.justificado && p.linhas && p.linhas.length) { indDir = Math.max(0, (L - margDir) - maxDe(p.linhas, l => l.x1)); if (indDir < 0.5) indDir = 0; }
+  // fiel em célula: justificado estica só até onde as linhas iam no PDF
+  if (fiel && ctxE.emCelula && p.justificado && p.dirCel != null && p.linhas && p.linhas.length) { indDir = Math.max(0, p.dirCel - maxDe(p.linhas, l => l.x1)); if (indDir < 0.5) indDir = 0; }
+  const recPrim = primeiraF != null ? (primeiraF > 0.5 ? primeiraF : 0) : (p.recuoPrimeira || 0);
+  const recPend = primeiraF != null ? (primeiraF < -0.5 ? Math.min(-primeiraF, indEsq) : 0) : (p.recuoPend || 0);
   const largTexto = L - margEsq - margDir;
   let pBdrCaixa = null, indCaixa = null;
   if (p.caixa && !ctxE.emCelula) {
@@ -7911,7 +8241,7 @@ function __pPrXml(p, ctxE) {
   let tabs = null;
   if (p.sumario) tabs = '<w:tabs><w:tab w:val="right" w:leader="dot" w:pos="' + TW(Math.max(72, largTexto - indDir)) + '"/></w:tabs>';
   else if (p.tabsRel && p.tabsRel.length) tabs = '<w:tabs>' + p.tabsRel.map(x => '<w:tab w:val="left" w:pos="' + TW(Math.max(0, x + desloc)) + '"/>').join('') + '</w:tabs>';
-  const ind = (indEsq > 0.5 || p.recuoPrimeira || p.recuoPend || indDir) ? '<w:ind' + (indEsq > 0.5 ? ' w:left="' + TW(indEsq) + '"' : '') + (indDir ? ' w:right="' + TW(indDir) + '"' : '') + (p.recuoPend ? ' w:hanging="' + TW(Math.min(p.recuoPend, Math.max(0, indEsq))) + '"' : p.recuoPrimeira ? ' w:firstLine="' + TW(p.recuoPrimeira) + '"' : '') + '/>' : null;
+  const ind = (indEsq > 0.5 || recPrim || recPend || indDir) ? '<w:ind' + (indEsq > 0.5 ? ' w:left="' + TW(indEsq) + '"' : '') + (indDir ? ' w:right="' + TW(indDir) + '"' : '') + (recPend ? ' w:hanging="' + TW(Math.min(recPend, Math.max(0, indEsq))) + '"' : recPrim ? ' w:firstLine="' + TW(recPrim) + '"' : '') + '/>' : null;
   const jc = p.alin === 'center' ? 'center' : p.alin === 'right' ? 'right' : p.justificado ? 'both' : null;
   const numPr = p.lista && p.lista.numId ? '<w:numPr><w:ilvl w:val="' + (p.lista.nivel || 0) + '"/><w:numId w:val="' + p.lista.numId + '"/></w:numPr>' : null;
   const pBdr = p.borda ? '<w:pBdr>' + ['top', 'left', 'bottom', 'right'].map(l => '<w:' + l + ' w:val="single" w:sz="' + Math.max(2, Math.min(48, Math.round(p.borda.larg * 8))) + '" w:space="4" w:color="' + (corHex(p.borda.cor) || 'auto') + '"/>').join('') + '</w:pBdr>'
@@ -7919,18 +8249,63 @@ function __pPrXml(p, ctxE) {
   const shd = p.fundo ? '<w:shd w:val="clear" w:color="auto" w:fill="' + corHex(p.fundo) + '"/>' : null;
   const pStyle = p.titulo ? '<w:pStyle w:val="Heading' + p.titulo + '"/>' : (p.lista && p.lista.numId ? '<w:pStyle w:val="ListParagraph"/>' : null);
   return pr('pPr', {
-    pStyle, keepNext: !!p.titulo, pageBreakBefore: !!p.quebraAntes, numPr, pBdr: pBdrCaixa || pBdr, shd, tabs,
+    pStyle, keepNext: p.titulo ? (fiel ? '<w:keepNext w:val="0"/>' : true) : false, keepLines: p.titulo && fiel ? '<w:keepLines w:val="0"/>' : false, pageBreakBefore: !!p.quebraAntes, numPr, pBdr: pBdrCaixa || pBdr, shd, tabs,
     spacing: '<w:spacing w:before="' + TW(p.espacoAntes || 0) + '" w:after="0"' + linha + '/>',
-    ind: indCaixa || ind, jc: jc ? '<w:jc w:val="' + jc + '"/>' : null,
+    ind: indCaixa || ind, contextualSpacing: fiel && pStyle ? '<w:contextualSpacing w:val="0"/>' : null, jc: jc ? '<w:jc w:val="' + jc + '"/>' : null,
     rPr: p.vazio && p.minusculo ? '<w:rPr><w:sz w:val="2"/></w:rPr>' : null,
     sectPr: p.secPr && ctxE.sec && !ctxE.emCelula && !ctxE.emCabecalho ? __sectPrXml(ctxE.sec, p.secPr, ctxE) : null,
   });
 }
+// modo fiel: cada linha do PDF é uma linha do Word ("\n" → <w:br/>). Se, pelas métricas das fontes instaladas, a linha
+// ficar mais larga que no PDF (fonte substituta, arredondamento), aperta o espaço entre as letras SÓ dessa linha — senão
+// o Word a quebraria sozinho e a folha ganharia uma linha a mais
+function __compensarLinhas(p, runs) {
+  const ls = p.linhas || [];
+  if (!ls.length) return runs;
+  const linhas = [[]];
+  for (const r of runs) {
+    if (r.campo) { linhas[linhas.length - 1].push({ ...r }); continue; }
+    String(r.t || '').split('\n').forEach((t, k) => { if (k > 0) linhas.push([]); if (t) linhas[linhas.length - 1].push({ ...r, t }); });
+  }
+  if (linhas.length !== ls.length) return runs;
+  let c = null;
+  try { c = __medidor(); c.fontKerning = 'none'; } catch (e) { return runs; }
+  const out = [];
+  linhas.forEach((lr, k) => {
+    let alvo = ls[k].larg;
+    if (k === 0 && p.lista && p.lista.xTexto != null) alvo = ls[k].x1 - p.lista.xTexto;
+    let natural = 0, n = 0, tab = false;
+    for (const r of lr) {
+      if (r.campo) { n += 2; continue; }
+      const t = __normalizarTextoWord(r.t);
+      if (t.includes('\t')) { tab = true; break; }
+      const sz = (r.sz || 22) / 2 * (r.sup || r.sub ? 0.66 : 1);
+      c.font = (r.i ? 'italic ' : '') + (r.b ? 'bold ' : '') + '100px "' + String(r.fam || 'Arial').replace(/"/g, '') + '"';
+      natural += c.measureText(t).width * sz / 100 * (r.escala || 100) / 100 + t.length * (r.esp || 0) / 20;
+      n += t.length;
+    }
+    const folga = 0.8;
+    if (!tab && n >= 2 && alvo > 4 && natural > alvo - folga) {
+      const porChar = (natural - (alvo - folga)) / n;
+      if (porChar <= 0.5) { const d = Math.ceil(porChar * 20); for (const r of lr) if (!r.campo) r.esp = (r.esp || 0) - d; }
+      else { const f = Math.max(0.55, (alvo - folga) / natural); for (const r of lr) if (!r.campo) r.escala = Math.max(1, Math.floor((r.escala || 100) * f)); }
+    }
+    if (k < linhas.length - 1) {
+      if (lr.length) lr[lr.length - 1].t += '\n';
+      else lr.push({ ...(runs.find(r => !r.campo) || {}), t: '\n', link: null });
+    }
+    out.push(...lr);
+  });
+  const juntos = [];
+  for (const r of out) { const u = juntos[juntos.length - 1]; if (u && !u.campo && !r.campo && __chaveRun(u) === __chaveRun(r)) u.t += r.t; else juntos.push(r); }
+  return juntos;
+}
 function __paraXml(p, ctxE) {
-  if (p.fundo && luminancia(p.fundo) < 0.55 && !ctxE.fundoEscuro) ctxE = { ...ctxE, fundoEscuro: true };
+  if (((p.fundo && luminancia(p.fundo) < 0.55) || p.sobreEscuro) && !ctxE.fundoEscuro) ctxE = { ...ctxE, fundoEscuro: true };
   if (p.titulo) ctxE = { ...ctxE, pad: { ...ctxE.pad, emTitulo: true } };
-  const runs = p.runs || [];
-  let corpo = '';
+  let runs = p.runs || [];
+  if (ctxE.doc && ctxE.doc.modo === 'fiel' && !p.vazio && !ctxE.emCabecalho) runs = __compensarLinhas(p, runs);
+  let corpo = p.__ancoras || '';
   if (p.quebraColuna) corpo += '<w:r><w:br w:type="column"/></w:r>';
   if (p.lista && !p.lista.numId && p.lista.runs && p.lista.runs.length) {
     corpo += p.lista.runs.map(r => __runXml(r, ctxE)).join('');
@@ -7940,7 +8315,7 @@ function __paraXml(p, ctxE) {
   return '<w:p>' + __pPrXml(p, ctxE) + corpo + '</w:p>';
 }
 
-function __imagemXml(b, ctxE) {
+function __imagemXml(b, ctxE, soRun) {
   const nome = b.midiaNome;
   if (!nome || !ctxE.parte) return '';
   const rId = __relImagem(ctxE.parte, nome);
@@ -7956,8 +8331,21 @@ function __imagemXml(b, ctxE) {
   let drawing;
   if (b.ancorado && sec && !ctxE.emCelula) {
     const posX = EMU(Math.max(0, b.ancorado.x)), posY = EMU(Math.max(0, sec.alt - b.ancorado.y));
-    drawing = '<w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="' + (251658240 + id) + '" behindDoc="' + (b.ancorado.atras ? 1 : 0) + '" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="page"><wp:posOffset>' + posX + '</wp:posOffset></wp:positionH><wp:positionV relativeFrom="page"><wp:posOffset>' + posY + '</wp:posOffset></wp:positionV><wp:extent cx="' + cx + '" cy="' + cy + '"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/>' + docPr + pic + '</wp:anchor></w:drawing>';
+    drawing = '<w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="' + (251658240 + (b.ancorado.atras ? (b.origem === 'vetor' ? 200000 : 0) : 400000) + id) + '" behindDoc="' + (b.ancorado.atras ? 1 : 0) + '" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="page"><wp:posOffset>' + posX + '</wp:posOffset></wp:positionH><wp:positionV relativeFrom="page"><wp:posOffset>' + posY + '</wp:posOffset></wp:positionV><wp:extent cx="' + cx + '" cy="' + cy + '"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/>' + docPr + pic + '</wp:anchor></w:drawing>';
   } else drawing = '<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="' + cx + '" cy="' + cy + '"/><wp:effectExtent l="0" t="0" r="0" b="0"/>' + docPr + pic + '</wp:inline></w:drawing>';
+  if (b.caixaTexto && b.ancorado && sec && !ctxE.emCelula) {
+    // texto girado editável: caixa de texto (wps) com a direção do PDF; a imagem fica como alternativa (mc:Fallback)
+    const idT = ++ctxE.doc.__docPrId, q = b.caixaTexto.q;
+    const vert = q === 1 ? 'vert270' : q === -1 ? 'vert' : 'horz';
+    const ctxT = { ...ctxE, emCelula: true };
+    const paras = b.caixaTexto.paragrafos.map(p => __paraXml({ ...p, espacoAntes: 0, recuoEsq: 0, recuoPrimeira: 0, recuoPend: 0, lista: null, titulo: 0, alin: p.alin === 'center' ? 'center' : 'left', justificado: false, caixa: null, bordaSuperior: null, bordaInferior: null, borda: null, fundo: null, tabs: null, tabsRel: null, sumario: false, secPr: null, __ancoras: null, quebraAntes: false, quebraColuna: false }, ctxT)).join('') || '<w:p/>';
+    const folga = q === 2 ? 0 : 0.04 * h;
+    const pX = EMU(Math.max(0, b.ancorado.x)), pY = EMU(Math.max(0, sec.alt - b.ancorado.y - (q === 1 ? folga : 0)));
+    const cyT = EMU(h + folga);
+    const caixa = '<w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="' + (251658240 + 400000 + idT) + '" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="page"><wp:posOffset>' + pX + '</wp:posOffset></wp:positionH><wp:positionV relativeFrom="page"><wp:posOffset>' + pY + '</wp:posOffset></wp:positionV><wp:extent cx="' + cx + '" cy="' + cyT + '"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/><wp:docPr id="' + idT + '" name="Texto girado ' + idT + '"/><wp:cNvGraphicFramePr/><a:graphic xmlns:a="' + NS_A + '"><a:graphicData uri="' + NS_WPS + '"><wps:wsp><wps:cNvSpPr txBox="1"/><wps:spPr><a:xfrm' + (q === 2 ? ' rot="10800000"' : '') + '><a:off x="0" y="0"/><a:ext cx="' + cx + '" cy="' + cyT + '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></wps:spPr><wps:txbx><w:txbxContent>' + paras + '</w:txbxContent></wps:txbx><wps:bodyPr rot="0" vert="' + vert + '" wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" anchor="ctr" anchorCtr="0"><a:noAutofit/></wps:bodyPr></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing>';
+    drawing = '<mc:AlternateContent><mc:Choice Requires="wps">' + caixa + '</mc:Choice><mc:Fallback>' + drawing + '</mc:Fallback></mc:AlternateContent>';
+  }
+  if (soRun) return '<w:r>' + drawing + '</w:r>';
   const margEsq = sec ? sec.margens.esq : 56.7;
   const ancorado = !!(b.ancorado && sec && !ctxE.emCelula);
   const ind = !ctxE.emCelula && !ancorado && b.alin === 'left' && b.x0 - margEsq > 3 ? '<w:ind w:left="' + TW(b.x0 - margEsq) + '"/>' : null;
@@ -7991,7 +8379,9 @@ function __tabelaXml(t, ctxE) {
   let linhas = '';
   t.linhas.forEach((cels, r) => {
     const alt = t.alturas && t.alturas[r];
-    const trPr = pr('trPr', { trHeight: alt && alt > 4 && !t.girado ? '<w:trHeight w:val="' + TW(alt) + '" w:hRule="atLeast"/>' : null, tblHeader: r === 0 && !!t.cabecalho });
+    // fiel: o Word soma a borda horizontal (0,5 pt) à altura da linha — desconta para a tabela ter a altura do PDF
+    const altW = alt && ctxE.doc && ctxE.doc.modo === 'fiel' && !t.semBorda ? alt - 0.5 : alt;
+    const trPr = pr('trPr', { trHeight: altW && altW > 4 && !t.girado ? '<w:trHeight w:val="' + TW(altW) + '" w:hRule="atLeast"/>' : null, tblHeader: r === 0 && !!t.cabecalho });
     let tcs = '';
     for (const c of cels) {
       const larg = larguras.slice(c.j, c.j + c.span).reduce((s, w) => s + w, 0);
@@ -8016,7 +8406,7 @@ function __tabelaXml(t, ctxE) {
     linhas += '<w:tr>' + trPr + tcs + '</w:tr>';
   });
   const espacador = alt => '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="' + alt + '" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/></w:rPr></w:pPr></w:p>';
-  const antes = t.espacoAntes > 2 ? espacador(TW(t.espacoAntes)) : '';
+  const antes = t.espacoAntes > (ctxE.doc && ctxE.doc.modo === 'fiel' ? 0.3 : 2) ? espacador(TW(t.espacoAntes)) : '';
   const depois = ctxE.emCelula ? '' : espacador(20);
   return antes + '<w:tbl>' + tblPr + grid + linhas + '</w:tbl>' + depois;
 }
@@ -8040,7 +8430,10 @@ function __sectPrXml(sec, extra, ctxE) {
   const m = sec.margens || { topo: 56.7, dir: 56.7, base: 56.7, esq: 56.7 };
   const cols = extra.cols && extra.cols > 1 ? '<w:cols w:num="' + extra.cols + '" w:space="' + TW(extra.vao || 35) + '"/>' : '<w:cols w:space="708"/>';
   const est = ctxE.estado || { vistas: new Set() };
-  const tipo = est.aposColunas ? 'continuous' : extra.tipo;
+  const fielDoc = !!(ctxE.doc && ctxE.doc.modo === 'fiel');
+  // fiel: o 1º trecho de cada folha começa em página nova; os seguintes (colunas) continuam na mesma folha
+  const tipo = fielDoc ? (est.primeiroDaPagina !== false ? 'nextPage' : 'continuous') : (est.aposColunas ? 'continuous' : extra.tipo);
+  if (fielDoc) est.primeiroDaPagina = false;
   est.aposColunas = !!(extra.cols && extra.cols > 1);
   const primeiraVez = !est.vistas.has(sec); // 1ª seção do Word que pertence a esta seção do PDF
   const comTitlePg = !!sec.titlePg && primeiraVez;
@@ -8080,6 +8473,8 @@ function __numberingXml(doc) {
     if (/^[•●·]$/.test(g)) return { t: String.fromCharCode(0xF0B7), f: 'Symbol' };
     if (/^[○◦]$/.test(g)) return { t: 'o', f: 'Courier New' };
     if (/^[▪■]$/.test(g)) return { t: String.fromCharCode(0xF0A7), f: 'Wingdings' };
+    const wd = { '❑': 0xF071, '❖': 0xF076, '➢': 0xF0D8, '➔': 0xF0E8, '✓': 0xF0FC, '◆': 0xF075 }[g];
+    if (wd) return { t: String.fromCharCode(wd), f: 'Wingdings' };
     return { t: g || '-', f: null };
   };
   const abs = doc.abstratos.map(a => {
@@ -8166,6 +8561,7 @@ async function emitirDocx(doc) {
     const pag = sec.pags[sec.pags.length - 1];
     const ultimo = pag.blocos[pag.blocos.length - 1];
     if (ultimo && ultimo.tipo === 'p' && !ultimo.secPr) ultimo.secPr = { tipo: 'nextPage' };
+    else if (doc.modo === 'fiel' && ultimo && ultimo.tipo === 'p' && ultimo.secPr) { /* o trecho em colunas já fecha a folha */ }
     else { const v = __pVazio(pag, false); v.secPr = { tipo: 'nextPage' }; v.minusculo = true; pag.blocos.push(v); }
   });
   const ctxDoc = { doc, pad, parte: parteDoc, refs, estado: { aposColunas: false, vistas: new Set() } };
@@ -8178,7 +8574,17 @@ async function emitirDocx(doc) {
   let corpo = '';
   for (const sec of doc.secoes) {
     const ctxE = { ...ctxDoc, sec };
-    for (const pag of sec.pags) for (const b of pag.blocos) corpo += __blocoXml(b, ctxE);
+    ctxDoc.estado.primeiroDaPagina = true;
+    for (const pag of sec.pags) {
+      let blocos = pag.blocos;
+      if (doc.modo === 'fiel') {
+        // imagens ancoradas entram no 1º parágrafo da folha: nenhum parágrafo extra empurrando o texto
+        const ancoras = blocos.filter(b => b.tipo === 'img' && b.ancorado && b.midiaNome);
+        const alvo = blocos.find(b => b.tipo === 'p');
+        if (ancoras.length && alvo) { alvo.__ancoras = ancoras.map(b => __imagemXml(b, ctxE, true)).join(''); const fora = new Set(ancoras); blocos = blocos.filter(b => !fora.has(b)); }
+      }
+      for (const b of blocos) corpo += __blocoXml(b, ctxE);
+    }
   }
   if (!corpo) corpo = '<w:p/>';
   const ultima = doc.secoes[doc.secoes.length - 1];
@@ -8219,31 +8625,44 @@ async function emitirDocx(doc) {
 /* ---------- Integração: OCR estruturado, extração por documento, texto puro, invólucros ---------- */
 
 // blocos de OCR (Tesseract v5: data.blocks → paragraphs → lines → words) → página estruturada
-async function ocrParaBlocos(r, pagina) {
+async function ocrParaBlocos(r, pagina, opcoes) {
   const esc = 72 / (r.dpi || 300);
   const A = pagina.altura, L = pagina.largura;
   const itens = [];
   let baixaConf = 0;
+  let nLinha = 0;
   for (const b of (r.data && r.data.blocks) || []) for (const par of b.paragraphs || []) for (const l of par.lines || []) {
+    nLinha++;
     const words = (l.words || []).filter(w => w.text && w.text.trim());
     if (!words.length) continue;
     const bb = l.bbox || { x0: 0, y0: 0, x1: 0, y1: 0 };
     const h = (bb.y1 - bb.y0) * esc;
     const szPt = Math.max(5, Math.min(48, h / 1.25));
     const base = l.baseline && typeof l.baseline.y0 === 'number' ? A - l.baseline.y0 * esc : A - bb.y1 * esc + 0.2 * szPt;
-    for (const w of words) {
+    for (let w of words) {
       if (w.confidence != null && w.confidence < 5 && !/[A-Za-z0-9À-ÿ]/.test(w.text)) { baixaConf++; continue; }
       const wb = w.bbox || bb;
       const x = wb.x0 * esc, larg = Math.max(0.5, (wb.x1 - wb.x0) * esc);
-      itens.push({ texto: w.text, x, y: base, larg, alt: szPt, szPt, sz: HP(szPt), fam: 'Arial', altName: null, fontName: '', nomeF: '', b: !!(w.is_bold), i: !!(w.is_italic), u: false, s: false, sup: false, sub: false, cor: null, esp: 0, escala: 100, invisivel: false, artefato: false, tag: null, q: 0, diagonal: false, link: null });
+      if (/^CNP[)\]|1l][,.;:]?$/.test(w.text)) w = { ...w, text: 'CNPJ' + w.text.slice(4) }; // erro clássico do OCR
+      itens.push({ __linha: nLinha, ocr: true, texto: w.text, x, y: base, larg, alt: szPt, szPt, sz: HP(szPt), fam: 'Arial', altName: null, fontName: '', nomeF: '', b: !!(w.is_bold), i: !!(w.is_italic), u: false, s: false, sup: false, sub: false, cor: null, esp: 0, escala: 100, invisivel: false, artefato: false, tag: null, q: 0, diagonal: false, link: null });
     }
   }
+  // corpo pela largura: para cada linha, mediana de (largura da palavra no scan ÷ largura dela em Arial a 1 pt)
+  try {
+    const c = __medidor(); c.font = '100px "Arial"';
+    const porLinha = new Map();
+    for (const it of itens) { if (!porLinha.has(it.__linha)) porLinha.set(it.__linha, []); porLinha.get(it.__linha).push(it); }
+    for (const ws of porLinha.values()) {
+      const rs = ws.filter(w => w.texto.length >= 2).map(w => w.larg / Math.max(0.01, c.measureText(w.texto).width / 100)).filter(v => v > 3 && v < 60);
+      if (rs.length) { const sz = Math.max(5, Math.min(48, mediana(rs))); for (const w of ws) { w.szPt = sz; w.alt = sz; w.sz = HP(sz); } }
+    }
+  } catch (e) { }
   if (itens.length >= 6) {
     const med = mediana(itens.map(i => i.szPt));
-    for (const it of itens) if (Math.abs(it.szPt - med) <= 0.3 * med) { it.szPt = med; it.sz = HP(med); }
+    for (const it of itens) if (Math.abs(it.szPt - med) <= 0.15 * med) { it.szPt = med; it.sz = HP(med); }
   }
   const cena = { largura: L, altura: A, rotacao: 0, itens, trechos: [], hlin: [], vlin: [], fundos: [], molduras: [], formas: [], imagens: [], links: [], campos: [], tags: { cobertura: 0, confiavel: false }, fallbackTexto: false, fontes: new Map(), avisos: [], chars: itens.reduce((s, it) => s + it.texto.replace(/\s+/g, '').length, 0), midia: async () => null, rasterizar: async () => [] };
-  const pag = await segmentarPagina(cena, { cacheGlobal: new Map() }, {});
+  const pag = await segmentarPagina(cena, { cacheGlobal: new Map() }, opcoes || {});
   pag.porOcr = true;
   if (baixaConf) pag.avisos.push(baixaConf + ' palavra(s) de OCR com confiança muito baixa foram descartadas');
   return pag;
@@ -8295,6 +8714,22 @@ function __mesclarOcr(est, pagOcr, opcoes) {
   return { ...est, blocos, chars: pagOcr.chars, porOcr: true, ocr: true, colunas: pagOcr.colunas, fluxoEsq: pagOcr.fluxoEsq, descartados: est.descartados.concat(pagOcr.descartados), avisos: est.avisos.concat(pagOcr.avisos), fontes: est.fontes };
 }
 
+// fiel sem OCR: página cujo texto não tem mapeamento de caracteres entra como imagem da folha inteira (nunca texto-lixo)
+async function __paginaComoImagem(doc, n, est) {
+  const page = await doc.getPage(n);
+  const vp1 = page.getViewport({ scale: 1 });
+  const esc = Math.min(200 / 72, 2400 / Math.max(vp1.width, vp1.height));
+  const vp = page.getViewport({ scale: esc });
+  const c = criarCanvas(Math.max(1, Math.round(vp.width)), Math.max(1, Math.round(vp.height)));
+  const cx = c.getContext('2d'); cx.fillStyle = '#FFFFFF'; cx.fillRect(0, 0, c.width, c.height);
+  try { await page.render({ canvasContext: cx, viewport: vp, intent: 'print' }).promise; } finally { try { page.cleanup(); } catch (e) { } }
+  const w = c.width, h = c.height;
+  const bytes = await canvasParaJpegBytes(c, 0.85); c.width = c.height = 0;
+  const L = vp1.width, A = vp1.height;
+  const img = { tipo: 'img', midia: { bytes, fmt: 'jpg', w, h, hash: hashBytes(bytes), alfa: false, original: false }, w: L, h: A, alin: 'center', x0: 0, x1: L, yTopo: A, yBase: 0, ordem: -1, espacoAntes: 0, quebraAntes: false, fracao: 1, origem: 'scan', ancorado: { x: 0, y: A, atras: false } };
+  return { ...est, blocos: [img], chars: 0, candidatos: { lateral: [] }, avisos: est.avisos.filter(a => !/mapeamento de caracteres/.test(a)).concat(['texto sem mapeamento de caracteres e OCR desligado: página inserida como imagem (ligue o OCR para ter texto editável)']) };
+}
+
 // lê o documento inteiro: páginas estruturadas (Pagina[]) + OCR nas digitalizadas
 async function extrairPaginasEstruturadas(doc, card, usarOcr, opcoes) {
   opcoes = opcoes || {};
@@ -8321,10 +8756,11 @@ async function extrairPaginasEstruturadas(doc, card, usarOcr, opcoes) {
       if (ocrFeitos < MAX_OCR && Date.now() - inicio < ORC_MS) {
         try {
           const r = await __ocrEstruturadoComTimeout(doc, i, card);
-          if (r && r.data) { const pagOcr = await ocrParaBlocos(r, est.pagina || { largura: 595.28, altura: 841.89 }); est = __mesclarOcr(est, pagOcr, opcoes); ocrFeitos++; }
+          if (r && r.data) { const pagOcr = await ocrParaBlocos(r, est.pagina || { largura: 595.28, altura: 841.89 }, opcoes); est = __mesclarOcr(est, pagOcr, opcoes); ocrFeitos++; }
         } catch (e) { if (e && e.cancelado) throw e; est.avisos.push('OCR não concluído: ' + ((e && e.message) || e)); }
       } else ocrPulados++;
     }
+    if (est.textoIlegivel && !est.porOcr && opcoes.modo !== 'fluido') { try { est = await __paginaComoImagem(doc, i, est); } catch (e) { est.avisos.push('página ilegível não convertida em imagem: ' + ((e && e.message) || e)); } }
     if (i % 4 === 0) await uiBreath();
     paginas.push(est);
   }
@@ -8692,7 +9128,7 @@ async function __corpusWordCasos(caso, afirmar) {
   });
   await caso('Word T1: duas colunas, cabeçalho/rodapé, lista, sobrescrito, cor, títulos', async () => {
     corpus = corpus || await gerarCorpusWord();
-    const r = await __wordDeBytes(corpus.duasColunas, { colunasReais: true });
+    const r = await __wordDeBytes(corpus.duasColunas, { colunasReais: true, modo: 'fluido' });
     await __atValidarDocx(r.zip, afirmar, 'T1');
     const t = __textoDoXml(r.xml);
     const i1 = t.indexOf('1. Contexto'), i2 = t.indexOf('Incentivos comerciais'), i3 = t.indexOf('2. Analise');
@@ -8739,7 +9175,7 @@ async function __corpusWordCasos(caso, afirmar) {
   });
   await caso('Word T4: parágrafo cortado entre páginas é costurado', async () => {
     corpus = corpus || await gerarCorpusWord();
-    const r = await __wordDeBytes(corpus.entrePaginas);
+    const r = await __wordDeBytes(corpus.entrePaginas, { modo: 'fluido' });
     await __atValidarDocx(r.zip, afirmar, 'T4');
     const ps = r.xml.match(/<w:p>[\s\S]*?<\/w:p>/g) || [];
     const comMetades = ps.filter(p => /primeira metade/.test(p) && /segunda metade/.test(p));
@@ -8779,9 +9215,9 @@ async function __corpusWordCasos(caso, afirmar) {
   });
   await caso('Word T9: rótulo vertical vira célula girada; carimbo diagonal descartado', async () => {
     corpus = corpus || await gerarCorpusWord();
-    const r = await __wordDeBytes(corpus.girados);
+    const r = await __wordDeBytes(corpus.girados, { modo: 'fluido' });
     await __atValidarDocx(r.zip, afirmar, 'T9');
-    afirmar(r.xml.includes('<w:textDirection w:val="btLr"/>'), 'rótulo vertical sem textDirection btLr');
+    afirmar(r.xml.includes('<w:textDirection w:val="btLr"/>') || /<wps:bodyPr [^>]*vert="vert270"/.test(r.xml), 'rótulo vertical sem textDirection btLr nem caixa de texto girada');
     const t = __textoDoXml(r.xml);
     afirmar(t.includes('ETIQUETA VERTICAL') && __contar(t, /ETIQUETA VERTICAL/g) === 1, 'rótulo vertical ausente/duplicado');
     afirmar(!t.includes('RASCUNHO'), 'carimbo diagonal deveria ser descartado');
@@ -8809,7 +9245,7 @@ async function __corpusWordCasos(caso, afirmar) {
   });
   await caso('Word T12: padrão Projudi — data e lei literais, código de barras na margem, pontuação', async () => {
     corpus = corpus || await gerarCorpusWord();
-    const r = await __wordDeBytes(corpus.projudi);
+    const r = await __wordDeBytes(corpus.projudi, { modo: 'fluido' });
     await __atValidarDocx(r.zip, afirmar, 'T12');
     const cab = r.headers.join(''), rod = r.footers.join('');
     const tudo = __textoDoXml(r.xml) + __textoDoXml(cab) + __textoDoXml(rod);
@@ -8823,6 +9259,37 @@ async function __corpusWordCasos(caso, afirmar) {
     const ind = (r.xml.match(/<w:ind w:left="(\d+)"/g) || []).map(s => +s.match(/\d+/)[0]);
     afirmar(!ind.some(v => v > 300), 'corpo recuado indevidamente (margem calculada pelo carimbo do topo): ' + ind.slice(0, 5));
     afirmar(/<w:jc w:val="both"\/>/.test(r.xml), 'corpo justificado deveria sair justificado');
+  });
+  await caso('Word T13 (fiel): 1 seção por folha, sem cabeçalho deduzido, quebras de linha, entrelinha exata, ancorados, texto girado editável', async () => {
+    corpus = corpus || await gerarCorpusWord();
+    const r = await __wordDeBytes(corpus.projudi, { modo: 'fiel' });
+    await __atValidarDocx(r.zip, afirmar, 'T13');
+    const n = r.paginas.length, secs = __contar(r.xml, /<w:sectPr>/g);
+    afirmar(secs === n, 'fiel: esperava ' + n + ' seções (uma por folha), veio ' + secs);
+    afirmar(__contar(r.xml, /<w:type w:val="nextPage"\/>/g) === n, 'fiel: cada folha deveria começar em página nova');
+    afirmar(!r.headers.length && !r.footers.length, 'fiel: não deveria haver cabeçalho/rodapé deduzido');
+    afirmar(r.xml.includes('<w:br/>'), 'fiel: quebras de linha do PDF não foram mantidas');
+    afirmar(/w:lineRule="exact"/.test(r.xml), 'fiel: entrelinha exata ausente');
+    afirmar(!/<w:drawing><wp:inline/.test(r.xml), 'fiel: imagem no fluxo do texto (deveria estar ancorada)');
+    afirmar(/<wp:anchor /.test(r.xml), 'fiel: código de barras deveria estar ancorado');
+    const t = __textoDoXml(r.xml);
+    afirmar(t.includes('20/07/2026: JUNTADA') && t.includes('2.200-2/2001') && t.includes('11.419/2006'), 'fiel: texto (inclusive o girado) alterado ou perdido');
+    afirmar(/<wps:bodyPr [^>]*vert="vert(270)?"/.test(r.xml) && r.xml.includes('<mc:Fallback>'), 'fiel: texto girado deveria virar caixa de texto girada com alternativa em imagem');
+    afirmar(!/<w:keepNext\/>/.test(r.xml), 'fiel: "manter com o próximo" empurraria títulos para a folha seguinte');
+  });
+  await caso('Word T14 (fiel): rótulo vertical editável; carimbo diagonal descartado; imagens pequenas mantidas', async () => {
+    corpus = corpus || await gerarCorpusWord();
+    const r = await __wordDeBytes(corpus.girados, { modo: 'fiel' });
+    await __atValidarDocx(r.zip, afirmar, 'T14');
+    const t = __textoDoXml(r.xml);
+    afirmar(__contar(t, /ETIQUETA VERTICAL/g) === 1, 'fiel: rótulo vertical ausente/duplicado');
+    afirmar(/vert="vert270"|vert="vert"/.test(r.xml), 'fiel: rótulo vertical sem caixa de texto girada');
+    afirmar(!t.includes('RASCUNHO'), 'fiel: carimbo diagonal deveria ser descartado');
+    const r2 = await __wordDeBytes(corpus.oficioCompleto, { modo: 'fiel' });
+    await __atValidarDocx(r2.zip, afirmar, 'T14b');
+    afirmar(__contar(__textoDoXml(r2.xml), /GOVERNO DO ESTADO/g) === 1, 'fiel: texto do timbre duplicado');
+    afirmar(/<w:u w:val="single"\/>[\s\S]{0,80}Plano de jogo/.test(r2.xml), 'fiel: sublinhado de "Plano de jogo" não veio');
+    afirmar(/<w:jc w:val="right"\/>[\s\S]{0,400}Joao Pessoa/.test(r2.xml), 'fiel: data não ficou alinhada à direita');
   });
   await caso('Word: montarDocx (texto simples) continua válido', async () => {
     const bytes = await montarDocx(['Linha um\nLinha dois', 'Página dois'], {});
