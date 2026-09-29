@@ -155,13 +155,13 @@
   <section class="hero">
     <div>
       <h1>PDFs prontos para o <span>PBDOC, PJe e SEI</span> — sem sair do navegador</h1>
-      <p class="lead">Compacte até 9,9 MB mantendo o texto pesquisável, divida em volumes, junte, organize, converta para Word editável, aplique OCR e gere pareceres técnicos. Seus PDFs não saem do seu computador — só o "Parecer com IA" envia anexos, e avisa antes.</p>
+      <p class="lead">Compacte até 9,9 MB mantendo o texto pesquisável, divida em volumes, junte, organize, converta para Word e Excel, compare versões, assine com certificado ICP-Brasil, aplique OCR e gere pareceres técnicos. Seus PDFs não saem do seu computador — só o "Parecer com IA" envia anexos, e avisa antes.</p>
       <div class="acoes">
         <a href="app.html" class="btn">Abrir a ferramenta</a>
         <a href="Instalador-CompactaPDF.exe" class="btn sec">Baixar para Windows</a>
       </div>
       <div class="numeros" style="margin-top:26px">
-        <div><strong data-contar="24">0</strong><span>ferramentas em duas abas</span></div>
+        <div><strong data-contar="38" data-contar-ferramentas>0</strong><span>ferramentas em duas abas</span></div>
         <div><strong data-contar="0">0</strong><span>uploads nas ferramentas de PDF</span></div>
         <div><strong>9,9 MB</strong><span>limite PBDOC já configurado</span></div>
         <div><strong data-contar="100" data-sufixo="%">0</strong><span>do processamento de PDF no seu computador</span></div>
@@ -198,13 +198,15 @@
     <h2>Ferramentas</h2>
     <p class="sub">Busque ou filtre por categoria — cada cartão abre a ferramenta já na função escolhida.</p>
     <div class="explorador">
-      <input type="search" id="busca" placeholder="Buscar: compactar, OCR, senha, Word…" aria-label="Buscar ferramenta">
+      <input type="search" id="busca" placeholder="Buscar: Word, Excel, OCR, senha, comparar…" aria-label="Buscar ferramenta">
       <div class="chips" id="chips">
         <button type="button" class="chip ativo" data-cat="todas">Todas</button>
         <button type="button" class="chip" data-cat="tamanho">Tamanho</button>
         <button type="button" class="chip" data-cat="organizar">Organizar</button>
+        <button type="button" class="chip" data-cat="paginas">Páginas</button>
         <button type="button" class="chip" data-cat="converter">Converter</button>
         <button type="button" class="chip" data-cat="ocr">OCR</button>
+        <button type="button" class="chip" data-cat="analise">Análise</button>
         <button type="button" class="chip" data-cat="seguranca">Segurança</button>
         <button type="button" class="chip" data-cat="parecer">Parecer</button>
       </div>
@@ -219,18 +221,32 @@
       <a class="fcard" data-cat="organizar" data-tags="dividir partes marcadores intervalos split" href="app.html#ferramenta=dividir"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="7" height="16" rx="1"/><rect x="14" y="4" width="7" height="16" rx="1"/><path d="M12 3v18" stroke-dasharray="2 2"/></svg><strong>Dividir PDF</strong><small>A cada N páginas, por marcadores ou por intervalos</small></a>
       <a class="fcard" data-cat="organizar" data-tags="numerar folhas autos fl bates cabecalho rodape pagina" href="app.html#ferramenta=numerar"><svg viewBox="0 0 24 24"><path d="M6 3h12v18H6z"/><path d="M9 7h6M9 11h6"/><path d="M14 17h2"/></svg><strong>Numerar / cabeçalho e rodapé</strong><small>"fl. 001", "Página 1 de N", Bates ou texto com data, na posição que quiser</small></a>
       <a class="fcard" data-cat="organizar" data-tags="carimbo marca dagua copia uso interno" href="app.html#ferramenta=carimbo"><svg viewBox="0 0 24 24"><path d="M5 20h14"/><path d="M7 16h10l-1-6H8z"/><path d="M10 10V6a2 2 0 0 1 4 0v4"/></svg><strong>Marca-d'água</strong><small>Texto ou logotipo; cor, opacidade, ângulo, atrás do texto</small></a>
+      <a class="fcard" data-cat="paginas" data-tags="nup n-up paginas por folha imprimir economizar papel layout" href="app.html#ferramenta=nup"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M12 3v18M3 12h18"/></svg><strong>Várias páginas por folha</strong><small>2, 4, 6, 9 ou 16 por folha, para imprimir</small></a>
+      <a class="fcard" data-cat="paginas" data-tags="livreto booklet cartilha dobrar grampear imposicao" href="app.html#ferramenta=livreto"><svg viewBox="0 0 24 24"><path d="M12 5c-2-1.5-5-2-8-1.5V19c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V3.5c-3-.5-6 0-8 1.5z"/><path d="M12 5v15.5"/></svg><strong>Livreto</strong><small>Imprimir, dobrar ao meio e grampear</small></a>
+      <a class="fcard" data-cat="paginas" data-tags="tamanho a4 padronizar escala redimensionar oficio carta" href="app.html#ferramenta=tamanho"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="13" height="17" rx="1"/><path d="M19 8v13H8"/><path d="M13 9l-4 4M9 9v4h4"/></svg><strong>Ajustar tamanho das páginas</strong><small>Tudo em A4 (ou outro tamanho)</small></a>
+      <a class="fcard" data-cat="paginas" data-tags="recortar cortar margem crop aparar" href="app.html#ferramenta=recortar"><svg viewBox="0 0 24 24"><path d="M6 2v16h16"/><path d="M2 6h16v16"/></svg><strong>Recortar</strong><small>Tira margens em branco ou fixas</small></a>
+      <a class="fcard" data-cat="paginas" data-tags="dividir metade meio partes livro a3 digitalizacao dupla" href="app.html#ferramenta=partes"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M12 5v14" stroke-dasharray="2 2"/></svg><strong>Dividir página em partes</strong><small>Livro digitalizado aberto → 2 páginas</small></a>
+      <a class="fcard" data-cat="paginas" data-tags="timbrado timbre sobrepor overlay cabecalho fundo papel" href="app.html#ferramenta=timbrado"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M8 6h5"/><path d="M8 18h8" stroke-dasharray="2 1.5"/></svg><strong>Papel timbrado</strong><small>Aplica o timbre (PDF) nas páginas</small></a>
       <a class="fcard" data-cat="converter" data-tags="word docx converter editar fiel" href="app.html#ferramenta=word"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="m8 11 1.5 6 1.5-4 1.5 4L14 11"/></svg><strong>PDF para Word</strong><small>Folha igual ao PDF e texto editável: tabelas, imagens, QR, carimbos e códigos de barras no lugar</small></a>
       <a class="fcard" data-cat="converter" data-tags="texto txt extrair" href="app.html#ferramenta=txt"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 12h6M9 16h6"/></svg><strong>PDF para texto</strong><small>Texto puro com linhas reais</small></a>
       <a class="fcard" data-cat="converter" data-tags="imagens jpg zip" href="app.html#ferramenta=img"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="m21 16-5-5-8 8"/></svg><strong>PDF para imagens</strong><small>Uma JPG por página, em ZIP</small></a>
       <a class="fcard" data-cat="converter" data-tags="imagens fotos para pdf" href="app.html#ferramenta=img2pdf"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="10" height="10" rx="1"/><path d="M13 13h8v8h-8z"/><path d="M13 8h4v5"/></svg><strong>Imagens para PDF</strong><small>Fotos e digitalizações em um PDF</small></a>
+      <a class="fcard" data-cat="converter" data-tags="excel planilha tabela xlsx csv tabelas numeros" href="app.html#ferramenta=excel"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14h18M9 4v16M15 4v16"/></svg><strong>PDF para Excel</strong><small>Tabelas com números de verdade</small></a>
       <a class="fcard" data-cat="ocr" data-tags="fotos ocr pesquisavel" href="app.html#ferramenta=fotopdf"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15h10M7 11h5"/></svg><strong>Fotos → PDF pesquisável</strong><small>OCR embute o texto invisível</small></a>
       <a class="fcard" data-cat="ocr" data-tags="fotos ocr word" href="app.html#ferramenta=fotoword"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m8 10 1.5 5 1.5-3 1.5 3L14 10"/></svg><strong>Fotos → Word</strong><small>Texto lido por OCR, editável</small></a>
       <a class="fcard" data-cat="ocr" data-tags="digitalizado ocr pesquisavel scanner" href="app.html#ferramenta=ocrpdf"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><circle cx="11" cy="14" r="2.5"/><path d="m13 16 2.5 2.5"/></svg><strong>Digitalizado → pesquisável</strong><small>Mantém a imagem original, adiciona o texto</small></a>
+      <a class="fcard" data-cat="ocr" data-tags="branco brancas vazias remover digitalizado scanner lote separadora" href="app.html#ferramenta=brancas"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12l6 6M15 12l-6 6"/></svg><strong>Remover páginas em branco</strong><small>Lotes digitalizados sem folhas vazias</small></a>
+      <a class="fcard" data-cat="ocr" data-tags="endireitar girar automatico orientacao de cabeca para baixo digitalizado" href="app.html#ferramenta=endireitar"><svg viewBox="0 0 24 24"><path d="M4 20V9a5 5 0 0 1 5-5h7"/><path d="M13 1l3 3-3 3"/><rect x="8" y="10" width="12" height="11" rx="1"/></svg><strong>Endireitar páginas</strong><small>Acerta páginas de lado ou de cabeça para baixo</small></a>
       <a class="fcard" data-cat="seguranca" data-tags="senha proteger remover criptografia" href="app.html#ferramenta=senha"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><strong>Proteger / remover senha</strong><small>AES-256, com permissões de impressão, edição e cópia</small></a>
       <a class="fcard" data-cat="seguranca" data-tags="tarjar tarja faixa preta redigir lgpd cpf cnpj ocultar dados pessoais ocr digitalizado" href="app.html#ferramenta=tarjar"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><rect x="8" y="10" width="9" height="3" fill="currentColor"/><rect x="8" y="15" width="6" height="3" fill="currentColor"/></svg><strong>Tarjar dados (LGPD)</strong><small>Apaga de verdade CPF, nomes e trechos — também em páginas digitalizadas, lidas por OCR</small></a>
       <a class="fcard" data-cat="seguranca" data-tags="remover informacoes ocultas metadados anexos javascript sanitizar limpar" href="app.html#ferramenta=limpar"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12l6 6M15 12l-6 6"/></svg><strong>Remover informações ocultas</strong><small>Metadados, anexos, scripts, comentários e versões antigas</small></a>
       <a class="fcard" data-cat="seguranca" data-tags="assinar assinatura digital certificado icp-brasil a1 a3 token nuvem vidaas birdid e-cpf" href="app.html#ferramenta=assinar"><svg viewBox="0 0 24 24"><path d="M4 20h16"/><path d="M6 16l9.5-9.5a2.1 2.1 0 0 1 3 3L9 19H6z"/><path d="m14 8 3 3"/></svg><strong>Assinar com certificado</strong><small>ICP-Brasil (PAdES): A1, token A3 ou nuvem — em lote, com um só PIN</small></a>
       <a class="fcard" data-cat="seguranca" data-tags="validar verificar conferir assinatura digital certificado icp-brasil" href="app.html#ferramenta=validar"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="m9 12 2 2 4-4"/></svg><strong>Validar assinaturas</strong><small>Quem assinou, quando e se o PDF foi alterado</small></a>
+      <a class="fcard" data-cat="analise" data-tags="comparar diferenca versao alteracao diff revisao" href="app.html#ferramenta=comparar"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="16" rx="1"/><rect x="13" y="4" width="8" height="16" rx="1"/><path d="M5.5 9h3M15.5 9h3M5.5 13h3M15.5 13h3" /><path d="M15.5 17h3" stroke-dasharray="1 1.5"/></svg><strong>Comparar PDFs</strong><small>O que mudou entre duas versões</small></a>
+      <a class="fcard" data-cat="analise" data-tags="informacoes propriedades fontes relatorio detalhes versao pdfa" href="app.html#ferramenta=info"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><strong>Informações do PDF</strong><small>Fontes, imagens, segurança, página a página</small></a>
+      <a class="fcard" data-cat="analise" data-tags="metadados propriedades titulo autor assunto palavras-chave xmp" href="app.html#ferramenta=propriedades"><svg viewBox="0 0 24 24"><path d="M4 7h10M4 12h16M4 17h7"/><circle cx="17" cy="7" r="2.5"/></svg><strong>Editar propriedades</strong><small>Título, autor, assunto, datas</small></a>
+      <a class="fcard" data-cat="analise" data-tags="extrair imagens fotos figuras png jpg" href="app.html#ferramenta=imagens"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M21 16l-5-5-8 8"/><path d="M12 2v5m0 0-2-2m2 2 2-2"/></svg><strong>Extrair imagens</strong><small>Todas as imagens do PDF, em ZIP</small></a>
+      <a class="fcard" data-cat="analise" data-tags="anexos anexar clipe arquivos embutidos attachments" href="app.html#ferramenta=anexos"><svg viewBox="0 0 24 24"><path d="M20 11l-8.5 8.5a5 5 0 0 1-7-7L13 4a3.3 3.3 0 0 1 4.7 4.7L9.2 17.2a1.7 1.7 0 0 1-2.4-2.4L14.5 7"/></svg><strong>Anexos</strong><small>Ver, baixar, anexar e remover arquivos</small></a>
       <a class="fcard" data-cat="tamanho" data-tags="contador folhas lote relatorio" href="app.html#ferramenta=contador"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><strong>Contador de folhas</strong><small>Relatório do lote com protocolos</small></a>
       <a class="fcard" data-cat="parecer" data-tags="parecer plano de jogo passiva formulario" href="app.html#ferramenta=parecer-passiva"><svg viewBox="0 0 24 24"><path d="M7 3h10a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 7h6M9 11h6M9 15h3"/><path d="m14.5 16.5 1.5 1.5 3-3"/></svg><strong>Parecer — Plano de jogo</strong><small>Análise automática da modalidade passiva</small></a>
       <a class="fcard" data-cat="parecer" data-tags="parecer ia claude analise processo" href="app.html#ferramenta=parecer-ia"><svg viewBox="0 0 24 24"><path d="M12 3l1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7L12 3z"/><path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14z"/></svg><strong>Parecer com IA</strong><small>Anexe o processo; o Claude analisa e redige</small></a>
@@ -309,6 +325,8 @@
 
 /* contadores animados */
 (function () {
+  const cf = document.querySelector('[data-contar-ferramentas]');
+  if (cf) cf.dataset.contar = document.querySelectorAll('#grade .fcard').length; // conta os cartões: nunca desatualiza
   const els = [...document.querySelectorAll('[data-contar]')];
   const reduzir = matchMedia('(prefers-reduced-motion: reduce)').matches;
   els.forEach(el => {
