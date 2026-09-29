@@ -522,7 +522,7 @@
       <button type="button" class="fcard" data-ferramenta="tarjar">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><rect x="8" y="10" width="9" height="3" fill="currentColor"/><rect x="8" y="15" width="6" height="3" fill="currentColor"/></svg>
         <strong>Tarjar dados (LGPD)</strong>
-        <small>Apaga de verdade CPF, nomes e trechos marcados</small>
+        <small>Apaga de verdade CPF, nomes e trechos — também em digitalizados (OCR)</small>
       </button>
       <button type="button" class="fcard" data-ferramenta="limpar">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12l6 6M15 12l-6 6"/></svg>
@@ -927,7 +927,11 @@
           <label for="tj-termos">Nomes e termos:</label>
           <input type="text" id="tj-termos" size="40" maxlength="600" placeholder="separe por ponto e vírgula — ex.: Fulano de Tal; conta 1234-5">
         </div>
-        <div class="note">Maiúsculas e acentos não importam. Depois de localizar, confira as tarjas página a página: arraste para acrescentar, clique numa tarja para removê-la.</div>
+        <div class="opt-row"><input type="checkbox" id="tj-ocr-busca" checked><label for="tj-ocr-busca">Ler páginas digitalizadas (OCR)
+          <small>Páginas que são só imagem (escaneadas, fotos) são lidas para achar os dados — alguns segundos por página</small></label></div>
+        <div class="opt-row"><input type="checkbox" id="tj-ocr-todas"><label for="tj-ocr-todas">Ler também as imagens das páginas com texto
+          <small>Documentos colados como imagem, carimbos, prints — mais lento</small></label></div>
+        <div class="note">Maiúsculas e acentos não importam. Depois de localizar, confira as tarjas página a página: arraste para acrescentar, clique numa tarja para removê-la. Contorno amarelo = texto do PDF · azul = lido por OCR (confira com atenção) · vermelho = desenhado à mão.</div>
       </fieldset>
       <fieldset>
         <legend>Ao aplicar</legend>
@@ -1248,7 +1252,7 @@ window.__results = []; // depuração/testes
 
 // Visualizador hospedado do claude.ai: o sandbox do iframe bloqueia downloads
 // (sem allow-downloads), popups e o seletor de arquivos — avisamos o usuário.
-const VERSAO = '3.3.0 — 28/09/2026';
+const VERSAO = '3.4.0 — 28/09/2026';
 const HOSTED = typeof window.claude !== 'undefined';
 // o rodapé lê a versão daqui — fonte única, sem data duplicada no HTML
 { const vr = document.getElementById('versao-rodape'); if (vr) vr.textContent = 'v' + VERSAO; }
@@ -12016,11 +12020,28 @@ function parCnpjValido(d) {
   return dv(12) === +d[12] && dv(13) === +d[13];
 }
 // padrões prontos (como os "padrões" da Localizar texto e redigir do Acrobat). Número sem pontuação só conta com dígito verificador válido.
+// reOcr: variante tolerante para texto lido por OCR — separadores trocados, duplicados ou com espaço sobrando
+// ("98888-/7777", "529,982.247—25", "/" lido como "1" no CNPJ). O texto do próprio PDF continua com o padrão estrito.
 const PAR_PADROES_TARJA = {
-  cpf: { rotulo: 'CPF', re: () => /(?<![\d.])(\d{3}\s?\.\s?\d{3}\s?\.\s?\d{3}\s?-\s?\d{2}|\d{11})(?![\d])/g, ok: s => /[.-]/.test(s) || parCpfValido(s.replace(/\D/g, '')) },
-  cnpj: { rotulo: 'CNPJ', re: () => /(?<![\d.])(\d{2}\s?\.\s?\d{3}\s?\.\s?\d{3}\s?\/\s?\d{4}\s?-\s?\d{2}|\d{14})(?![\d])/g, ok: s => /[./-]/.test(s) || parCnpjValido(s.replace(/\D/g, '')) },
-  email: { rotulo: 'e-mail', re: () => /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, ok: () => true },
-  telefone: { rotulo: 'telefone', re: () => /(?:\(\d{2}\)\s?|(?<!\d)\d{2}\s)9?\d{4}[-\s]\d{4}(?!\d)/g, ok: () => true },
+  cpf: {
+    rotulo: 'CPF', re: () => /(?<![\d.])(\d{3}\s?\.\s?\d{3}\s?\.\s?\d{3}\s?-\s?\d{2}|\d{11})(?![\d])/g,
+    reOcr: () => /(?<![\d.,])(\d{3}\s?[.,·]\s?\d{3}\s?[.,·]\s?\d{3}\s?[-–—\/.,]{1,2}\s?\d{2}|\d{11})(?!\d)/g,
+    ok: s => /[.,·–—\/-]/.test(s) || parCpfValido(s.replace(/\D/g, '')),
+  },
+  cnpj: {
+    rotulo: 'CNPJ', re: () => /(?<![\d.])(\d{2}\s?\.\s?\d{3}\s?\.\s?\d{3}\s?\/\s?\d{4}\s?-\s?\d{2}|\d{14})(?![\d])/g,
+    reOcr: () => /(?<![\d.,])(\d{2}\s?[.,·]\s?\d{3}\s?[.,·]\s?\d{3}\s?[\/1|]\s?\d{4}\s?[-–—.,]{1,2}\s?\d{2}|\d{14})(?!\d)/g,
+    ok: s => /[.,·–—\/-]/.test(s) || parCnpjValido(s.replace(/\D/g, '')),
+  },
+  email: {
+    rotulo: 'e-mail', re: () => /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g,
+    // o OCR costuma ler o "@" como "(D", "(a)", "©", "&"...
+    reOcr: () => /[A-Za-z0-9._%+-]+\s?(?:@|\(\s?[aAdD@]\s?\)?|[©®&])\s?[A-Za-z0-9-]+(?:\s?[.,]\s?[A-Za-z0-9-]+)*\s?[.,]\s?[A-Za-z]{2,}/g, ok: () => true,
+  },
+  telefone: {
+    rotulo: 'telefone', re: () => /(?:\(\d{2}\)\s?|(?<!\d)\d{2}\s)9?\d{4}[-\s]\d{4}(?!\d)/g,
+    reOcr: () => /(?:\(\s?\d{2}\s?\)\s?|(?<!\d)\d{2}\s)9?\s?\d{4}\s?[-–—\/.]{1,2}\s?\d{4}(?!\d)/g, ok: () => true,
+  },
 };
 
 let __parMedidor = null;
@@ -12059,10 +12080,95 @@ function __parTextoPagina(tc) {
   return { texto, norm, mapa };
 }
 
-// procura em todas as páginas; devolve Map(página → [{u,v,w,h,termo,tipo}]) e contagem por tipo
-async function parLocalizarParaTarjar(djs, criterios) {
+// OCR: letras que o leitor costuma confundir com dígitos, trocadas SÓ dentro de palavras majoritariamente numéricas
+// ("CPF 12O.456.789-0l" → "CPF 120.456.789-01"). Troca 1 por 1: as posições dos caracteres não mudam.
+const PAR_OCR_DIGITO = { O: '0', o: '0', Q: '0', D: '0', l: '1', I: '1', i: '1', '|': '1', S: '5', s: '5', B: '8', Z: '2', z: '2' };
+function parNormalizarOcr(texto) {
+  return String(texto).replace(/\S+/g, tok => {
+    const dig = (tok.match(/\d/g) || []).length, letras = (tok.match(/[A-Za-z|]/g) || []).length;
+    if (dig < 3 || dig < letras * 2) return tok;
+    return tok.replace(/[OoQDlIi|SsBZz]/g, c => PAR_OCR_DIGITO[c] || c);
+  });
+}
+
+// lê uma página por OCR e devolve as palavras com a caixa em coordenadas VISUAIS (pt), linha a linha
+async function parOcrPagina(pg, card, rotulo) {
+  const vp1 = pg.getViewport({ scale: 1 });
+  let s = 300 / 72;
+  const maior = Math.max(vp1.width, vp1.height);
+  if (maior * s > 3600) s = 3600 / maior;
+  const vp = pg.getViewport({ scale: s });
+  const cv = criarCanvas(Math.max(1, Math.round(vp.width)), Math.max(1, Math.round(vp.height)));
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+  await pg.render({ canvasContext: cx, viewport: vp, intent: 'print', annotationMode: pdfjsLib.AnnotationMode.ENABLE_STORAGE }).promise;
+  const jpeg = await canvasParaJpegBytes(cv, 0.92);
+  cv.width = cv.height = 0;
+  const rec = await reconhecerBlob(new Blob([jpeg], { type: 'image/jpeg' }), card, rotulo, s * 72);
+  const d = rec && rec.data;
+  let linhas = d && Array.isArray(d.lines) && d.lines.length ? d.lines.map(l => l.words || []) : null;
+  if (!linhas && d && Array.isArray(d.words)) linhas = [d.words];
+  return (linhas || []).map(ws => ws.filter(w => w && w.text && w.text.trim() && w.bbox).map(w => ({
+    text: w.text.trim(), u: w.bbox.x0 / s, v: w.bbox.y0 / s, w: (w.bbox.x1 - w.bbox.x0) / s, h: (w.bbox.y1 - w.bbox.y0) / s,
+  }))).filter(ws => ws.length);
+}
+
+// texto corrido do OCR + mapa caractere → (palavra, posição). O campo "texto" leva a correção de dígitos.
+function __parTextoOcr(linhas) {
+  let bruto = '';
+  const mapa = [], palavras = [];
+  for (const ws of linhas) for (const w of ws) {
+    if (bruto) { bruto += ' '; mapa.push(null); }
+    const i = palavras.push(w) - 1;
+    for (let k = 0; k < w.text.length; k++) { bruto += w.text[k]; mapa.push({ i, k }); }
+  }
+  let norm = '';
+  for (let k = 0; k < bruto.length; k++) norm += parNormalizarChar(bruto[k]);
+  return { ocr: true, texto: parNormalizarOcr(bruto), bruto, norm: norm.length === bruto.length ? norm : bruto.toLowerCase(), mapa, palavras };
+}
+// caixa de palavra[k0..k1) lida por OCR (proporcional aos caracteres, com folga de meio caractere de cada lado)
+function __parCaixaOcr(w, k0, k1) {
+  const n = Math.max(1, w.text.length), cw = w.w / n;
+  const u0 = Math.max(0, w.u + cw * k0 - cw * 0.5), u1 = w.u + cw * k1 + cw * 0.5;
+  return { u: u0, v: Math.max(0, w.v - w.h * 0.18), w: u1 - u0, h: w.h * 1.36 };
+}
+
+// aplica as regras a um texto com mapa; caixa(ref, k0, k1) devolve o retângulo de um trecho de um item/palavra
+function __parCasar(regras, fonte, caixa) {
+  const achados = [];
+  for (const r of regras) {
+    const re = fonte.ocr && r.reOcr ? r.reOcr : r.re;
+    re.lastIndex = 0;
+    const alvo = r.campo === 'norm' ? fonte.norm : fonte.texto;
+    let m;
+    while ((m = re.exec(alvo))) {
+      if (!m[0]) { re.lastIndex++; continue; }
+      const trecho = (fonte.bruto || fonte.texto).slice(m.index, m.index + m[0].length);
+      if (!r.ok(fonte.texto.slice(m.index, m.index + m[0].length))) continue;
+      const porItem = new Map();
+      for (let c = m.index; c < m.index + m[0].length; c++) {
+        const ref = fonte.mapa[c]; if (!ref) continue;
+        const g = porItem.get(ref.i) || { k0: ref.k, k1: ref.k + 1 };
+        g.k0 = Math.min(g.k0, ref.k); g.k1 = Math.max(g.k1, ref.k + 1);
+        porItem.set(ref.i, g);
+      }
+      achados.push({ tipo: r.tipo, termo: trecho, caixas: [...porItem].map(([i, g]) => caixa(i, g.k0, g.k1)) });
+    }
+  }
+  return achados;
+}
+function __parSobrepoe(a, b) {
+  const x = Math.max(0, Math.min(a.u + a.w, b.u + b.w) - Math.max(a.u, b.u)), y = Math.max(0, Math.min(a.v + a.h, b.v + b.h) - Math.max(a.v, b.v));
+  return x * y / Math.max(1e-6, Math.min(a.w * a.h, b.w * b.h));
+}
+
+// Procura em todas as páginas; devolve Map(página → [{u,v,w,h,termo,tipo,origem}]) e contagem por tipo.
+// opcoes.ocr: 'auto' (lê por OCR as páginas sem texto — digitalizadas), 'todas' (também as imagens das páginas com
+// texto) ou 'nao'. opcoes.card: {status, checar} para o progresso do OCR; opcoes.parar(): interrompe entre páginas.
+async function parLocalizarParaTarjar(djs, criterios, opcoes) {
+  opcoes = Object.assign({ ocr: 'nao', card: null, parar: null, tolerante: false }, opcoes || {});
   const regras = [];
-  for (const [k, p] of Object.entries(PAR_PADROES_TARJA)) if (criterios[k]) regras.push({ tipo: p.rotulo, re: p.re(), ok: p.ok, campo: 'texto' });
+  for (const [k, p] of Object.entries(PAR_PADROES_TARJA)) if (criterios[k]) regras.push({ tipo: p.rotulo, re: p.re(), reOcr: (p.reOcr || p.re)(), ok: p.ok, campo: 'texto' });
   for (const t of (criterios.termos || [])) {
     const n = parNormalizar(t);
     if (n.length < 2) continue;
@@ -12071,42 +12177,45 @@ async function parLocalizarParaTarjar(djs, criterios) {
   }
   if (!regras.length) throw new Error('Marque ao menos um tipo de dado (CPF, CNPJ...) ou digite um termo para localizar.');
   const achados = new Map(), contagem = {};
-  let paginasSemTexto = 0;
+  let paginasSemTexto = 0, paginasOcr = 0, porOcr = 0, interrompido = false;
+  const card = opcoes.card || { status() { }, checar() { } };
   for (let pi = 0; pi < djs.numPages; pi++) {
+    if (opcoes.parar && opcoes.parar()) { interrompido = true; break; }
     const pg = await djs.getPage(pi + 1);
     const vp = pg.getViewport({ scale: 1 });
     const tc = await pg.getTextContent();
-    const { texto, norm, mapa } = __parTextoPagina(tc);
-    if (texto.replace(/\s+/g, '').length < 20) paginasSemTexto++;
-    for (const r of regras) {
-      r.re.lastIndex = 0;
-      const alvo = r.campo === 'norm' ? norm : texto;
-      let m;
-      while ((m = r.re.exec(alvo))) {
-        if (!m[0]) { r.re.lastIndex++; continue; }
-        const trecho = texto.slice(m.index, m.index + m[0].length);
-        if (!r.ok(trecho)) continue;
-        // agrupa os caracteres por item de texto
-        const porItem = new Map();
-        for (let c = m.index; c < m.index + m[0].length; c++) {
-          const ref = mapa[c]; if (!ref) continue;
-          const g = porItem.get(ref.i) || { k0: ref.k, k1: ref.k + 1 };
-          g.k0 = Math.min(g.k0, ref.k); g.k1 = Math.max(g.k1, ref.k + 1);
-          porItem.set(ref.i, g);
-        }
-        const lista = achados.get(pi) || [];
-        for (const [i, g] of porItem) {
-          const it = tc.items[i];
-          const fam = tc.styles && tc.styles[it.fontName] ? tc.styles[it.fontName].fontFamily : 'sans-serif';
-          lista.push(Object.assign(parCaixaTrecho(it, g.k0, g.k1, vp, fam), { termo: trecho, tipo: r.tipo, origem: 'busca' }));
-        }
-        achados.set(pi, lista);
-        contagem[r.tipo] = (contagem[r.tipo] || 0) + 1;
-      }
+    const fonte = __parTextoPagina(tc);
+    const semTexto = fonte.texto.replace(/\s+/g, '').length < 20;
+    // tolerante: o texto do arquivo pode ser camada de OCR (reconferência de arquivo tarjado) → padrões de OCR
+    if (opcoes.tolerante) Object.assign(fonte, { ocr: true, bruto: fonte.texto, texto: parNormalizarOcr(fonte.texto) });
+    const lista = achados.get(pi) || [];
+    for (const a of __parCasar(regras, fonte, (i, k0, k1) => {
+      const it = tc.items[i];
+      const fam = tc.styles && tc.styles[it.fontName] ? tc.styles[it.fontName].fontFamily : 'sans-serif';
+      return parCaixaTrecho(it, k0, k1, vp, fam);
+    })) {
+      for (const c of a.caixas) lista.push(Object.assign(c, { termo: a.termo, tipo: a.tipo, origem: 'busca' }));
+      contagem[a.tipo] = (contagem[a.tipo] || 0) + 1;
     }
+    // ocrPronto: leitura já feita desta página (ex.: a leitura COMPLETA guardada ao aplicar as tarjas, sem o corte por
+    // confiança da camada de texto) — usada no lugar de um novo OCR
+    const pronto = opcoes.ocrPronto && opcoes.ocrPronto.get(pi);
+    if (pronto || opcoes.ocr === 'todas' || (opcoes.ocr === 'auto' && semTexto)) {
+      const linhas = pronto || await parOcrPagina(pg, card, 'Lendo a página ' + (pi + 1) + ' de ' + djs.numPages + ' por OCR');
+      paginasOcr++;
+      const fo = __parTextoOcr(linhas);
+      for (const a of __parCasar(regras, fo, (i, k0, k1) => __parCaixaOcr(fo.palavras[i], k0, k1))) {
+        // o mesmo dado já achado no texto do PDF (modo "todas") não conta duas vezes
+        if (a.caixas.every(c => lista.some(x => __parSobrepoe(x, c) > 0.3))) continue;
+        for (const c of a.caixas) lista.push(Object.assign(c, { termo: a.termo, tipo: a.tipo, origem: 'ocr' }));
+        contagem[a.tipo] = (contagem[a.tipo] || 0) + 1;
+        porOcr++;
+      }
+    } else if (semTexto) paginasSemTexto++;
+    if (lista.length) achados.set(pi, lista);
     pg.cleanup();
   }
-  return { achados, contagem, paginasSemTexto };
+  return { achados, contagem, paginasSemTexto, paginasOcr, porOcr, interrompido };
 }
 
 // Aplica as tarjas. marcas: Map(página → [{u,v,w,h,termo?}]). op: { ocr, limpar, dpi }
@@ -12121,6 +12230,7 @@ async function parAplicarTarjas(bytes, marcas, op, card) {
   const font = op.ocr ? await doc.embedFont(PL.StandardFonts.Helvetica) : null;
   const widgets = new Set();
   let ocrPaginas = 0, tarjas = 0;
+  const ocrLido = new Map();
   try {
     for (let k = 0; k < pags.length; k++) {
       const pi = pags[k];
@@ -12136,8 +12246,12 @@ async function parAplicarTarjas(bytes, marcas, op, card) {
       cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
       // intent 'print' + anotações: o que o leitor imprimiria (inclusive campos preenchidos e comentários visíveis)
       await pg.render({ canvasContext: cx, viewport: vp, intent: 'print', annotationMode: pdfjsLib.AnnotationMode.ENABLE_STORAGE }).promise;
-      cx.fillStyle = '#000';
-      for (const m of marcas.get(pi)) { cx.fillRect(Math.floor(m.u * s) - 1, Math.floor(m.v * s) - 1, Math.ceil(m.w * s) + 2, Math.ceil(m.h * s) + 2); tarjas++; }
+      const pintar = cor => { cx.fillStyle = cor; for (const m of marcas.get(pi)) cx.fillRect(Math.floor(m.u * s) - 1, Math.floor(m.v * s) - 1, Math.ceil(m.w * s) + 2, Math.ceil(m.h * s) + 2); };
+      // cópia com as tarjas em BRANCO só para o OCR: as faixas pretas confundem a separação das palavras
+      // ("CPF ▇▇▇ telefone" virava uma palavra só); o conteúdo tarjado também está apagado nela
+      let jpegOcr = null;
+      if (op.ocr) { pintar('#fff'); jpegOcr = await canvasParaJpegBytes(cv, 0.88); }
+      pintar('#000'); tarjas += marcas.get(pi).length;
       const larguraPx = cv.width, alturaPx = cv.height;
       const jpeg = await canvasParaJpegBytes(cv, 0.88);
       cv.width = cv.height = 0;
@@ -12157,10 +12271,29 @@ async function parAplicarTarjas(bytes, marcas, op, card) {
       page.drawImage(img, { x: 0, y: 0, width: vw, height: vh });
       if (op.ocr) {
         let rec = null;
-        try { rec = await reconhecerBlob(new Blob([jpeg], { type: 'image/jpeg' }), card || { status() { }, checar() { } }, 'Refazendo o texto pesquisável da página ' + (pi + 1), s * 72); }
+        try { rec = await reconhecerBlob(new Blob([jpegOcr], { type: 'image/jpeg' }), card || { status() { }, checar() { } }, 'Refazendo o texto pesquisável da página ' + (pi + 1), s * 72); }
         catch (e) { if (e && e.cancelado) throw e; }
         const esc = vw / larguraPx;
-        if (rec && rec.data && desenharCamadaOcr(page, font, rec, (px, py) => [px * esc, (alturaPx - py) * esc], esc)) ocrPaginas++;
+        // sob a tarja nada é legível: o que o OCR "ler" ali é borda da faixa preta → não entra na camada de texto
+        // segunda barreira: palavra com 25% ou mais da área sobre tarjas é ruído da borda da faixa, não entra
+        const sobTarja = w => {
+          const a = { u: w.bbox.x0 / s, v: w.bbox.y0 / s, w: (w.bbox.x1 - w.bbox.x0) / s, h: (w.bbox.y1 - w.bbox.y0) / s };
+          const area = Math.max(1e-6, a.w * a.h);
+          let coberta = 0;
+          for (const m of marcas.get(pi)) coberta += Math.max(0, Math.min(a.u + a.w, m.u + m.w) - Math.max(a.u, m.u)) * Math.max(0, Math.min(a.v + a.h, m.v + m.h) - Math.max(a.v, m.v));
+          return coberta / area >= 0.25;
+        };
+        if (rec && rec.data) {
+          const dados = rec.data;
+          const linhas = Array.isArray(dados.lines) ? dados.lines.map(l => Object.assign({}, l, { words: (l.words || []).filter(w => w && w.bbox && !sobTarja(w)) })).filter(l => l.words.length) : null;
+          const limpo = { data: { lines: linhas, words: Array.isArray(dados.words) ? dados.words.filter(w => w && w.bbox && !sobTarja(w)) : [] } };
+          if (desenharCamadaOcr(page, font, limpo, (px, py) => [px * esc, (alturaPx - py) * esc], esc)) ocrPaginas++;
+          // leitura COMPLETA (todas as confianças) guardada para a reconferência: a camada de texto descarta palavras
+          // de baixa confiança, e um dado visível não pode escapar da reconferência por isso
+          ocrLido.set(pi, (linhas || [limpo.data.words]).map(l => (l.words || l).filter(w => w.text && w.text.trim()).map(w => ({
+            text: w.text.trim(), u: w.bbox.x0 / s, v: w.bbox.y0 / s, w: (w.bbox.x1 - w.bbox.x0) / s, h: (w.bbox.y1 - w.bbox.y0) / s,
+          }))).filter(ws => ws.length));
+        }
       }
     }
   } finally { try { djs.destroy(); } catch (e) { } }
@@ -12175,11 +12308,13 @@ async function parAplicarTarjas(bytes, marcas, op, card) {
   if (typeof doc.flush === 'function') await doc.flush();
   const orfaos = parColetarLixo(doc);
   const saida = await doc.save({ useObjectStreams: true, objectsPerTick: Infinity, updateFieldAppearances: false });
-  return { bytes: saida, paginas: pags.length, tarjas, ocrPaginas, campos, tags, orfaos, limpeza };
+  return { bytes: saida, paginas: pags.length, tarjas, ocrPaginas, campos, tags, orfaos, limpeza, ocrLido };
 }
 
 // Conferência do arquivo final: nada legível sob as tarjas (bloqueia) e termos localizados que ainda aparecem (avisa)
-async function parVerificarTarjas(saida, marcas, termos) {
+// busca: opcional { criterios, ocr, card } — repete a busca NO RESULTADO e avisa o que ainda aparece (ex.: um e-mail que o OCR não
+// reconheceu na primeira leitura). O que não estiver no arquivo como texto é relido por OCR se a busca original usou OCR.
+async function parVerificarTarjas(saida, marcas, termos, busca) {
   const problemas = [], avisos = [];
   const d = await abrirPdf(saida.slice());
   try {
@@ -12187,6 +12322,20 @@ async function parVerificarTarjas(saida, marcas, termos) {
       if (!lista || !lista.length) continue;
       const pg = await d.getPage(pi + 1);
       const vp = pg.getViewport({ scale: 1 });
+      // cada tarja precisa estar PRETA no arquivo final (em página digitalizada não há texto para reler)
+      const e = 2, vpe = pg.getViewport({ scale: e });
+      const cv = criarCanvas(Math.max(1, Math.round(vpe.width)), Math.max(1, Math.round(vpe.height))), cx = cv.getContext('2d');
+      cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+      await pg.render({ canvasContext: cx, viewport: vpe, intent: 'print' }).promise;
+      for (const m of lista) {
+        const x0 = Math.ceil(m.u * e) + 1, y0 = Math.ceil(m.v * e) + 1, x1 = Math.floor((m.u + m.w) * e) - 1, y1 = Math.floor((m.v + m.h) * e) - 1;
+        if (x1 <= x0 || y1 <= y0) continue;
+        const px = cx.getImageData(x0, y0, x1 - x0, y1 - y0).data;
+        let claros = 0;
+        for (let i = 0; i < px.length; i += 4) if (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11 > 70) claros++;
+        if (claros / (px.length / 4) > 0.03) problemas.push('página ' + (pi + 1) + ': a tarja' + (m.termo ? ' de "' + m.termo.slice(0, 30) + '"' : '') + ' não ficou totalmente preta no arquivo final');
+      }
+      cv.width = cv.height = 0;
       const tc = await pg.getTextContent();
       for (const it of tc.items) {
         if (!it.str || !it.str.trim()) continue;
@@ -12224,6 +12373,15 @@ async function parVerificarTarjas(saida, marcas, termos) {
       const foraN = parNormalizar(fora);
       for (const t of alvos) if (foraN.includes(t)) onde.set(t, (onde.get(t) || []).concat('estrutura do arquivo (marcadores, metadados ou anotações)'));
       for (const [t, locais] of onde) avisos.push('"' + t + '" ainda aparece em: ' + locais.join(', '));
+    }
+    if (busca && busca.criterios) {
+      try {
+        const r2 = await parLocalizarParaTarjar(d, busca.criterios, { ocr: busca.ocr === 'nao' ? 'nao' : 'auto', card: busca.card, tolerante: true, ocrPronto: busca.ocrPronto || null });
+        for (const [pi, lista] of r2.achados) {
+          const vistos = new Set();
+          for (const m of lista) { const k = m.tipo + '|' + m.termo; if (vistos.has(k)) continue; vistos.add(k); avisos.push('Ainda aparece no resultado, pág. ' + (pi + 1) + ': ' + m.tipo + ' "' + m.termo.slice(0, 50) + '" — não estava marcado; se deve sair, tarje de novo o arquivo resultante'); }
+        }
+      } catch (e) { if (!(e && /Marque ao menos/.test(e.message))) avisos.push('A reconferência da busca no resultado falhou: ' + ((e && e.message) || e)); }
     }
   } finally { d.destroy(); }
   return { problemas, avisos };
@@ -12337,6 +12495,8 @@ function parTjContagem() {
 }
 function parTjLimpar() {
   TJ.sessao++;
+  TJ.buscaId = (TJ.buscaId || 0) + 1; TJ.buscando = false; TJ.parar = false;
+  const bl = document.getElementById('tj-localizar'); if (bl) { bl.textContent = 'Localizar e marcar'; bl.disabled = false; }
   if (TJ.djs) { try { TJ.djs.destroy(); } catch (e) { } }
   Object.assign(TJ, { f: null, bytes: null, djs: null, pag: 0, marcas: new Map(), fundo: null, drag: null });
   $('#tj-painel').classList.add('oculto');
@@ -12397,7 +12557,7 @@ function parTjDesenhar() {
   for (const m of (TJ.marcas.get(TJ.pag) || [])) {
     cx.fillStyle = 'rgba(0,0,0,0.72)';
     cx.fillRect(m.u * k, m.v * k, m.w * k, m.h * k);
-    cx.strokeStyle = m.origem === 'busca' ? '#d4a017' : '#9c2129';
+    cx.strokeStyle = m.origem === 'ocr' ? '#2a6fdb' : m.origem === 'busca' ? '#d4a017' : '#9c2129';
     cx.lineWidth = 2 * TJ.dpr;
     cx.strokeRect(m.u * k, m.v * k, m.w * k, m.h * k);
   }
@@ -12422,15 +12582,23 @@ function __parSobreposicao(a, b) {
 }
 async function parTjLocalizar() {
   if (!TJ.djs) return;
+  const btn = $('#tj-localizar'), nota = $('#tj-nota'), sessao = TJ.sessao;
+  // durante a leitura o botão vira "Parar a leitura" (interrompe entre páginas e mantém o que já achou)
+  if (TJ.buscando) { TJ.parar = true; btn.disabled = true; nota.textContent = 'Interrompendo depois da página atual...'; return; }
   const crit = {
     cpf: $('#tj-cpf').checked, cnpj: $('#tj-cnpj').checked, email: $('#tj-email').checked, telefone: $('#tj-telefone').checked,
     termos: $('#tj-termos').value.split(/[;\n]/).map(s => s.trim()).filter(Boolean),
   };
-  const btn = $('#tj-localizar'), nota = $('#tj-nota'), sessao = TJ.sessao;
-  btn.disabled = true;
+  const ocr = $('#tj-ocr-todas').checked ? 'todas' : $('#tj-ocr-busca').checked ? 'auto' : 'nao';
+  const buscaId = TJ.buscaId = (TJ.buscaId || 0) + 1;
+  TJ.buscando = true; TJ.parar = false;
+  btn.textContent = ocr === 'nao' ? 'Localizando...' : 'Parar a leitura';
+  btn.disabled = ocr === 'nao';
+  $('#tj-aplicar').disabled = true;
   nota.textContent = 'Procurando em ' + TJ.djs.numPages + ' página(s)...';
+  const progresso = { status: t => { if (sessao === TJ.sessao) nota.textContent = t; }, checar() { } };
   try {
-    const r = await parLocalizarParaTarjar(TJ.djs, crit);
+    const r = await parLocalizarParaTarjar(TJ.djs, crit, { ocr, card: progresso, parar: () => TJ.parar || sessao !== TJ.sessao });
     if (sessao !== TJ.sessao) return;
     let novas = 0;
     for (const [pi, lista] of r.achados) {
@@ -12440,30 +12608,44 @@ async function parTjLocalizar() {
     }
     const partes = Object.entries(r.contagem).map(([k, v]) => v + ' × ' + k);
     let txt = partes.length ? 'Encontrado: ' + partes.join(', ') + ' — ' + novas + ' tarja(s) nova(s). Confira cada página antes de aplicar.' : 'Nada encontrado com esses critérios.';
-    if (r.paginasSemTexto) txt += ' ' + r.paginasSemTexto + ' página(s) não têm texto (provavelmente digitalizadas): nelas a busca não enxerga nada — desenhe as tarjas à mão.';
+    if (r.paginasOcr) txt += ' ' + r.paginasOcr + ' página(s) lida(s) por OCR' + (r.porOcr ? ', ' + r.porOcr + ' dado(s) achado(s) nelas (contorno azul): a leitura de imagem pode errar, confira com atenção.' : '.');
+    if (r.paginasSemTexto) txt += ' ' + r.paginasSemTexto + ' página(s) não têm texto (provavelmente digitalizadas) e não foram lidas: marque "Ler páginas digitalizadas (OCR)" ou desenhe as tarjas à mão.';
+    if (r.interrompido) txt = 'Leitura interrompida — valem só as páginas já lidas. ' + txt;
     nota.textContent = txt;
     const primeira = [...r.achados.keys()].sort((a, b) => a - b)[0];
     if (primeira != null && primeira !== TJ.pag) { TJ.pag = primeira; await parTjRender(); } else parTjDesenhar();
   } catch (e) {
-    nota.textContent = (e && e.message) || String(e);
-  } finally { btn.disabled = false; parTjContagem(); }
+    if (sessao === TJ.sessao) nota.textContent = (e && e.message) || String(e);
+  } finally {
+    // só a busca mais recente devolve o botão (trocar de arquivo no meio não destrava a busca nova)
+    if (TJ.buscaId === buscaId) {
+      TJ.buscando = false; TJ.parar = false;
+      btn.textContent = 'Localizar e marcar'; btn.disabled = false;
+      if (sessao === TJ.sessao) parTjContagem();
+    }
+  }
 }
 function parTjAplicar() {
-  if (!TJ.djs) return;
+  if (!TJ.djs || TJ.buscando) return;
   if (!parTjTotal().n) { alert('Marque ao menos uma tarja: use "Localizar e marcar" ou arraste sobre a página.'); return; }
   const f = TJ.f, bytes = TJ.bytes;
   const marcas = new Map([...TJ.marcas].filter(([, l]) => l.length).map(([k, l]) => [k, l.map(m => Object.assign({}, m))]));
   const termos = [...new Set([...marcas.values()].flat().filter(m => m.termo).map(m => m.termo))];
   const op = { ocr: $('#tj-ocr').checked, limpar: $('#tj-limpar').checked };
+  // a mesma busca é repetida no resultado para avisar o que ainda aparecer
+  const busca = {
+    criterios: { cpf: $('#tj-cpf').checked, cnpj: $('#tj-cnpj').checked, email: $('#tj-email').checked, telefone: $('#tj-telefone').checked, termos: $('#tj-termos').value.split(/[;\n]/).map(x => x.trim()).filter(Boolean) },
+    ocr: $('#tj-ocr-todas').checked || $('#tj-ocr-busca').checked ? 'auto' : 'nao',
+  };
   parTjLimpar();
-  enfileirar(() => parExecutarTarja(f, bytes, marcas, termos, op)).catch(() => { });
+  enfileirar(() => parExecutarTarja(f, bytes, marcas, termos, op, busca)).catch(() => { });
 }
-async function parExecutarTarja(f, bytes, marcas, termos, op) {
+async function parExecutarTarja(f, bytes, marcas, termos, op, busca) {
   const card = makeCard(f.name + ' — tarjar', f.size);
   try {
     const r = await parAplicarTarjas(bytes, marcas, op, card);
     card.status('Conferindo o arquivo tarjado...');
-    const v = await parVerificarTarjas(r.bytes, marcas, termos);
+    const v = await parVerificarTarjas(r.bytes, marcas, termos, busca ? Object.assign({ card, ocrPronto: r.ocrLido }, busca) : null);
     card.done();
     const res = card.result();
     if (v.problemas.length) {
@@ -12945,6 +13127,74 @@ async function __paridadeCasos(caso, afirmar) {
     afirmar(mk.length === 1 && mk[0].pagina === 0, 'o marcador deveria continuar apontando para a página 1: ' + JSON.stringify(mk));
     let e = null; try { await parAplicarTarjas(bytes, new Map(), {}); } catch (x) { e = x; }
     afirmar(e && /Nenhuma tarja/.test(e.message), 'sem tarjas deveria ser recusado');
+  });
+
+  await caso('Paridade: OCR da tarja — letras confundidas com dígitos e separadores ruidosos', async () => {
+    afirmar(parNormalizarOcr('CPF l23.456.789-O9 e codigo ABC') === 'CPF 123.456.789-09 e codigo ABC', parNormalizarOcr('CPF l23.456.789-O9 e codigo ABC'));
+    afirmar(parNormalizarOcr('Sala 3B Bloco S') === 'Sala 3B Bloco S', 'palavras com poucos dígitos não podem mudar');
+    afirmar(parNormalizarOcr('(83) 9888B-7777') === '(83) 98888-7777', parNormalizarOcr('(83) 9888B-7777'));
+    const casa = (tipo, qual, txt) => { const re = PAR_PADROES_TARJA[tipo][qual](); const m = re.exec(txt); return m ? m[0] : null; };
+    afirmar(casa('telefone', 'reOcr', 'fone (83) 98888-/7777 fim') === '(83) 98888-/7777' && casa('telefone', 're', 'fone (83) 98888-/7777 fim') === null, 'telefone com separador ruidoso: só o padrão de OCR aceita');
+    afirmar(casa('cpf', 'reOcr', 'CPF 529,982.247—25.') === '529,982.247—25', 'CPF com vírgula e travessão lidos pelo OCR');
+    afirmar(casa('cnpj', 'reOcr', 'CNPJ 11.222.33310001-81') === '11.222.33310001-81', 'CNPJ com a barra lida como 1');
+    afirmar(casa('email', 'reOcr', 'mail fulano @exemplo.com') === 'fulano @exemplo.com', 'e-mail com espaço antes do @');
+    afirmar(casa('email', 'reOcr', 'contato joana(Dexemplo.com fim') === 'joana(Dexemplo.com' && casa('email', 'reOcr', 'Processo (D) 2026') === null, 'e-mail com o @ lido como (D)');
+  });
+
+  // PDF DIGITALIZADO (só imagem, sem camada de texto): página normal + página guardada de lado com /Rotate 90
+  const __tarjaDigitalizada = async () => {
+    const W = 1654, H = 2339, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const cx = cv.getContext('2d');
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, H); cx.fillStyle = '#111'; cx.font = '40px Arial';
+    const linhas = [['Requerente: Maria Jose da Conceicao', 300], ['CPF 529.982.247-25 telefone (83) 98888-7777', 390], ['Assunto publico que permanece', 480], ['Contato: joana@exemplo.com', 570]];
+    for (const [t, y] of linhas) cx.fillText(t, 150, y);
+    const k = 595 / W; // px → pt
+    const x0 = 150 + cx.measureText('CPF ').width, x1 = x0 + cx.measureText('529.982.247-25').width;
+    const esperado = { u: x0 * k, v: (390 - 30) * k, w: (x1 - x0) * k, h: 31 * k }; // dígitos: ~30 px acima da linha de base
+    const jpg = new Uint8Array(await (await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.9))).arrayBuffer());
+    const PLd = PDFLib, d = await PLd.PDFDocument.create(), img = await d.embedJpg(jpg);
+    d.addPage([595, 842]).drawImage(img, { x: 0, y: 0, width: 595, height: 842 });
+    const p2 = d.addPage([842, 595]); p2.setRotation(PLd.degrees(90));
+    p2.drawImage(img, { x: 842, y: 0, width: 595, height: 842, rotate: PLd.degrees(90) });
+    return { bytes: await d.save(), esperado };
+  };
+
+  await caso('Paridade: tarjar página DIGITALIZADA — OCR acha CPF, telefone e nome e a tarja cai no lugar (etapa lenta)', async () => {
+    const { bytes, esperado } = await __tarjaDigitalizada();
+    const d = await abrirPdf(bytes.slice());
+    let semOcr, r;
+    try {
+      semOcr = await parLocalizarParaTarjar(d, { cpf: true }, { ocr: 'nao' });
+      r = await parLocalizarParaTarjar(d, { cpf: true, telefone: true, email: true, termos: ['Maria Jose da Conceicao'] }, { ocr: 'auto' });
+    } finally { d.destroy(); }
+    afirmar(!Object.keys(semOcr.contagem).length && semOcr.paginasSemTexto === 2, 'sem OCR a página digitalizada não tem o que achar: ' + JSON.stringify(semOcr.contagem));
+    afirmar(r.paginasOcr === 2, 'páginas lidas por OCR: ' + r.paginasOcr);
+    afirmar(r.contagem.CPF === 2 && r.contagem.telefone === 2 && r.contagem['e-mail'] === 2 && r.contagem['"Maria Jose da Conceicao"'] === 2, 'contagem por OCR: ' + JSON.stringify(r.contagem));
+    for (const pi of [0, 1]) {
+      const m = r.achados.get(pi).find(x => x.tipo === 'CPF');
+      afirmar(m && m.origem === 'ocr', 'tarja da pág. ' + (pi + 1) + ' deveria vir do OCR');
+      const cobre = m.u <= esperado.u + 1 && m.u + m.w >= esperado.u + esperado.w - 1 && m.v <= esperado.v + 2 && m.v + m.h >= esperado.v + esperado.h - 2;
+      afirmar(cobre && m.w <= esperado.w * 1.45, 'pág. ' + (pi + 1) + ': tarja [' + [m.u, m.v, m.w, m.h].map(n => n.toFixed(1)) + '] deveria cobrir o CPF desenhado em [' + [esperado.u, esperado.v, esperado.w, esperado.h].map(n => n.toFixed(1)) + '] sem pegar o resto da linha');
+    }
+    const termos = [...new Set([...r.achados.values()].flat().map(m => m.termo))];
+    // a conferência por pixel acusa o original (nada foi tarjado ainda)
+    const falso = await parVerificarTarjas(bytes, r.achados, termos);
+    afirmar(falso.problemas.some(p => /não ficou totalmente preta/.test(p)), 'a conferência por imagem deveria acusar o original sem tarja');
+    const crit = { cpf: true, telefone: true, email: true, termos: ['Maria Jose da Conceicao'] };
+    const t = await parAplicarTarjas(bytes, r.achados, { ocr: true, limpar: true });
+    const v = await parVerificarTarjas(t.bytes, r.achados, termos, { criterios: crit, ocr: 'auto', ocrPronto: t.ocrLido });
+    afirmar(!v.problemas.length, 'conferência: ' + v.problemas.join('; '));
+    afirmar(!v.avisos.some(a => /Ainda aparece/.test(a)), 'a reconferência achou dado no resultado: ' + v.avisos.join(' | '));
+    const txt = (await __parTextosPaginas(t.bytes)).join(' | ');
+    afirmar(!/529|98888|Concei|joana|exemplo/i.test(txt), 'dado tarjado ainda legível no texto (OCR) do resultado: ' + txt.slice(0, 200));
+    // a reconferência precisa pegar um dado que ficou SEM tarja (aqui: os e-mails desmarcados de propósito)
+    const semEmail = new Map([...r.achados].map(([k, l]) => [k, l.filter(m => m.tipo !== 'e-mail')]));
+    const t2 = await parAplicarTarjas(bytes, semEmail, { ocr: true, limpar: true });
+    const v2 = await parVerificarTarjas(t2.bytes, semEmail, termos, { criterios: crit, ocr: 'auto', ocrPronto: t2.ocrLido });
+    afirmar(v2.avisos.filter(a => /Ainda aparece/.test(a) && /e-mail/.test(a)).length === 2, 'a reconferência deveria avisar o e-mail que ficou nas 2 páginas: ' + v2.avisos.join(' | '));
+    afirmar(/Assunto|publico/i.test(txt), 'o texto fora das tarjas deveria continuar pesquisável: ' + txt.slice(0, 200));
+    const tudo = await __parTudoTexto(t.bytes);
+    afirmar(!/529\.?982|98888/.test(tudo), 'dado tarjado recuperável no arquivo');
   });
 
   await caso('Paridade: tarjar com OCR mantém pesquisável o texto fora das tarjas (etapa lenta)', async () => {
